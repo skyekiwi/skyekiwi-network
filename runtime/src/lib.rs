@@ -2,7 +2,6 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit="256"]
 
-// Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
@@ -23,7 +22,6 @@ use sp_version::RuntimeVersion;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 
-// A few exports that help ease life for downstream crates.
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -39,8 +37,7 @@ pub use frame_support::{
 };
 use pallet_transaction_payment::CurrencyAdapter;
 
-/// Import the template pallet.
-pub use pallet_template;
+pub use pallet_naming;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -267,9 +264,22 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-/// Configure the pallet-template in pallets/template.
-impl pallet_template::Config for Runtime {
-	type Event = Event;
+parameter_types! {
+    pub const ReservationFee: u128 = 10_000_000_000_000;
+		// pub const Day: BlockNumber = DAYS;
+		pub const BlockPerPeriod: BlockNumber = 5;
+		
+		// reserve a slot no more than 5 years.
+		pub const MaxPeriod: u32 = 1825;
+}
+
+impl pallet_naming::Config for Runtime {
+    type ReservationFee = ReservationFee;
+		type BlockPerPeriod = BlockPerPeriod;
+		type MaxPeriod = MaxPeriod;
+
+    type Event = Event;
+    type Currency = Balances;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -287,8 +297,8 @@ construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
-		// Include the custom logic from the pallet-template in the runtime.
-		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
+
+		Naming: pallet_naming::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
