@@ -3875,6 +3875,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-secrets"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-session"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/substrate.git?tag=monthly-2021-07#83808aa815a9fbc528b76cd25ae1dec57e269771"
@@ -6301,6 +6317,7 @@ dependencies = [
  "pallet-grandpa",
  "pallet-naming",
  "pallet-randomness-collective-flip",
+ "pallet-secrets",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",

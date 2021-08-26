@@ -35,9 +35,11 @@ pub use frame_support::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 	},
 };
+use frame_system::EnsureRoot;
 use pallet_transaction_payment::CurrencyAdapter;
 
 pub use pallet_naming;
+pub use pallet_secrets;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -278,9 +280,20 @@ impl pallet_naming::Config for Runtime {
 		type BlockPerPeriod = BlockPerPeriod;
 		type MaxPeriod = MaxPeriod;
 
+		type ForceOrigin = EnsureRoot<AccountId>;
     type Event = Event;
     type Currency = Balances;
 }
+
+parameter_types! {
+    pub const IPFSCIDLength: u32 = 46;
+}
+
+impl pallet_secrets::Config for Runtime {
+    type Event = Event;
+		type IPFSCIDLength = IPFSCIDLength;
+}
+
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -299,6 +312,7 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
 
 		Naming: pallet_naming::{Pallet, Call, Storage, Event<T>},
+		Secrets: pallet_secrets::{Pallet, Call, Storage, Event<T>},
 	}
 );
 

@@ -2,6 +2,7 @@
 members = [
     'node',
     'pallets/naming',
+    'pallets/secrets',
     'runtime',
 ]
 [profile.release]
