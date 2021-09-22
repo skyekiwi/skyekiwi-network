@@ -2,7 +2,7 @@
 use frame_support::{
 	Blake2_128Concat, dispatch::DispatchResult, pallet_prelude::*,
 	traits::{
-		Currency, ReservableCurrency, LockableCurrency
+		Currency, ReservableCurrency, EnsureOrigin
 	}
 };
 use sp_runtime::ArithmeticError;
@@ -27,8 +27,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-		type Currency: ReservableCurrency<Self::AccountId>
-			+ LockableCurrency<Self::AccountId, Moment=Self::BlockNumber>;
+		type Currency: ReservableCurrency<Self::AccountId>;
 
 		#[pallet::constant]
 		type ReservationFee: Get<BalanceOf <Self>>;
@@ -38,6 +37,8 @@ pub mod pallet {
 		
 		#[pallet::constant]
 		type MaxPeriod: Get<u32>;
+
+		type ForceOrigin: EnsureOrigin<Self::Origin>;
 	}
 
 	#[pallet::pallet]
@@ -57,6 +58,7 @@ pub mod pallet {
 		NameRegistered(T::AccountId, T::BlockNumber),
 		NameRenewed(T::AccountId, T::BlockNumber),
 		NameCleared(T::AccountId),
+		NameForceCleared(T::Hash),
 	}
 
 	#[pallet::error]
@@ -157,20 +159,21 @@ pub mod pallet {
 			Ok(())
 		}
 
-		
-		// #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		// pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
-		// 	let _who = ensure_signed(origin)?;
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
+		pub fn force_clear_name(
+			origin: OriginFor<T>, 
+			name: T::Hash
+		) -> DispatchResult {
+			T::ForceOrigin::ensure_origin(origin)?;
 
-		// 	match <Something<T>>::get() {
-		// 		None => Err(Error::<T>::NoneValue)?,
-		// 		Some(old) => {
-		// 			let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
-		// 			<Something<T>>::put(new);
-		// 			Ok(())
-		// 		},
-		// 	}
-		// }
+			if let Some((_to, _expiration, _deposit)) = <Naming<T>>::take(&name) {
+				T::Currency::unreserve(&_to, _deposit);
+				Self::deposit_event(Event::<T>::NameForceCleared(name));
+			} else {
+				Err(Error::<T>::Unnamed)?
+			}
+			Ok(())
+		}
 	}
 }
 
