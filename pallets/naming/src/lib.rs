@@ -52,7 +52,6 @@ pub mod pallet {
 	(T::AccountId, T::BlockNumber, BalanceOf<T>)>;
 
 	#[pallet::event]
-	#[pallet::metadata(T::AccountId = "AccountId")]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		NameRegistered(T::AccountId, T::BlockNumber),

@@ -8,6 +8,9 @@ pub use pallet::*;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod mock;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
@@ -15,6 +18,7 @@ pub type VaultId = u64;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 	use super::*;
 	
@@ -46,7 +50,6 @@ pub mod pallet {
 	pub(super) type CurrentSecertId<T: Config> = StorageValue<_, VaultId, ValueQuery, DefaultId<T>>;
 
 	#[pallet::event]
-	#[pallet::metadata(T::AccountId = "AccountId")]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		SecretRegistered(VaultId),
