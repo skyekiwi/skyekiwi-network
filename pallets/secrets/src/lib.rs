@@ -8,10 +8,10 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
+// #[cfg(feature = "runtime-benchmarks")]
+// mod benchmarking;
 
-pub type VaultId = u64;
+pub type SecretId = u64;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -34,33 +34,33 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn metadata_of)]
-	pub(super) type Metadata<T: Config> = StorageMap<_, Blake2_128Concat, VaultId, Vec<u8>>;
+	pub(super) type Metadata<T: Config> = StorageMap<_, Blake2_128Concat, SecretId, Vec<u8>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn owner_of)]
-	pub(super) type Owner<T: Config> = StorageMap<_, Blake2_128Concat, VaultId, T::AccountId>;
+	pub(super) type Owner<T: Config> = StorageMap<_, Blake2_128Concat, SecretId, T::AccountId>;
 
 	#[pallet::storage]
-	pub(super) type Operator<T: Config> = StorageDoubleMap<_, Blake2_128Concat, VaultId, Twox64Concat, T::AccountId, bool>;
+	pub(super) type Operator<T: Config> = StorageDoubleMap<_, Blake2_128Concat, SecretId, Twox64Concat, T::AccountId, bool>;
 
 	#[pallet::type_value]
-	pub(super) fn DefaultId<T: Config>() -> VaultId { 0u64 }
+	pub(super) fn DefaultId<T: Config>() -> SecretId { 0u64 }
 	#[pallet::storage]
-	pub(super) type CurrentSecertId<T: Config> = StorageValue<_, VaultId, ValueQuery, DefaultId<T>>;
+	pub(super) type CurrentSecertId<T: Config> = StorageValue<_, SecretId, ValueQuery, DefaultId<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		SecretRegistered(VaultId),
-		SecretUpdated(VaultId),
-		MembershipGranted(VaultId, T::AccountId),
-		MembershipRevoked(VaultId, T::AccountId),
-		SecretBurnt(VaultId),
+		SecretRegistered(SecretId),
+		SecretUpdated(SecretId),
+		MembershipGranted(SecretId, T::AccountId),
+		MembershipRevoked(SecretId, T::AccountId),
+		SecretBurnt(SecretId),
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		InvalidVaultId,
+		InvalidSecretId,
 		AccessDenied,
 		MetadataNotValid,
 	}
@@ -90,7 +90,7 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
 		pub fn nominate_member(
 			origin: OriginFor<T>,
-			vault_id: VaultId,
+			vault_id: SecretId,
 			member: T::AccountId
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -105,7 +105,7 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
 		pub fn remove_member(
 			origin: OriginFor<T>,
-			vault_id: VaultId,
+			vault_id: SecretId,
 			member: T::AccountId
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -120,7 +120,7 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
 		pub fn update_metadata(
 			origin: OriginFor<T>,
-			vault_id: VaultId,
+			vault_id: SecretId,
 			metadata: Vec<u8>
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -137,7 +137,7 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
 		pub fn burn_secret(
 			origin: OriginFor<T>,
-			vault_id: VaultId,
+			vault_id: SecretId,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(Self::authorize_owner(who, vault_id) == true, Error::<T>::AccessDenied);
@@ -156,14 +156,14 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		pub fn authorize_owner(
 			who: T::AccountId,
-			vault_id: VaultId
+			vault_id: SecretId
 		) -> bool {
 			<Owner<T>>::get(&vault_id) == Some(who)
 		}
 
 		pub fn authorize_access(
 			who: T::AccountId,
-			vault_id: VaultId
+			vault_id: SecretId
 		) -> bool {
 			<Operator<T>>::get(&vault_id, &who) == Some(true) || <Owner<T>>::get(&vault_id) == Some(who)
 		}
