@@ -10,8 +10,11 @@ use sp_runtime::traits::{CheckedAdd, CheckedMul};
 use sp_std::prelude::*;
 pub use pallet::*;
 
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
+
+// #[cfg(test)]
+// mod mock;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;

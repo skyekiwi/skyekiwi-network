@@ -53,15 +53,25 @@ impl system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 }
-
 parameter_types! {
-	pub const IPFSCIDLength: u32 = 46;
+  pub const ReservationFee: u128 = 10_000_000_000_000;
+  // pub const Day: BlockNumber = DAYS;
+  pub const BlockPerPeriod: BlockNumber = 5;
+  
+  // reserve a slot no more than 5 years.
+  pub const MaxPeriod: u32 = 1825;
 }
 
-impl pallet_secrets::Config for Test {
-	type Event = Event;
-	type IPFSCIDLength = IPFSCIDLength;
+impl pallet_naming::Config for Runtime {
+  type ReservationFee = ReservationFee;
+  type BlockPerPeriod = BlockPerPeriod;
+  type MaxPeriod = MaxPeriod;
+
+  type ForceOrigin = EnsureRoot<AccountId>;
+  type Event = Event;
+  type Currency = Balances;
 }
+
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {

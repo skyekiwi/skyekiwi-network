@@ -1,7 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use frame_support::{
-	Blake2_128Concat, dispatch::DispatchResult, pallet_prelude::*
-};
 use sp_std::prelude::*;
 pub use pallet::*;
 
@@ -36,9 +33,11 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
+	#[pallet::getter(fn metadata_of)]
 	pub(super) type Metadata<T: Config> = StorageMap<_, Blake2_128Concat, VaultId, Vec<u8>>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn owner_of)]
 	pub(super) type Owner<T: Config> = StorageMap<_, Blake2_128Concat, VaultId, T::AccountId>;
 
 	#[pallet::storage]
@@ -76,14 +75,14 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(metadata.len() == T::IPFSCIDLength::get() as usize, Error::<T>::MetadataNotValid);
-
+			
 			let id = <CurrentSecertId<T>>::get();
 			let new_id = id.saturating_add(1);
 
 			<Metadata<T>>::insert(&id, metadata);
 			<Owner<T>>::insert(&id, who);
-			<CurrentSecertId<T>>::set(id);
-			Self::deposit_event(Event::<T>::SecretRegistered(new_id));
+			<CurrentSecertId<T>>::set(new_id);
+			Self::deposit_event(Event::<T>::SecretRegistered(id));
 			
 			Ok(())
 		}
