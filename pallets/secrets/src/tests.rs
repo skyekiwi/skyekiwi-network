@@ -1,14 +1,23 @@
 use super::Event as SecretsEvent;
 use frame_support::{assert_ok, assert_noop};
 use crate::{mock::{Event, *}, Error};
+use sp_std::num::ParseIntError;
 
 const IPFS_CID_1: &'static str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
 const IPFS_CID_2: &'static str = "QmRTphmVWBbKAVNwuc8tjJjdxzJsxB7ovpGHyUUCE6Rnsb";
+const PUBLIC_KEY: &'static str = "38d58afd1001bb265bce6ad24ff58239c62e1c98886cda9d7ccf41594f37d52f";
 
 type AccountId = u64;
 
 const ALICE: AccountId = 1;
 const BOB: AccountId = 2;
+
+fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
+	(0..s.len())
+		.step_by(2)
+		.map(|i| u8::from_str_radix(&s[i..i + 2], 16))
+		.collect()
+}
 
 #[test]
 fn it_register_secrets() {
@@ -29,6 +38,29 @@ fn it_register_secrets() {
 	});
 }
 
+
+#[test]
+fn it_register_secret_contracts() {
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		let public_key = decode_hex(PUBLIC_KEY).unwrap();
+		assert_ok!(
+			Secrets::register_secret_contract( Origin::signed(ALICE), IPFS_CID_1.as_bytes().to_vec(), public_key.clone())
+		);
+
+		assert! (System::events().iter().all(|evt| {
+				evt.event == Event::Secrets(SecretsEvent::SecretContractRegistered(0, public_key.clone()))
+			})
+		);
+
+		assert_eq! (Secrets::owner_of(0).unwrap(), ALICE);
+		assert_eq! (Secrets::metadata_of(0).unwrap(), IPFS_CID_1.as_bytes().to_vec());
+		assert_eq! (Secrets::public_key_of_contract(0).unwrap(), public_key);
+	});
+}
+
 #[test]
 fn it_updates_metadata() {
 	new_test_ext().execute_with(|| {
@@ -45,6 +77,30 @@ fn it_updates_metadata() {
 			Secrets::update_metadata( Origin::signed(ALICE), 0, IPFS_CID_2.as_bytes().to_vec() )
 		);
 		assert_eq! (Secrets::metadata_of(0).unwrap(), IPFS_CID_2.as_bytes().to_vec());
+	});
+}
+
+
+#[test]
+fn it_rollup_contracts() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		let public_key = decode_hex(PUBLIC_KEY).unwrap();
+
+		// 1. Alice register a secret w/ID = 0
+		assert_ok!(
+			Secrets::register_secret_contract( Origin::signed(ALICE), IPFS_CID_1.as_bytes().to_vec(), public_key.clone())
+		);
+		assert_eq! (Secrets::metadata_of(0).unwrap(), IPFS_CID_1.as_bytes().to_vec());
+		assert_eq! (Secrets::high_remote_call_index_of(0).unwrap(), 0u64);
+
+		// 2. Alice rolled up the contract after 1000 operations
+		assert_ok!(
+			Secrets::contract_rollup( Origin::signed(ALICE), 0, IPFS_CID_2.as_bytes().to_vec(), 1_000u64 )
+		);
+		assert_eq! (Secrets::metadata_of(0).unwrap(), IPFS_CID_2.as_bytes().to_vec());
+		assert_eq! (Secrets::high_remote_call_index_of(0).unwrap(), 1_000u64);
 	});
 }
 

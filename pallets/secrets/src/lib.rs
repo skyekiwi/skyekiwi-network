@@ -12,6 +12,7 @@ mod mock;
 // mod benchmarking;
 
 pub type SecretId = u64;
+pub type CallIndex = u64;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -37,6 +38,14 @@ pub mod pallet {
 	pub(super) type Metadata<T: Config> = StorageMap<_, Blake2_128Concat, SecretId, Vec<u8>>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn public_key_of_contract)]
+	pub(super) type ContractPublicKey<T: Config> = StorageMap<_, Blake2_128Concat, SecretId, Vec<u8>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn high_remote_call_index_of)]
+	pub(super) type HighRemoteCallIndex<T: Config> = StorageMap<_, Twox64Concat, SecretId, CallIndex>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn owner_of)]
 	pub(super) type Owner<T: Config> = StorageMap<_, Blake2_128Concat, SecretId, T::AccountId>;
 
@@ -52,7 +61,9 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		SecretRegistered(SecretId),
+		SecretContractRegistered(SecretId, Vec<u8>),
 		SecretUpdated(SecretId),
+		SecretContractRolluped(SecretId, CallIndex),
 		MembershipGranted(SecretId, T::AccountId),
 		MembershipRevoked(SecretId, T::AccountId),
 		SecretBurnt(SecretId),
@@ -63,6 +74,9 @@ pub mod pallet {
 		InvalidSecretId,
 		AccessDenied,
 		MetadataNotValid,
+		ContractCallIndexError,
+		ContractPublicKeyNotValid,
+		SecretNotExecutable,
 	}
 
 	#[pallet::call]
@@ -87,6 +101,29 @@ pub mod pallet {
 			Ok(())
 		}
 
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 5))]
+		pub fn register_secret_contract(
+			origin: OriginFor<T>, 
+			metadata: Vec<u8>,
+			contract_public_key: Vec<u8>
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			ensure!(metadata.len() == T::IPFSCIDLength::get() as usize, Error::<T>::MetadataNotValid);
+			ensure!(contract_public_key.len() == 32 as usize, Error::<T>::ContractPublicKeyNotValid);
+			
+			let id = <CurrentSecertId<T>>::get();
+			let new_id = id.saturating_add(1);
+
+			<Metadata<T>>::insert(&id, metadata);
+			<ContractPublicKey<T>>::insert(&id, contract_public_key.clone());
+			<HighRemoteCallIndex<T>>::insert(&id, 0u64);
+			<Owner<T>>::insert(&id, who);
+			<CurrentSecertId<T>>::set(new_id);
+			Self::deposit_event(Event::<T>::SecretContractRegistered(id, contract_public_key));
+			
+			Ok(())
+		}
+
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
 		pub fn nominate_member(
 			origin: OriginFor<T>,
@@ -105,14 +142,14 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
 		pub fn remove_member(
 			origin: OriginFor<T>,
-			vault_id: SecretId,
+			secret_id: SecretId,
 			member: T::AccountId
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(Self::authorize_owner(who, vault_id) == true, Error::<T>::AccessDenied);
+			ensure!(Self::authorize_owner(who, secret_id) == true, Error::<T>::AccessDenied);
 
-			<Operator<T>>::take(&vault_id, &member);
-			Self::deposit_event(Event::<T>::MembershipRevoked(vault_id, member));
+			<Operator<T>>::take(&secret_id, &member);
+			Self::deposit_event(Event::<T>::MembershipRevoked(secret_id, member));
 			
 			Ok(())
 		}
@@ -120,34 +157,61 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
 		pub fn update_metadata(
 			origin: OriginFor<T>,
-			vault_id: SecretId,
+			secret_id: SecretId,
 			metadata: Vec<u8>
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(metadata.len() == T::IPFSCIDLength::get() as usize, Error::<T>::MetadataNotValid);
-			ensure!(Self::authorize_access(who, vault_id) == true, Error::<T>::AccessDenied);
+			ensure!(Self::authorize_access(who, secret_id) == true, Error::<T>::AccessDenied);
 
-			// so far, it is garenteed the vault_id is valid 
-			<Metadata<T>>::mutate(&vault_id, |meta| *meta = Some(metadata));
-			Self::deposit_event(Event::<T>::SecretUpdated(vault_id));
+			// so far, it is garenteed the secret_id is valid 
+			<Metadata<T>>::mutate(&secret_id, |meta| *meta = Some(metadata));
+			Self::deposit_event(Event::<T>::SecretUpdated(secret_id));
 			
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(3, 3))]
+		pub fn contract_rollup(
+			origin: OriginFor<T>,
+			secret_id: SecretId,
+			metadata: Vec<u8>,
+			new_high_remote_call_index: CallIndex,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			ensure!(metadata.len() == T::IPFSCIDLength::get() as usize, Error::<T>::MetadataNotValid);
+			ensure!(Self::authorize_access(who, secret_id) == true, Error::<T>::AccessDenied);
+			ensure!(Self::is_executable(secret_id) == true, Error::<T>::SecretNotExecutable);
+			ensure!(new_high_remote_call_index > <HighRemoteCallIndex<T>>::get(&secret_id).unwrap(), Error::<T>::ContractCallIndexError);
+
+			// so far, it is garenteed the secret_id is valid 
+			<Metadata<T>>::mutate(&secret_id, |meta| *meta = Some(metadata));
+			<HighRemoteCallIndex<T>>::mutate(&secret_id, |index| *index = Some(new_high_remote_call_index));
+
+			Self::deposit_event(Event::<T>::SecretContractRolluped(secret_id, new_high_remote_call_index));
+
 			Ok(())
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
 		pub fn burn_secret(
 			origin: OriginFor<T>,
-			vault_id: SecretId,
+			secret_id: SecretId,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(Self::authorize_owner(who, vault_id) == true, Error::<T>::AccessDenied);
+			ensure!(Self::authorize_owner(who, secret_id) == true, Error::<T>::AccessDenied);
 
-			// so far, it is garenteed the vault_id is valid 
-			<Metadata<T>>::take(&vault_id);
-			<Owner<T>>::take(&vault_id);
-			<Operator<T>>::remove_prefix(&vault_id, None);
+			// so far, it is garenteed the secret_id is valid 
+			<Metadata<T>>::take(&secret_id);
+			<Owner<T>>::take(&secret_id);
+			<Operator<T>>::remove_prefix(&secret_id, None);
+
+			if Self::is_executable(secret_id) {
+				<ContractPublicKey<T>>::take(&secret_id);
+				<HighRemoteCallIndex<T>>::take(&secret_id);
+			}
 			
-			Self::deposit_event(Event::<T>::SecretBurnt(vault_id));
+			Self::deposit_event(Event::<T>::SecretBurnt(secret_id));
 			
 			Ok(())
 		}
@@ -156,16 +220,22 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		pub fn authorize_owner(
 			who: T::AccountId,
-			vault_id: SecretId
+			secret_id: SecretId
 		) -> bool {
-			<Owner<T>>::get(&vault_id) == Some(who)
+			<Owner<T>>::get(&secret_id) == Some(who)
 		}
 
 		pub fn authorize_access(
 			who: T::AccountId,
-			vault_id: SecretId
+			secret_id: SecretId
 		) -> bool {
-			<Operator<T>>::get(&vault_id, &who) == Some(true) || <Owner<T>>::get(&vault_id) == Some(who)
+			<Operator<T>>::get(&secret_id, &who) == Some(true) || <Owner<T>>::get(&secret_id) == Some(who)
+		}
+
+		pub fn is_executable(
+			secret_id: SecretId
+		) -> bool {
+			<ContractPublicKey<T>>::contains_key(&secret_id) && <HighRemoteCallIndex<T>>::contains_key(&secret_id)
 		}
 	}
 }
