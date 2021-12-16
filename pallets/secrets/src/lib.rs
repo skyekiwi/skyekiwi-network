@@ -55,6 +55,7 @@ pub mod pallet {
 	#[pallet::type_value]
 	pub(super) fn DefaultId<T: Config>() -> SecretId { 0u64 }
 	#[pallet::storage]
+	#[pallet::getter(fn current_secret_id)]
 	pub(super) type CurrentSecertId<T: Config> = StorageValue<_, SecretId, ValueQuery, DefaultId<T>>;
 
 	#[pallet::event]
