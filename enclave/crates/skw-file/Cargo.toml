@@ -1,0 +1,22 @@
+[package]
+name = "skw_file"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+skw_types =  { path = "../skw-types" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+hmac-sha256 = { version = "1.1.1", default-features = false }
+libflate = { git = "https://github.com/mesalock-linux/libflate-sgx" }
+
+[dev-dependencies]
+
+
+[features]
+default = []
+
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
+sgx_tstd = { path = "../../../teaclave-sgx-sdk/sgx_tstd" }
+sgx_serialize = { path = "../../../teaclave-sgx-sdk/sgx_serialize" }
+sgx_ucrypto = { path = "../../../teaclave-sgx-sdk/sgx_ucrypto" }
+sgx_crypto_helper = { path = "../../../teaclave-sgx-sdk/sgx_crypto_helper" }

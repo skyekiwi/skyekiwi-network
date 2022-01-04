@@ -1,0 +1,17 @@
+[package]
+name = "skw_utils"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+skw_types =  { path = "../skw-types" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+
+[dev-dependencies]
+
+
+[features]
+default = []
+
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
+sgx_tstd = { path = "../../../teaclave-sgx-sdk/sgx_tstd" }

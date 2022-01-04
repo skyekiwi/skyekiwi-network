@@ -1,0 +1,17 @@
+{
+  "name": "skyekiwi-protocol-tee",
+  "version": "0.1.0",
+  "main": "index.js",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "enclave:build": "node ./scripts/enclave-build.cjs",
+    "enclave:run": "node ./scripts/enclave-run.cjs",
+    "enclave:start": "yarn enclave:build && yarn enclave:run",
+    "enclave:sim": "node ./scripts/enclave-sim.cjs",
+
+    "blockchain:run": "node ./scripts/blockchain-run.cjs",
+
+    "contract:compile": "node ./scripts/contract-compile.cjs",
+    "mock-enclave:start": "yarn contract:compile && npx ts-node mock-enclave/host/index.ts"
+  }
+}

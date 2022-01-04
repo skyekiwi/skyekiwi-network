@@ -1,0 +1,27 @@
+{
+  "name": "near-vm",
+  "version": "1.0.0",
+  "repository": "git@github.com:RoyTimes/near-vm.git",
+  "author": "SkyeKiwi <hello@skye.kiwi>",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "vm": "npx ts-node ./scripts/vm.ts",
+    "build": "npx ts-node ./scripts/build.ts",
+    "start": "yarn build && yarn vm",
+    "serve": "npx ts-node ./host/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^16.11.10",
+    "ts-node": "^10.4.0",
+    "typescript": "^4.5.3"
+  },
+  "dependencies": {
+    "@skyekiwi/crypto": "0.5.2-7",
+    "@skyekiwi/file": "0.5.2-7",
+    "@skyekiwi/s-contract": "0.5.2-7",
+    "@skyekiwi/util": "0.5.2-7",
+    "base64-js": "^1.5.1",
+    "p-queue": "6.6.2",
+    "threads": "^1.7.0"
+  }
+}

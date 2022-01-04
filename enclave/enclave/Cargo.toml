@@ -1,0 +1,30 @@
+[package]
+name = "skw_enclave"
+version = "1.0.0"
+authors = ['SkyeKiwi <hello@skye.kiwi>']
+description = 'The SkyeKiwi Protocol in Intel SGX Enclave'
+homepage = 'https://skye.kiwi'
+license = 'GPL-3.0'
+readme = 'README.md'
+repository = 'https://github.com/skyekiwi/skyekiwi-protocol-enclave'
+
+[lib]
+name = "skyekiwiprotocolenclave"
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+[dependencies]
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+log = { git = "https://github.com/mesalock-linux/log-sgx" }
+env_logger = { git = "https://github.com/mesalock-linux/env_logger-sgx" }
+skw_crypto = { path = "../crates/skw-crypto" }
+skw_unit_test = { path = "../crates/skw-unit-test" }
+
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
+sgx_rand = { path = "../../teaclave-sgx-sdk/sgx_rand" }
+sgx_tstd = { path = "../../teaclave-sgx-sdk/sgx_tstd" }
+sgx_types = { path = "../../teaclave-sgx-sdk/sgx_types" }

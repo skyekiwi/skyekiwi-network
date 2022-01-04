@@ -1,10 +1,10 @@
 [workspace]
 members = [
-    'node',
-    'pallets/naming',
-    'pallets/secrets',
-    'pallets/s-contract',
-    'runtime',
+    'skw-node',
+    'skw-pallets/naming',
+    'skw-pallets/secrets',
+    'skw-pallets/s-contract',
+    'skw-runtime',
 ]
 [profile.release]
 panic = 'unwind'

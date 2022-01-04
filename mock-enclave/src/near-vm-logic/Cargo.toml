@@ -1,0 +1,70 @@
+[package]
+name = "near-vm-logic"
+version = "0.0.0"
+authors = ["SkyeKiwi <hello@skye.kiwi>","Near Inc <hello@nearprotocol.com>"]
+edition = "2021"
+license = "GPL-3.0"
+readme = "README.md"
+categories = ["wasm"]
+repository = "https://github.com/nearprotocol/nearcore"
+homepage = "https://github.com/nearprotocol/nearcore"
+description = """
+This crate implements the specification of the interface that Near blockchain exposes to the smart contracts.
+"""
+
+[dependencies]
+base64 = "0.13"
+borsh = "0.9"
+bs58 = "0.4"
+byteorder = "1.2"
+ripemd160 = "0.9.0"
+serde = { version = "1", features = ["derive"] }
+sha2 = ">=0.8,<0.10"
+sha3 = ">=0.8,<0.10"
+
+near-crypto = { git = "https://github.com/near/nearcore" }
+near-account-id = { git = "https://github.com/near/nearcore", features = [ "internal_unstable" ] }
+near-primitives = { git = "https://github.com/near/nearcore" }
+near-primitives-core = { git = "https://github.com/near/nearcore" }
+near-vm-errors = { path = "../near-vm-errors" }
+
+bn = { package = "zeropool-bn", version = "0.5.9", features = [], optional = true }
+
+[dev-dependencies]
+hex = { version = "0.4", features = ["serde"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[features]
+default = []
+
+# Use this feature to enable counting of fees and costs applied.
+costs_counting = []
+
+[[test]]
+name = "test_storage_read_write"
+path = "tests/test_storage_read_write.rs"
+
+[[test]]
+name = "test_context"
+path = "tests/test_context.rs"
+
+[[test]]
+name = "test_miscs"
+path = "tests/test_miscs.rs"
+required-features = ["costs_counting"]
+
+[[test]]
+name = "test_registers"
+path = "tests/test_registers.rs"
+
+[[test]]
+name = "test_storage_usage"
+path = "tests/test_storage_usage.rs"
+
+[[test]]
+name = "test_promises"
+path = "tests/test_promises.rs"
+
+[[test]]
+name = "test_iterators"
+path = "tests/test_iterators.rs"

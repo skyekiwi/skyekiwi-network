@@ -14,3 +14,8 @@
 
 # direnv cache
 .direnv
+**/node_modules/
+node_modules/
+/host/mock/*.contract
+/host/mock/*.wasm
+/host/mock/*.json
