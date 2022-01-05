@@ -6,5 +6,18 @@ members = [
     'skw-pallets/s-contract',
     'skw-runtime',
 ]
+
+exclude = [
+    'enclave/app',
+    'enclave/enclave',
+    'enclave/crates/skw-crypto',
+    'enclave/crates/skw-driver',
+    'enclave/crates/skw-file',
+    'enclave/crates/skw-ipfs',
+    'enclave/crates/skw-metadata',
+    'enclave/crates/skw-types',
+    'enclave/crates/skw-unit-test',
+    'enclave/crates/skw-utils',
+]
 [profile.release]
 panic = 'unwind'

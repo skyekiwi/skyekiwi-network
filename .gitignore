@@ -19,3 +19,13 @@ node_modules/
 /host/mock/*.contract
 /host/mock/*.wasm
 /host/mock/*.json
+
+enclave/lib/*.a
+enclave/bin/app
+enclave/bin/enclave.signed.so
+enclave/enclave/enclave.so
+
+**/*.c
+**/*.a
+**/*.h
+**/*.o
