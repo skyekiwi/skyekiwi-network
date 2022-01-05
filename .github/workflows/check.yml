@@ -6,7 +6,6 @@ on:
   push:
     branches: [ master ]
   pull_request:
-    branches: [ master ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -42,3 +41,7 @@ jobs:
         run: >
           pushd node &&
           cargo check --features=runtime-benchmarks --release
+      
+      - name: Check Smart Contract Compile
+        run: |
+          yarn contract:compile

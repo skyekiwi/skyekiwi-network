@@ -10,6 +10,7 @@
     "enclave:sim": "node ./scripts/enclave-sim.cjs",
 
     "blockchain:run": "node ./scripts/blockchain-run.cjs",
+    "blockchain:benchmark": "node ./scripts/blockchain-benchmark.cjs",
 
     "contract:compile": "node ./scripts/contract-compile.cjs",
     "mock-enclave:start": "yarn contract:compile && npx ts-node mock-enclave/host/index.ts"

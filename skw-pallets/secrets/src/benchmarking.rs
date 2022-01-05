@@ -9,11 +9,11 @@ use crate::Pallet as Secrets;
 
 benchmarks! {
 	register_secret {
-		let s in 0 .. 100;
+		const IPFS_CID: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
 		let caller: T::AccountId = whitelisted_caller();
-	}: _(RawOrigin::Signed(caller), s)
+	}: register_secret(RawOrigin::Signed(caller), IPFS_CID.into())
 	verify {
-		assert_eq!(Metadata::<T>::get(), Some(s));
+		// assert_eq!(Metadata::<T>::get(), Some(s));
 	}
 }
 
