@@ -33,6 +33,7 @@ jobs:
 
       - name: Check Smart Contract Compile
         run: |
+          rustup target add wasm32-unknown-unknown --toolchain nightly
           yarn contract:compile
       
       - name: Check enclave Compile
