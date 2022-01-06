@@ -31,14 +31,10 @@ jobs:
       #   run: |
       #     yarn blockchain:ci
 
-      - name: Check Smart Contract Compile
-        run: |
-          yarn contract:compile
+      # - name: Check Smart Contract Compile
+      #   run: |
+      #     yarn contract:compile
       
-      - name: Check enclave Compile
+      - name: Check Enclave Compile
         run: |
-          yarn enclave:sim
-          make
-          cd bin && ./app
-          exit
-
+          yarn enclave:ci
