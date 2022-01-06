@@ -35,13 +35,8 @@ jobs:
 
       - name: Check Build
         run: |
-          SKIP_WASM_BUILD=1 cargo check --release
+          yarn blockchain:ci
 
-      - name: Check Build for Benchmarking
-        run: >
-          pushd node &&
-          cargo check --features=runtime-benchmarks --release
-      
       - name: Check Smart Contract Compile
         run: |
           yarn contract:compile

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 const execSync = require('./execSync.cjs');
-console.log('$ yarn blockchain:run', process.argv.slice(2).join(' '));
+console.log('$ yarn blockchain:build', process.argv.slice(2).join(' '));
 
-function buildAndRunBlockchain() {
-  execSync('cargo build --release && target/release/skyekiwi-node --dev --tmp');
+function buildBlockchain() {
+  execSync('cargo build --release');
 }
 
-buildAndRunBlockchain()
+buildBlockchain()
 

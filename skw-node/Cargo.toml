@@ -16,7 +16,7 @@ jsonrpc-core = '18.0.0'
 structopt = '0.3.25'
 
 skyekiwi-runtime = { path = '../skw-runtime', version = '3.0.0' }
-frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', optional = true, tag = 'monthly-2021-10', version = '4.0.0-dev'}
+frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
 frame-benchmarking-cli = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
 pallet-transaction-payment-rpc = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
 sc-basic-authorship = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '0.10.0-dev'}
@@ -51,3 +51,7 @@ name = 'skyekiwi-node'
 git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-10'
 version = '3.0.0'
+
+[features]
+default = []
+runtime-benchmarks = ['skyekiwi-runtime/runtime-benchmarks']
