@@ -1,19 +1,22 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 use sp_std::prelude::*;
 pub use pallet::*;
-use pallet_secrets;
-// #[cfg(test)]
-// mod tests;
 
-// #[cfg(test)]
-// mod mock;
+pub use pallet_secrets;
+use pallet_secrets::SecretId;
+
+#[cfg(test)]
+mod tests;
+
+#[cfg(test)]
+mod mock;
 
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
 
-pub type SecretId = u64;
 pub type CallIndex = u64;
 pub type EncodedCall = Vec<u8>;
+pub type CallBody = (EncodedCall, bool);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -37,7 +40,7 @@ pub mod pallet {
 	// index of EncodedCall ALWAYS should equals to its index
 	#[pallet::storage]
 	#[pallet::getter(fn call_history_of)]
-	pub(super) type CallHistory<T: Config> = StorageMap<_, Blake2_128Concat, SecretId, Vec<EncodedCall> >;
+	pub(super) type CallHistory<T: Config> = StorageMap<_, Blake2_128Concat, SecretId, Vec<CallBody> >;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -64,11 +67,11 @@ pub mod pallet {
 			origin: OriginFor<T>, 
 			metadata: Vec<u8>,
 			contract_public_key: Vec<u8>,
-			initializatio_call: EncodedCall,
+			initialization_call: EncodedCall,
 		) -> DispatchResult {
 			// let who = ensure_signed(origin)?;
 
-			ensure!(Self::validate_call(initializatio_call.clone()), Error::<T>::InvalideEncodedCall);
+			ensure!(Self::validate_call(initialization_call.clone()), Error::<T>::InvalideEncodedCall);
 			match pallet_secrets::Pallet::<T>::register_secret_contract(
 				origin, metadata, contract_public_key
 			) {
@@ -77,7 +80,7 @@ pub mod pallet {
 					let contract_index = pallet_secrets::Pallet::<T>::current_secret_id().saturating_sub(1);
 
 					// the first call
-					Self::insert_call(contract_index, 0, initializatio_call);
+					Self::insert_call(contract_index, initialization_call);
 
 					Self::deposit_event(Event::<T>::ContractRegistered(contract_index));
 					
@@ -88,22 +91,22 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
-		pub fn call(
+		pub fn push_call(
 			origin: OriginFor<T>, 
 			contract_index: SecretId,
 			call: EncodedCall,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			ensure_signed(origin)?;
 			ensure!(Self::validate_call(call.clone()), Error::<T>::InvalideEncodedCall);
 			
-			// 1. get the next call index
-			// 2. insert the call
-			
-			if Self::insert_call(contract_index, 0, call) {
-				Self::deposit_event(Event::<T>::CallReceived(contract_index, 0));
-				Ok(())
-			} else {
-				Err(Error::<T>::CallIndexError.into())
+			match Self::insert_call(contract_index, call) {
+				Some(call_index) => {
+					Self::deposit_event(Event::<T>::CallReceived(contract_index, call_index));
+					Ok(())
+				},
+				None => {
+					Err(Error::<T>::CallIndexError.into())
+				}
 			}
 		}
 	}
@@ -117,21 +120,19 @@ pub mod pallet {
 
 		pub fn insert_call(
 			contract_index: SecretId,
-			call_index: CallIndex,
 			call: EncodedCall,
-		) -> bool {
-			
-			match <CallHistory<T>>::get(&contract_index) {
-				Some(history) => {
-					match history.len() as usize {
-						call_index => {
-							return true;
-							// insert the call
-						},
-						_ => false
-					}
-				},
-				None => false
+		) -> Option<CallIndex> {
+			let mut history = Self::call_history_of(&contract_index);
+			if history == None {
+				history = Some(Vec::new());
+			}
+
+			if let Some(mut content) = history {
+				content.push((call, false));
+				<CallHistory<T>>::insert(&contract_index, content.clone());
+				Some(content.len() as u64)
+			} else {
+				None
 			}
 		}
 	}

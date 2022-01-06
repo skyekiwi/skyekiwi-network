@@ -1,5 +1,7 @@
 #![cfg(test)]
-use crate as pallet_secrets;
+use pallet_secrets;
+use crate as pallet_s_contract;
+
 use frame_support::parameter_types;
 use frame_system as system;
 use sp_core::H256;
@@ -20,6 +22,7 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Secrets: pallet_secrets::{Pallet, Call, Storage, Event<T>},
+		SContract: pallet_s_contract::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -61,6 +64,15 @@ parameter_types! {
 impl pallet_secrets::Config for Test {
 	type Event = Event;
 	type IPFSCIDLength = IPFSCIDLength;
+}
+
+parameter_types! {
+	pub const CallLength: u32 = 128;
+}
+
+impl pallet_s_contract::Config for Test {
+	type Event = Event;
+	type CallLength = CallLength;
 }
 
 // Build genesis storage according to the mock runtime.

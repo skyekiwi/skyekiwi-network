@@ -3,9 +3,9 @@ use frame_support::{assert_ok, assert_noop};
 use crate::{mock::{Event, *}, Error};
 use sp_std::num::ParseIntError;
 
-const IPFS_CID_1: &'static str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
-const IPFS_CID_2: &'static str = "QmRTphmVWBbKAVNwuc8tjJjdxzJsxB7ovpGHyUUCE6Rnsb";
-const PUBLIC_KEY: &'static str = "38d58afd1001bb265bce6ad24ff58239c62e1c98886cda9d7ccf41594f37d52f";
+const IPFS_CID_1: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
+const IPFS_CID_2: &str = "QmRTphmVWBbKAVNwuc8tjJjdxzJsxB7ovpGHyUUCE6Rnsb";
+const PUBLIC_KEY: &str = "38d58afd1001bb265bce6ad24ff58239c62e1c98886cda9d7ccf41594f37d52f";
 
 type AccountId = u64;
 
