@@ -29,13 +29,13 @@ jobs:
           rustup update stable
           rustup target add wasm32-unknown-unknown --toolchain nightly
 
-      # - name: Check Build
-      #   run: |
-      #     yarn blockchain:ci
+      - name: Check Build
+        run: |
+          yarn blockchain:ci
 
-      # - name: Check Smart Contract Compile
-      #   run: |
-      #     yarn contract:compile
+      - name: Check Smart Contract Compile
+        run: |
+          yarn contract:compile
       
       - name: Check Enclave Compile
         run: |
