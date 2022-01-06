@@ -40,3 +40,9 @@ jobs:
       - name: Check Smart Contract Compile
         run: |
           yarn contract:compile
+      
+      - name: Check enclave Compile
+        run: |
+          yarn enclave:sim
+          make
+

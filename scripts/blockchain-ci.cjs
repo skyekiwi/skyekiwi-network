@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 const execSync = require('./execSync.cjs');
-console.log('$ yarn blockchain:benchmark', process.argv.slice(2).join(' '));
+console.log('$ yarn blockchain:ci', process.argv.slice(2).join(' '));
 
-function blockchainBenchmark() {
+function blockchainCi() {
   execSync('SKIP_WASM_BUILD=1 cargo check --release');
-  execSync('cargo check --features=runtime-benchmarks --release');
+  execSync('SKIP_WASM_BUILD=1 cargo check --features=runtime-benchmarks --release');
 }
 
-blockchainBenchmark()
+blockchainCi()

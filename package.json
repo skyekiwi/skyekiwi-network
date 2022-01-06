@@ -9,7 +9,7 @@
     "enclave:start": "yarn enclave:build && yarn enclave:run",
     "enclave:sim": "node ./scripts/enclave-sim.cjs",
 
-    "blockchain:build": "node ./scripts/blockchain-run.cjs",
+    "blockchain:build": "node ./scripts/blockchain-build.cjs",
     "blockchain:ci": "node ./scripts/blockchain-ci.cjs",
 
     "contract:compile": "node ./scripts/contract-compile.cjs",
