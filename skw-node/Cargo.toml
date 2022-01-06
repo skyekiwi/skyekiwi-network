@@ -16,38 +16,42 @@ jsonrpc-core = '18.0.0'
 structopt = '0.3.25'
 
 skyekiwi-runtime = { path = '../skw-runtime', version = '3.0.0' }
-frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', optional = true, tag = 'monthly-2021-10', version = '4.0.0-dev'}
-frame-benchmarking-cli = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
-pallet-transaction-payment-rpc = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
-sc-basic-authorship = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '0.10.0-dev'}
-sc-cli = {features = ['wasmtime'], git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '0.10.0-dev'}
-sc-client-api = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
-sc-consensus = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '0.10.0-dev'}
-sc-consensus-aura = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '0.10.0-dev'}
-sc-executor = { features = ['wasmtime'], git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '0.10.0-dev'}
-sc-finality-grandpa = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '0.10.0-dev'}
-sc-keystore = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
-sc-rpc = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
-sc-rpc-api = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '0.10.0-dev'}
-sc-service = { features = ['wasmtime'], git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '0.10.0-dev' }
-sc-telemetry = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
-sc-transaction-pool = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
-sc-transaction-pool-api = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
-sp-api = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
-sp-block-builder = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
-sp-blockchain = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '4.0.0-dev'}
-sp-consensus = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '0.10.0-dev'}
-sp-consensus-aura = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = '0.10.0-dev'}
-sp-core = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = "4.0.0-dev"}
-sp-finality-grandpa = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = "4.0.0-dev"}
-sp-runtime = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = "4.0.0-dev"}
-sp-timestamp = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = "4.0.0-dev"}
-substrate-frame-rpc-system = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-10', version = "4.0.0-dev"}
+frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+frame-benchmarking-cli = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+pallet-transaction-payment-rpc = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+sc-basic-authorship = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '0.10.0-dev'}
+sc-cli = {features = ['wasmtime'], git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '0.10.0-dev'}
+sc-client-api = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+sc-consensus = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '0.10.0-dev'}
+sc-consensus-aura = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '0.10.0-dev'}
+sc-executor = { features = ['wasmtime'], git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '0.10.0-dev'}
+sc-finality-grandpa = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '0.10.0-dev'}
+sc-keystore = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+sc-rpc = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+sc-rpc-api = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '0.10.0-dev'}
+sc-service = { features = ['wasmtime'], git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '0.10.0-dev' }
+sc-telemetry = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+sc-transaction-pool = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+sc-transaction-pool-api = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+sp-api = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+sp-block-builder = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+sp-blockchain = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+sp-consensus = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '0.10.0-dev'}
+sp-consensus-aura = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '0.10.0-dev'}
+sp-core = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = "4.0.0-dev"}
+sp-finality-grandpa = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = "4.0.0-dev"}
+sp-runtime = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = "4.0.0-dev"}
+sp-timestamp = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = "4.0.0-dev"}
+substrate-frame-rpc-system = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = "4.0.0-dev"}
 
 [[bin]]
 name = 'skyekiwi-node'
 
 [build-dependencies.substrate-build-script-utils]
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'monthly-2021-10'
+tag = 'monthly-2021-12'
 version = '3.0.0'
+
+[features]
+default = []
+runtime-benchmarks = ['skyekiwi-runtime/runtime-benchmarks']
