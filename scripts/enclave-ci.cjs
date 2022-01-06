@@ -15,12 +15,10 @@ function enclaveCI() {
       && source /root/.cargo/env \
       && cd /root/sgx/enclave \
       && export SGX_MODE=SW \
-      && ls -al \
-      && cd .. && ls -al \
-      && cd enclave \
       && make \
       && cd bin \
-      && ./app"`
+      && ./app \
+      && exit"`
   );
 }
 
