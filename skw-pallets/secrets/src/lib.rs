@@ -110,17 +110,21 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(metadata.len() == T::IPFSCIDLength::get() as usize, Error::<T>::MetadataNotValid);
-			ensure!(contract_public_key.len() == 32 as usize, Error::<T>::ContractPublicKeyNotValid);
+			
+			// compress the pk: [0x3, 0x2, 0x1, 0xf] => [0x32, 0x1f]
+			// TODO: when the public key is invalid - exception needs to be handled
+			let pk: Vec<u8> = Self::compress_hex_key(&contract_public_key);
+			ensure!(pk.len() == 32 as usize, Error::<T>::ContractPublicKeyNotValid);
 			
 			let id = <CurrentSecertId<T>>::get();
 			let new_id = id.saturating_add(1);
 
 			<Metadata<T>>::insert(&id, metadata);
-			<ContractPublicKey<T>>::insert(&id, contract_public_key.clone());
+			<ContractPublicKey<T>>::insert(&id, pk.clone());
 			<HighRemoteCallIndex<T>>::insert(&id, 0u64);
 			<Owner<T>>::insert(&id, who);
 			<CurrentSecertId<T>>::set(new_id);
-			Self::deposit_event(Event::<T>::SecretContractRegistered(id, contract_public_key));
+			Self::deposit_event(Event::<T>::SecretContractRegistered(id, pk.clone()));
 			
 			Ok(())
 		}
@@ -237,6 +241,13 @@ pub mod pallet {
 			secret_id: SecretId
 		) -> bool {
 			<ContractPublicKey<T>>::contains_key(&secret_id) && <HighRemoteCallIndex<T>>::contains_key(&secret_id)
+		}
+
+		pub fn compress_hex_key(s: &Vec<u8>) -> Vec<u8> {
+			(0..s.len())
+				.step_by(2)
+				.map(|i| s[i] * 16 + s[i + 1])
+				.collect()
 		}
 	}
 }

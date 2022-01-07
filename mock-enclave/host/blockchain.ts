@@ -2,12 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Call, EncodedCall, RequestDispatch, RequestInitializeContract } from '@skyekiwi/s-contract/types';
+import type { SubmittableExtrinsic } from '@polkadot/api/promise/types';
+import type { Signer } from '@polkadot/api/types';
+import type { KeyringPair } from '@polkadot/keyring/types';
 
 import { randomBytes } from 'tweetnacl';
 import { indexToString, u8aToHex, hexToU8a } from '@skyekiwi/util';
 import { SContractReader } from '@skyekiwi/s-contract';
 import { DefaultSealer } from '@skyekiwi/crypto'
 import { mnemonicToMiniSecret } from '@polkadot/util-crypto'
+import { ApiPromise, WsProvider } from '@polkadot/api'
+import { Keyring } from '@polkadot/keyring'
+import { waitReady } from '@polkadot/wasm-crypto'
 
 require('dotenv').config()
 export const mockAccounts = [
@@ -93,3 +99,79 @@ export class MockBlockchainEnv {
     }, 6000);
   }
 }
+
+export class TestBlockchainEnv {
+
+  public async mainLoop() {
+    await waitReady();
+
+    const provider = new WsProvider('ws://127.0.0.1:9944');
+    const api = await ApiPromise.create({ provider: provider });
+
+    const keypair = (new Keyring({
+      type: 'sr25519'
+    })).addFromUri("//Alice");
+
+
+    const registerContract = api.tx.sContract.registerContract(
+      'QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N',
+      '38d58afd1001bb265bce6ad24ff58239c62e1c98886cda9d7ccf41594f37d52f',
+      '1111111111222222222211111111112222222222'
+    );
+
+    for (let i = 0; i < 100; i ++) {
+
+      const bytes = randomBytes(32);
+      const pushCall = api.tx.sContract.pushCall(
+        0, '1111111111222222222211111111112222222222'
+      );
+
+      const rcResult = await sendTx(registerContract, keypair);
+      const pcResult = await sendTx(pushCall, keypair)
+
+      console.log(rcResult)
+      console.log(pcResult)
+    }
+   }
+}
+
+const sendTx = (
+  extrinsic: SubmittableExtrinsic,
+  sender: KeyringPair,
+): Promise<boolean> => {
+  return new Promise((resolve, reject) => {
+    extrinsic.signAndSend(sender, ({ events = [], status }) => {
+      console.log(
+        `  ↪ 💸  Transaction status: ${status.type}`
+      );
+
+      if (
+        status.isInvalid ||
+        status.isDropped ||
+        status.isUsurped ||
+        status.isRetracted
+      ) {
+        console.log(status)
+        reject(new Error('Invalid transaction'));
+      } else {
+        // Pass it
+      }
+
+      if (status.isInBlock) {
+        events.forEach(({ event: { method, section } }) => {
+          if (section === 'system' && method === 'ExtrinsicFailed') {
+            // Error with no detail, just return error
+            console.error(`  ↪ ❌  Send transaction(${extrinsic.type}) failed.`);
+            resolve(false);
+          } else if (method === 'ExtrinsicSuccess') {
+            console.log(`  ↪ ✅  Send transaction(${extrinsic.type}) success.`);
+
+            resolve(true);
+          }
+        });
+      } else {
+        // Pass it
+      }
+    }).catch(reject);
+  });
+};

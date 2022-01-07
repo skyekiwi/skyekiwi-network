@@ -1,14 +1,23 @@
-import { SContractHost } from './host';
-import {preRun} from './vm';
+// import { SContractHost } from './host';
+// import {preRun} from './vm';
 
-const main = async() => {
-  // compile
-  preRun()
+// const main = async() => {
+//   // compile
+//   preRun()
 
-  const host = new SContractHost();
-  await host.mockMainLoop(100);
+//   const host = new SContractHost();
+//   await host.mockMainLoop(100);
+// }
+
+// main().finally(() => {
+//   console.log("subscribing to events ... ")
+// })
+
+import { TestBlockchainEnv} from './blockchain'
+
+const main = async () => {
+  const h = new TestBlockchainEnv();
+  await h.mainLoop()
 }
 
-main().finally(() => {
-  console.log("subscribing to events ... ")
-})
+main()

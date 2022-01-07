@@ -13,10 +13,16 @@ type AccountId = u64;
 
 const ALICE: AccountId = 1;
 
-fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
+fn decode_hex_uncompressed(s: &str) -> Result<Vec<u8>, ParseIntError> {
+	(0..s.len())
+		.step_by(1)
+		.map(|i| u8::from_str_radix(&s[i..i + 1], 16))
+		.collect()
+}
+fn compress_hex_key(s: &Vec<u8>) -> Vec<u8> {
 	(0..s.len())
 		.step_by(2)
-		.map(|i| u8::from_str_radix(&s[i..i + 2], 16))
+		.map(|i| s[i] * 16 + s[i + 1])
 		.collect()
 }
 
@@ -26,17 +32,17 @@ fn it_register_secret_contracts() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		let public_key = decode_hex(PUBLIC_KEY).unwrap();
+		let public_key = decode_hex_uncompressed(PUBLIC_KEY).unwrap();
 		assert_ok!(
 			SContract::register_contract( Origin::signed(ALICE), IPFS_CID_1.as_bytes().to_vec(), public_key.clone(), ENCODED_CALL.as_bytes().to_vec())
 		);
-
+		
+		let compressed_pk = compress_hex_key(&public_key);
 		assert! (System::events().iter().all(|evt| {
-				evt.event == Event::Secrets(SecretsEvent::SecretContractRegistered(0, public_key.clone())) ||
-				evt.event == Event::SContract(SContractEvent::ContractRegistered(0)) ||
-				evt.event == Event::SContract(SContractEvent::ContractRegistered(0))
+				evt.event == Event::Secrets(SecretsEvent::SecretContractRegistered(0, compressed_pk.clone()))
 			})
 		);
+
 		let history = SContract::call_history_of(0).unwrap();
 
 		assert_eq! (history.len(), 1);

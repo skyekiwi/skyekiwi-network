@@ -45,7 +45,6 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		ContractRegistered(SecretId),
 		CallReceived(SecretId, CallIndex),
 		
 		// should also include the events bubbled up?
@@ -79,11 +78,8 @@ pub mod pallet {
 					// get the lastest secretId - 1 -> it belongs to the secret we have just created
 					let contract_index = pallet_secrets::Pallet::<T>::current_secret_id().saturating_sub(1);
 
-					// the first call
-					Self::insert_call(contract_index, initialization_call);
-
-					Self::deposit_event(Event::<T>::ContractRegistered(contract_index));
-					
+					// the init call
+					Self::try_insert_call(contract_index, initialization_call, true);					
 					Ok(())
 				},
 				Err(err) => Err(err)
@@ -99,7 +95,7 @@ pub mod pallet {
 			ensure_signed(origin)?;
 			ensure!(Self::validate_call(call.clone()), Error::<T>::InvalideEncodedCall);
 			
-			match Self::insert_call(contract_index, call) {
+			match Self::try_insert_call(contract_index, call, false) {
 				Some(call_index) => {
 					Self::deposit_event(Event::<T>::CallReceived(contract_index, call_index));
 					Ok(())
@@ -112,19 +108,22 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		pub fn validate_call(
-			call: EncodedCall,
-		) -> bool {
+		pub fn validate_call(call: EncodedCall,) -> bool {
 			call.len() < T::CallLength::get() as usize
 		}
 
-		pub fn insert_call(
+		pub fn try_insert_call(
 			contract_index: SecretId,
 			call: EncodedCall,
+			force_insert: bool
 		) -> Option<CallIndex> {
 			let mut history = Self::call_history_of(&contract_index);
 			if history == None {
-				history = Some(Vec::new());
+				if force_insert {
+					history = Some(Vec::new());
+				} else {
+					return None;
+				}
 			}
 
 			if let Some(mut content) = history {
