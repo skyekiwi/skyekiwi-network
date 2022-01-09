@@ -29,3 +29,5 @@ enclave/enclave/enclave.so
 **/*.a
 **/*.h
 **/*.o
+
+chaos/src/logs/*.log

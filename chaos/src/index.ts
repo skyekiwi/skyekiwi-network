@@ -5,7 +5,9 @@ import { Chaos } from './chaos'
 
 const main = async () => {
   const h = new Chaos();
-  await h.letsParty()
+
+  // let account //X to push Y random calls
+  await h.letsParty(Number(process.argv[2]), Number(process.argv[3]))
 }
 
 main()
