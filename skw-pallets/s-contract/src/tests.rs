@@ -37,15 +37,15 @@ fn it_register_secret_contracts() {
 			SContract::register_contract( Origin::signed(ALICE), IPFS_CID_1.as_bytes().to_vec(), public_key.clone(), ENCODED_CALL.as_bytes().to_vec())
 		);
 		
-		let compressed_pk = compress_hex_key(&public_key);
+		let pk = compress_hex_key(&public_key);
 		assert! (System::events().iter().all(|evt| {
-				evt.event == Event::Secrets(SecretsEvent::SecretContractRegistered(0, compressed_pk.clone()))
+				evt.event == Event::Secrets(SecretsEvent::SecretContractRegistered(0, pk.clone()))
 			})
 		);
 
 		let history = SContract::call_history_of(0).unwrap();
 
 		assert_eq! (history.len(), 1);
-		assert_eq! (history[0], (ENCODED_CALL.as_bytes().to_vec(), false));
+		assert_eq! (history[0], (ENCODED_CALL.as_bytes().to_vec(), ALICE, false));
 	});
 }

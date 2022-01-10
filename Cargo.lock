@@ -3837,6 +3837,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-registry"
+version = "3.0.0"
+dependencies = [
+ "env_logger 0.7.1",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-env-log",
+]
+
+[[package]]
 name = "pallet-s-contract"
 version = "3.0.0"
 dependencies = [
@@ -6100,6 +6119,7 @@ dependencies = [
  "pallet-grandpa",
  "pallet-naming",
  "pallet-randomness-collective-flip",
+ "pallet-registry",
  "pallet-s-contract",
  "pallet-secrets",
  "pallet-sudo",

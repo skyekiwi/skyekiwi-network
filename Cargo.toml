@@ -4,6 +4,7 @@ members = [
     'skw-pallets/naming',
     'skw-pallets/secrets',
     'skw-pallets/s-contract',
+    'skw-pallets/registry',
     'skw-runtime',
 ]
 

@@ -14,10 +14,10 @@ export class Chaos {
     await waitReady();
     
     const keyring = new Keyring({ type: 'sr25519' }).addFromUri(`//${accountIndex}`)
-
     const provider = new WsProvider('ws://127.0.0.1:9944');
     const api = await ApiPromise.create({ provider: provider });
 
+    // deploy a shit tons of contract -> contractId cannot be wrongfully read
     for (let i = 0 ; i < loop; i ++) {
       const logger = getLogger(`push calls to //${accountIndex}`);
       const bytes = randomBytes(32);

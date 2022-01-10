@@ -16,7 +16,6 @@ mod mock;
 
 pub type CallIndex = u64;
 pub type EncodedCall = Vec<u8>;
-pub type CallBody = (EncodedCall, bool);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -30,17 +29,17 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type CallLength: Get<u32>;
-		// type ForceOrigin: EnsureOrigin<Self::Origin>;
 	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	// index of EncodedCall ALWAYS should equals to its index
+	// index of EncodedCall ALWAYS should equals to its CallIndex
 	#[pallet::storage]
 	#[pallet::getter(fn call_history_of)]
-	pub(super) type CallHistory<T: Config> = StorageMap<_, Blake2_128Concat, SecretId, Vec<CallBody> >;
+	pub(super) type CallHistory<T: Config> = StorageMap<_, Blake2_128Concat,
+		SecretId, Vec<(EncodedCall, T::AccountId, bool)> >;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -56,6 +55,7 @@ pub mod pallet {
 		InvalideEncodedCall,
 		ContrtactIndexError,
 		CallIndexError,
+		Unexpected,
 	}
 
 	#[pallet::call]
@@ -68,18 +68,23 @@ pub mod pallet {
 			contract_public_key: Vec<u8>,
 			initialization_call: EncodedCall,
 		) -> DispatchResult {
-			// let who = ensure_signed(origin)?;
+			let deployer = ensure_signed(origin.clone())?;
 
-			ensure!(Self::validate_call(initialization_call.clone()), Error::<T>::InvalideEncodedCall);
+			ensure!(
+				Self::validate_call(initialization_call.clone()),
+				Error::<T>::InvalideEncodedCall
+			);
+
 			match pallet_secrets::Pallet::<T>::register_secret_contract(
 				origin, metadata, contract_public_key
 			) {
 				Ok(()) => {
+					// TODO: is this always right??
 					// get the lastest secretId - 1 -> it belongs to the secret we have just created
 					let contract_index = pallet_secrets::Pallet::<T>::current_secret_id().saturating_sub(1);
 
 					// the init call
-					Self::try_insert_call(contract_index, initialization_call, true);					
+					Self::try_insert_call(contract_index, initialization_call, deployer, true);
 					Ok(())
 				},
 				Err(err) => Err(err)
@@ -92,10 +97,10 @@ pub mod pallet {
 			contract_index: SecretId,
 			call: EncodedCall,
 		) -> DispatchResult {
-			ensure_signed(origin)?;
+			let who = ensure_signed(origin)?;
 			ensure!(Self::validate_call(call.clone()), Error::<T>::InvalideEncodedCall);
 			
-			match Self::try_insert_call(contract_index, call, false) {
+			match Self::try_insert_call(contract_index, call, who, false) {
 				Some(call_index) => {
 					Self::deposit_event(Event::<T>::CallReceived(contract_index, call_index));
 					Ok(())
@@ -115,6 +120,7 @@ pub mod pallet {
 		pub fn try_insert_call(
 			contract_index: SecretId,
 			call: EncodedCall,
+			origin: T::AccountId,
 			force_insert: bool
 		) -> Option<CallIndex> {
 			let mut history = Self::call_history_of(&contract_index);
@@ -127,11 +133,26 @@ pub mod pallet {
 			}
 
 			if let Some(mut content) = history {
-				content.push((call, false));
+				content.push((call, origin, false));
 				<CallHistory<T>>::insert(&contract_index, content.clone());
 				Some(content.len() as u64)
 			} else {
 				None
+			}
+		}
+
+		pub fn get_call(
+			contract_index: SecretId,
+			call_index: CallIndex
+		) -> Option<(EncodedCall, T::AccountId, bool)> {
+			match Self::call_history_of(&contract_index) {
+				Some(history) => {
+					match history.get(call_index as usize) {
+						Some(res) => { Some( res.clone()) },
+						None => None
+					}
+				},
+				None => None
 			}
 		}
 	}

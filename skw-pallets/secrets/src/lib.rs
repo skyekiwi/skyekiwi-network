@@ -37,6 +37,8 @@ pub mod pallet {
 	#[pallet::getter(fn metadata_of)]
 	pub(super) type Metadata<T: Config> = StorageMap<_, Blake2_128Concat, SecretId, Vec<u8>>;
 
+	// we gotta do more checks with this public key
+	// 	-> can they duplicate? should not trust clients for all this info
 	#[pallet::storage]
 	#[pallet::getter(fn public_key_of_contract)]
 	pub(super) type ContractPublicKey<T: Config> = StorageMap<_, Blake2_128Concat, SecretId, Vec<u8>>;
@@ -112,7 +114,7 @@ pub mod pallet {
 			ensure!(metadata.len() == T::IPFSCIDLength::get() as usize, Error::<T>::MetadataNotValid);
 			
 			// compress the pk: [0x3, 0x2, 0x1, 0xf] => [0x32, 0x1f]
-			// TODO: when the public key is invalid - exception needs to be handled
+			// TODO: when the public key is invalid on compression - exception needs to be handled
 			let pk: Vec<u8> = Self::compress_hex_key(&contract_public_key);
 			ensure!(pk.len() == 32 as usize, Error::<T>::ContractPublicKeyNotValid);
 			
