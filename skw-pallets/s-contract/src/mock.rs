@@ -23,6 +23,7 @@ frame_support::construct_runtime!(
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Secrets: pallet_secrets::{Pallet, Call, Storage, Event<T>},
 		SContract: pallet_s_contract::{Pallet, Call, Storage, Event<T>},
+		Registry: pallet_registry::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -67,14 +68,24 @@ impl pallet_secrets::Config for Test {
 }
 
 parameter_types! {
-	pub const CallLength: u32 = 128;
+	pub const MaxCallLength: u32 = 128;
+	pub const MaxOutputLength: u32 = 256;
 }
 
 impl pallet_s_contract::Config for Test {
 	type Event = Event;
-	type CallLength = CallLength;
+	type MaxCallLength = MaxCallLength;
+	type MaxOutputLength = MaxOutputLength;
 }
 
+parameter_types! {
+	pub const RegistrationDuration: u32 = 1_000_000_000;
+}
+
+impl pallet_registry::Config for Test {
+	type Event = Event;
+	type RegistrationDuration = RegistrationDuration;
+}
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()

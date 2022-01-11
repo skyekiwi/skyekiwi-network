@@ -3865,6 +3865,7 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-balances",
+ "pallet-registry",
  "pallet-secrets",
  "parity-scale-codec",
  "scale-info",

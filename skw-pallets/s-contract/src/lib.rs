@@ -24,11 +24,18 @@ pub mod pallet {
 	use super::*;
 	
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_secrets::Config {
+	pub trait Config: 
+		frame_system::Config + 
+		pallet_secrets::Config +
+		pallet_registry::Config
+	{
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		#[pallet::constant]
-		type CallLength: Get<u32>;
+		type MaxCallLength: Get<u32>;
+
+		#[pallet::constant]
+		type MaxOutputLength: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -45,16 +52,16 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		CallReceived(SecretId, CallIndex),
-		
-		// should also include the events bubbled up?
-		CallFullfilled(SecretId, CallIndex),
+		CallFullfilled(SecretId, CallIndex, Vec<u8>),
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		InvalideEncodedCall,
-		ContrtactIndexError,
-		CallIndexError,
+		InvalidEncodedCall,
+		InvalidContractIndex,
+		InvalidCallIndex,
+		InvalidCallOutput,
+		Unauthorized, 
 		Unexpected,
 	}
 
@@ -72,7 +79,7 @@ pub mod pallet {
 
 			ensure!(
 				Self::validate_call(initialization_call.clone()),
-				Error::<T>::InvalideEncodedCall
+				Error::<T>::InvalidEncodedCall
 			);
 
 			match pallet_secrets::Pallet::<T>::register_secret_contract(
@@ -98,7 +105,7 @@ pub mod pallet {
 			call: EncodedCall,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(Self::validate_call(call.clone()), Error::<T>::InvalideEncodedCall);
+			ensure!(Self::validate_call(call.clone()), Error::<T>::InvalidEncodedCall);
 			
 			match Self::try_insert_call(contract_index, call, who, false) {
 				Some(call_index) => {
@@ -106,7 +113,7 @@ pub mod pallet {
 					Ok(())
 				},
 				None => {
-					Err(Error::<T>::CallIndexError.into())
+					Err(Error::<T>::InvalidCallIndex.into())
 				}
 			}
 		}
@@ -115,18 +122,32 @@ pub mod pallet {
 		pub fn fullfill_call(
 			origin: OriginFor<T>, 
 			contract_index: SecretId,
-			call: EncodedCall,
+			call_index: CallIndex,
+			// gotta structure this into the skw-primritives
+			call_output: Vec<u8>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(Self::validate_call(call.clone()), Error::<T>::InvalideEncodedCall);
+			ensure!(pallet_registry::Pallet::<T>::is_valid_secret_keeper(&who), Error::<T>::Unauthorized);
+			ensure!(Self::validate_output(&call_output), Error::<T>::InvalidCallOutput);
 			
-			match Self::try_insert_call(contract_index, call, who, false) {
-				Some(call_index) => {
-					Self::deposit_event(Event::<T>::CallReceived(contract_index, call_index));
-					Ok(())
+			match Self::call_history_of(&contract_index) {
+				Some(mut history) => {
+					match history.get_mut(call_index as usize) {
+						Some(res) => {
+							let mut res_clone = res.clone();
+							res_clone.2 = true;
+							* res = res_clone;
+
+							Self::deposit_event(Event::<T>::CallFullfilled(contract_index, call_index, call_output));
+							Ok(())
+						},
+						None => {
+							Err(Error::<T>::InvalidCallIndex.into())
+						}
+					}
 				},
 				None => {
-					Err(Error::<T>::CallIndexError.into())
+					Err(Error::<T>::InvalidContractIndex.into())
 				}
 			}
 		}
@@ -134,7 +155,11 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		pub fn validate_call(call: EncodedCall,) -> bool {
-			call.len() < T::CallLength::get() as usize
+			call.len() < T::MaxCallLength::get() as usize
+		}
+
+		pub fn validate_output(output: &Vec<u8>,) -> bool {
+			output.len() < T::MaxOutputLength::get() as usize
 		}
 
 		pub fn try_insert_call(
