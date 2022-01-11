@@ -110,6 +110,26 @@ pub mod pallet {
 				}
 			}
 		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		pub fn fullfill_call(
+			origin: OriginFor<T>, 
+			contract_index: SecretId,
+			call: EncodedCall,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			ensure!(Self::validate_call(call.clone()), Error::<T>::InvalideEncodedCall);
+			
+			match Self::try_insert_call(contract_index, call, who, false) {
+				Some(call_index) => {
+					Self::deposit_event(Event::<T>::CallReceived(contract_index, call_index));
+					Ok(())
+				},
+				None => {
+					Err(Error::<T>::CallIndexError.into())
+				}
+			}
+		}
 	}
 
 	impl<T: Config> Pallet<T> {

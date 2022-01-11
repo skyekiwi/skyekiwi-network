@@ -40,6 +40,7 @@ fn it_register_secret_keeper() {
 
 		assert_eq! (all_secret_keepers.len(), 1);
 		assert_eq! (all_secret_keepers[0], ALICE);
+		assert_eq! (Registry::is_valid_secret_keeper(&ALICE), true);
 	});
 }
 
@@ -65,6 +66,8 @@ fn it_renews_registration() {
 				Vec::new()
 			)
 		);
+
+		assert_eq! (Registry::is_valid_secret_keeper(&ALICE), true);
 	});
 }
 
@@ -92,5 +95,6 @@ fn it_removes_registration() {
 
 		let all_secret_keepers = Registry::secret_keepers().unwrap();
 		assert_eq! (all_secret_keepers.len(), 0);
+		assert_eq! (Registry::is_valid_secret_keeper(&ALICE), false);
 	});
 }

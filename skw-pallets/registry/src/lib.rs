@@ -128,15 +128,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			ensure!(<Expiration<T>>::contains_key(&who), Error::<T>::RegistrationNotFound);
-			// TODO: do we really need this?
-			ensure!(<PublicKey<T>>::contains_key(&who), Error::<T>::RegistrationNotFound);
+			ensure!(Self::is_valid_secret_keeper(&who), Error::<T>::InvalidSecretKeeper);
 
 			match Self::try_remove_registration(who.clone()) {
 				true => {
-					<Expiration<T>>::remove(&who);
-					<PublicKey<T>>::remove(&who);
-
 					Self::deposit_event(Event::<T>::SecretKeeperRenewed(who));
 					Ok(())
 				},
@@ -174,9 +169,25 @@ pub mod pallet {
 				Some(index) => {
 					secret_keepers.swap_remove(index);
 					<SecretKeepers<T>>::set( Some(secret_keepers) );
+					<Expiration<T>>::remove(&account_id);
+					<PublicKey<T>>::remove(&account_id);
 					true
 				},
 				None => false
+			}
+		}
+
+		pub fn is_valid_secret_keeper(who: &T::AccountId) -> bool {
+			let is_registered: bool = 
+				<Expiration<T>>::contains_key(who) && 
+				// do we really need to check PUblicKey?
+				<PublicKey<T>>::contains_key(who);
+
+			match is_registered {
+				true => {
+					Self::expiration_of(who).unwrap() >= frame_system::Pallet::<T>::block_number()
+				},
+				false => false
 			}
 		}
 
