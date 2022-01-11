@@ -12,8 +12,11 @@
 
     "blockchain:build": "node ./scripts/blockchain-build.cjs",
     "blockchain:ci": "node ./scripts/blockchain-ci.cjs",
+    "blockchain:test": "node ./scripts/blockchain-test.cjs",
 
     "contract:compile": "node ./scripts/contract-compile.cjs",
-    "mock-enclave:start": "yarn contract:compile && npx ts-node mock-enclave/host/index.ts"
+    "mock-enclave:start": "yarn contract:compile && npx ts-node mock-enclave/host/index.ts",
+
+    "chaos:party": "cd chaos && yarn party"
   }
 }

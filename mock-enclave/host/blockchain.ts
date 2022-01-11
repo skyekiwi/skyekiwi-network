@@ -2,12 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Call, EncodedCall, RequestDispatch, RequestInitializeContract } from '@skyekiwi/s-contract/types';
+import type { SubmittableExtrinsic } from '@polkadot/api/promise/types';
+import type { Signer } from '@polkadot/api/types';
+import type { KeyringPair } from '@polkadot/keyring/types';
 
 import { randomBytes } from 'tweetnacl';
 import { indexToString, u8aToHex, hexToU8a } from '@skyekiwi/util';
 import { SContractReader } from '@skyekiwi/s-contract';
 import { DefaultSealer } from '@skyekiwi/crypto'
 import { mnemonicToMiniSecret } from '@polkadot/util-crypto'
+import { ApiPromise, WsProvider } from '@polkadot/api'
+import { Keyring } from '@polkadot/keyring'
+import { waitReady } from '@polkadot/wasm-crypto'
 
 require('dotenv').config()
 export const mockAccounts = [

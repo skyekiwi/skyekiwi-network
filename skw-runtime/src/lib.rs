@@ -40,6 +40,8 @@ use pallet_transaction_payment::CurrencyAdapter;
 
 pub use pallet_naming;
 pub use pallet_secrets;
+pub use pallet_s_contract;
+pub use pallet_registry;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -305,6 +307,24 @@ impl pallet_secrets::Config for Runtime {
 		type IPFSCIDLength = IPFSCIDLength;
 }
 
+parameter_types! {
+	pub const MaxCallLength: u32 = 128;
+	pub const MaxOutputLength: u32 = 256;
+}
+
+impl pallet_s_contract::Config for Runtime {
+	type Event = Event;
+	type MaxCallLength = MaxCallLength;
+	type MaxOutputLength = MaxOutputLength;
+}
+parameter_types! {
+	pub const RegistrationDuration: u32 = 1_000_000_000;
+}
+
+impl pallet_registry::Config for Runtime {
+	type Event = Event;
+	type RegistrationDuration = RegistrationDuration;
+}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -324,6 +344,8 @@ construct_runtime!(
 
 		Naming: pallet_naming::{Pallet, Call, Storage, Event<T>},
 		Secrets: pallet_secrets::{Pallet, Call, Storage, Event<T>},
+		SContract: pallet_s_contract::{Pallet, Call, Storage, Event<T>},
+		Registry: pallet_registry::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
