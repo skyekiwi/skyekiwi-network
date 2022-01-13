@@ -48,14 +48,14 @@ pub trait ValuePtr {
 }
 
 /// An external blockchain interface for the Runtime logic
-pub trait External {
+pub trait RuntimeExternal {
     /// Write `value` to the `key` of the storage trie associated with the current account.
     ///
     /// # Example
     ///
     /// ```
     /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
+    /// # use near_vm_logic::RuntimeExternal;
     ///
     /// # let mut external = MockedExternal::new();
     /// assert_eq!(external.storage_set(b"key42", b"value1337"), Ok(()));
@@ -77,7 +77,7 @@ pub trait External {
     /// # Example
     /// ```
     /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::{External, ValuePtr};
+    /// # use near_vm_logic::{RuntimeExternal, ValuePtr};
     ///
     /// # let mut external = MockedExternal::new();
     /// external.storage_set(b"key42", b"value1337").unwrap();
@@ -98,7 +98,7 @@ pub trait External {
     /// # Example
     /// ```
     /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
+    /// # use near_vm_logic::RuntimeExternal;
     ///
     /// # let mut external = MockedExternal::new();
     /// external.storage_set(b"key42", b"value1337").unwrap();
@@ -123,7 +123,7 @@ pub trait External {
     /// # Example
     /// ```
     /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
+    /// # use near_vm_logic::RuntimeExternal;
     ///
     /// # let mut external = MockedExternal::new();
     /// external.storage_set(b"key1", b"value1337").unwrap();
@@ -149,7 +149,7 @@ pub trait External {
     /// # Example
     /// ```
     /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
+    /// # use near_vm_logic::RuntimeExternal;
     ///
     /// # let mut external = MockedExternal::new();
     /// external.storage_set(b"key42", b"value1337").unwrap();
@@ -173,7 +173,7 @@ pub trait External {
     /// # Example
     /// ```
     /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
+    /// # use near_vm_logic::RuntimeExternal;
     ///
     /// # let mut external = MockedExternal::new();
     /// let receipt_index_one = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
@@ -195,7 +195,7 @@ pub trait External {
     /// # Example
     /// ```
     /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
+    /// # use near_vm_logic::RuntimeExternal;
     ///
     /// # let mut external = MockedExternal::new();
     /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
@@ -219,7 +219,7 @@ pub trait External {
     ///
     /// ```
     /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
+    /// # use near_vm_logic::RuntimeExternal;
     ///
     /// # let mut external = MockedExternal::new();
     /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
@@ -249,7 +249,7 @@ pub trait External {
     ///
     /// ```
     /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
+    /// # use near_vm_logic::RuntimeExternal;
     ///
     /// # let mut external = MockedExternal::new();
     /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
@@ -285,7 +285,7 @@ pub trait External {
     ///
     /// ```
     /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
+    /// # use near_vm_logic::RuntimeExternal;
     ///
     /// # let mut external = MockedExternal::new();
     /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
@@ -315,7 +315,7 @@ pub trait External {
     ///
     /// ```
     /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
+    /// # use near_vm_logic::RuntimeExternal;
     ///
     /// # let mut external = MockedExternal::new();
     /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();

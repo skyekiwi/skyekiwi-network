@@ -12,11 +12,11 @@ use near_vm_errors::{
 };
 use near_vm_logic::types::{PromiseResult, ProtocolVersion};
 use near_vm_logic::{External, MemoryLike, VMConfig, VMContext, VMLogic, VMOutcome};
+
 use wasmi::{
     MemoryInstance, TrapKind, ModuleInstance,
     memory_units::{Pages, Bytes}, NopExternals, ImportsBuilder
 };
-use parity_wasm::elements::Module;
 
 pub struct WasmiMemory(MemoryInstance);
 
@@ -213,8 +213,8 @@ pub(crate) fn run_wasmi_module<'a>(
 
 pub(crate) struct WasmiVM;
 
-impl crate::runner::VM for WasmiVM {
-    fn run(
+impl WasmiVM {
+    pub fn run(
         &self,
         code: &ContractCode,
         method_name: &str,
@@ -289,7 +289,7 @@ impl crate::runner::VM for WasmiVM {
         (Some(logic.outcome()), err)
     }
 
-    fn precompile(
+    pub fn precompile(
         &self,
         code: &[u8],
         code_hash: &near_primitives::hash::CryptoHash,
@@ -305,7 +305,7 @@ impl crate::runner::VM for WasmiVM {
         into_vm_result(result).err()
     }
 
-    fn check_compile(&self, code: &[u8]) -> bool {
-        Module::from_buffer(code).is_ok()
+    pub fn check_compile(&self, code: &[u8]) -> bool {
+        wasmi::Module::from_buffer(code).is_ok()
     }
 }

@@ -1,4 +1,4 @@
-use crate::{External, ValuePtr};
+use crate::{RuntimeExternal, ValuePtr};
 use near_primitives_core::types::{AccountId, Balance, Gas};
 use near_vm_errors::HostError;
 use serde::{Deserialize, Serialize};
@@ -47,7 +47,7 @@ impl MockedExternal {
 }
 
 use crate::dependencies::Result;
-impl External for MockedExternal {
+impl RuntimeExternal for MockedExternal {
     fn storage_set(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
         self.fake_trie.insert(key.to_vec(), value.to_vec());
         Ok(())

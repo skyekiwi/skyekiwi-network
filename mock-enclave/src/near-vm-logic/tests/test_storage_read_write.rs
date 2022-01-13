@@ -2,7 +2,7 @@ mod fixtures;
 mod vm_logic_builder;
 
 use fixtures::get_context;
-use near_vm_logic::External;
+use near_vm_logic::RuntimeExternal;
 use vm_logic_builder::VMLogicBuilder;
 
 #[test]

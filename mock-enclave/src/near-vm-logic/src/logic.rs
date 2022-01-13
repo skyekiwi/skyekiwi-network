@@ -1,5 +1,5 @@
 use crate::context::VMContext;
-use crate::dependencies::{External, MemoryLike};
+use crate::dependencies::{RuntimeExternal, MemoryLike};
 use crate::gas_counter::{FastGasCounter, GasCounter};
 use crate::types::{PromiseIndex, PromiseResult, ReceiptIndex, ReturnData};
 use crate::ValuePtr;
@@ -25,7 +25,7 @@ pub type Result<T> = ::std::result::Result<T, VMLogicError>;
 pub struct VMLogic<'a> {
     /// Provides access to the components outside the Wasm runtime for operations on the trie and
     /// receipts creation.
-    ext: &'a mut dyn External,
+    ext: &'a mut dyn RuntimeExternal,
     /// Part of Context API and Economics API that was extracted from the receipt.
     context: VMContext,
     /// Parameters of Wasm and economic parameters.
@@ -96,7 +96,7 @@ macro_rules! memory_set {
 
 impl<'a> VMLogic<'a> {
     pub fn new_with_protocol_version(
-        ext: &'a mut dyn External,
+        ext: &'a mut dyn RuntimeExternal,
         context: VMContext,
         config: &'a VMConfig,
         fees_config: &'a RuntimeFeesConfig,
