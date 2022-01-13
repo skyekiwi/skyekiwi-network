@@ -1,6 +1,6 @@
 //! External dependencies of the near-vm-logic.
 
-use crate::types::{PublicKey, ReceiptIndex};
+use crate::types::{ReceiptIndex};
 use near_primitives_core::types::{AccountId, Balance, Gas};
 use near_vm_errors::VMLogicError;
 
@@ -304,147 +304,6 @@ pub trait External {
         amount: Balance,
     ) -> Result<()>;
 
-    /// Attach the [`StakeAction`] action to an existing receipt.
-    ///
-    /// # Arguments
-    ///
-    /// * `receipt_index` - an index of Receipt to append an action
-    /// * `stake` - amount of tokens to stake
-    /// * `public_key` - a validator public key
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
-    ///
-    /// # let mut external = MockedExternal::new();
-    /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
-    /// external.append_action_stake(
-    ///     receipt_index,
-    ///     100000u128,
-    ///     b"some public key".to_vec()
-    /// ).unwrap();
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `receipt_index` does not refer to a known receipt.
-    fn append_action_stake(
-        &mut self,
-        receipt_index: ReceiptIndex,
-        stake: Balance,
-        public_key: PublicKey,
-    ) -> Result<()>;
-
-    /// Attach the [`AddKeyAction`] action to an existing receipt.
-    ///
-    /// # Arguments
-    ///
-    /// * `receipt_index` - an index of Receipt to append an action
-    /// * `public_key` - a public key for an access key
-    /// * `nonce` - a nonce
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
-    ///
-    /// # let mut external = MockedExternal::new();
-    /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
-    /// external.append_action_add_key_with_full_access(
-    ///     receipt_index,
-    ///     b"some public key".to_vec(),
-    ///     0u64
-    /// ).unwrap();
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `receipt_index` does not refer to a known receipt.
-    fn append_action_add_key_with_full_access(
-        &mut self,
-        receipt_index: ReceiptIndex,
-        public_key: PublicKey,
-        nonce: u64,
-    ) -> Result<()>;
-
-    /// Attach the [`AddKeyAction`] action an existing receipt.
-    ///
-    /// The access key associated with the action will have the
-    /// [`AccessKeyPermission::FunctionCall`] permission scope.
-    ///
-    /// # Arguments
-    ///
-    /// * `receipt_index` - an index of Receipt to append an action
-    /// * `public_key` - a public key for an access key
-    /// * `nonce` - a nonce
-    /// * `allowance` - amount of tokens allowed to spend by this access key
-    /// * `receiver_id` - a contract witch will be allowed to call with this access key
-    /// * `method_names` - a list of method names is allowed to call with this access key (empty = any method)
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
-    ///
-    /// # let mut external = MockedExternal::new();
-    /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
-    /// external.append_action_add_key_with_function_call(
-    ///     receipt_index,
-    ///     b"some public key".to_vec(),
-    ///     0u64,
-    ///     None,
-    ///     "bob.near".parse().unwrap(),
-    ///     vec![b"foo".to_vec(), b"bar".to_vec()]
-    /// ).unwrap();
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `receipt_index` does not refer to a known receipt.
-    fn append_action_add_key_with_function_call(
-        &mut self,
-        receipt_index: ReceiptIndex,
-        public_key: PublicKey,
-        nonce: u64,
-        allowance: Option<Balance>,
-        receiver_id: AccountId,
-        method_names: Vec<Vec<u8>>,
-    ) -> Result<()>;
-
-    /// Attach the [`DeleteKeyAction`] action to an existing receipt.
-    ///
-    /// # Arguments
-    ///
-    /// * `receipt_index` - an index of Receipt to append an action
-    /// * `public_key` - a public key for an access key to delete
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use near_vm_logic::mocks::mock_external::MockedExternal;
-    /// # use near_vm_logic::External;
-    ///
-    /// # let mut external = MockedExternal::new();
-    /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
-    /// external.append_action_delete_key(
-    ///     receipt_index,
-    ///     b"some public key".to_vec()
-    /// ).unwrap();
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `receipt_index` does not refer to a known receipt.
-    fn append_action_delete_key(
-        &mut self,
-        receipt_index: ReceiptIndex,
-        public_key: PublicKey,
-    ) -> Result<()>;
-
     /// Attach the [`DeleteAccountAction`] action to an existing receipt
     ///
     /// # Arguments
@@ -480,11 +339,4 @@ pub trait External {
 
     /// Resets amount of touched trie nodes by storage operations
     fn reset_touched_nodes_counter(&mut self);
-
-    /// Returns the validator stake for given account in the current epoch.
-    /// If the account is not a validator, returns `None`.
-    fn validator_stake(&self, account_id: &AccountId) -> Result<Option<Balance>>;
-
-    /// Returns total stake of validators in the current epoch.
-    fn validator_total_stake(&self) -> Result<Balance>;
 }

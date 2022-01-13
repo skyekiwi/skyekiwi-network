@@ -32,10 +32,6 @@ fn test_prohibited_view_methods() {
     test_prohibited!(promise_batch_action_deploy_contract, 0, 0, 0);
     test_prohibited!(promise_batch_action_function_call, 0, 0, 0, 0, 0, 0, 0);
     test_prohibited!(promise_batch_action_transfer, 0, 0);
-    test_prohibited!(promise_batch_action_stake, 0, 0, 0, 0);
-    test_prohibited!(promise_batch_action_add_key_with_full_access, 0, 0, 0, 0);
-    test_prohibited!(promise_batch_action_add_key_with_function_call, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-    test_prohibited!(promise_batch_action_delete_key, 0, 0, 0);
     test_prohibited!(promise_batch_action_delete_account, 0, 0, 0);
     test_prohibited!(promise_results_count);
     test_prohibited!(promise_result, 0, 0);
@@ -49,5 +45,5 @@ fn test_allowed_view_method() {
     let mut logic_builder = VMLogicBuilder::default();
     let context = get_context(vec![], true);
     let mut logic = logic_builder.build(context.clone());
-    assert_eq!(logic.block_index().unwrap(), context.block_index);
+    assert_eq!(logic.block_number().unwrap(), context.block_number);
 }

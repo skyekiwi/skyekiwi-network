@@ -7,7 +7,6 @@ mod logic;
 pub mod mocks;
 pub mod serde_with;
 pub mod types;
-mod utils;
 
 pub use context::VMContext;
 pub use dependencies::{External, MemoryLike, ValuePtr};

@@ -1,9 +1,7 @@
 use crate::types::PublicKey;
 use near_primitives_core::config::ViewConfig;
 use near_primitives_core::serialize::u64_dec_format;
-use near_primitives_core::types::{
-    AccountId, Balance, BlockHeight, EpochHeight, Gas, StorageUsage,
-};
+use near_primitives_core::types::{AccountId, Balance, BlockHeight, EpochHeight, Gas, StorageUsage,};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -29,7 +27,7 @@ pub struct VMContext {
     pub input: Vec<u8>,
     /// The current block height.
     // TODO #1903 rename to `block_height`
-    pub block_index: BlockHeight,
+    pub block_number: BlockHeight,
     /// The current block timestamp (number of non-leap-nanoseconds since January 1, 1970 0:00:00 UTC).
     #[serde(with = "u64_dec_format")]
     pub block_timestamp: u64,
@@ -40,9 +38,6 @@ pub struct VMContext {
     /// attached to the transaction.
     #[serde(with = "crate::serde_with::u128_dec_format_compatible")]
     pub account_balance: Balance,
-    /// The balance of locked tokens on the given account.
-    #[serde(with = "crate::serde_with::u128_dec_format_compatible")]
-    pub account_locked_balance: Balance,
     /// The account's storage usage before the contract execution
     pub storage_usage: StorageUsage,
     /// The balance that was attached to the call that will be immediately deposited before the

@@ -2,7 +2,6 @@ use crate::context::VMContext;
 use crate::dependencies::{External, MemoryLike};
 use crate::gas_counter::{FastGasCounter, GasCounter};
 use crate::types::{PromiseIndex, PromiseResult, ReceiptIndex, ReturnData};
-use crate::utils::split_method_names;
 use crate::ValuePtr;
 use byteorder::ByteOrder;
 use near_crypto::Secp256K1Signature;
@@ -42,9 +41,6 @@ pub struct VMLogic<'a> {
     /// Keeping track of the current account balance, which can decrease when we create promises
     /// and attach balance to them.
     current_account_balance: Balance,
-    /// Current amount of locked tokens, does not automatically change when staking transaction is
-    /// issued.
-    current_account_locked_balance: Balance,
     /// Storage usage of the current account at the moment
     current_storage_usage: StorageUsage,
     gas_counter: GasCounter,
@@ -116,7 +112,6 @@ impl<'a> VMLogic<'a> {
             Some(ViewConfig { max_gas_burnt: max_gas_burnt_view }) => max_gas_burnt_view,
             None => config.limit_config.max_gas_burnt,
         };
-        let current_account_locked_balance = context.account_locked_balance;
         let gas_counter = GasCounter::new(
             config.ext_costs.clone(),
             max_gas_burnt,
@@ -132,7 +127,6 @@ impl<'a> VMLogic<'a> {
             promise_results,
             memory,
             current_account_balance,
-            current_account_locked_balance,
             current_storage_usage,
             gas_counter,
             return_data: ReturnData::None,
@@ -588,15 +582,15 @@ impl<'a> VMLogic<'a> {
         self.internal_write_register(register_id, self.context.input.clone())
     }
 
-    /// Returns the current block height.
+    /// Returns the current block number.
     ///
     /// # Cost
     ///
     /// `base`
-    // TODO #1903 rename to `block_height`
-    pub fn block_index(&mut self) -> Result<u64> {
+    // TODO #1903 rename to `block_number`
+    pub fn block_number(&mut self) -> Result<u64> {
         self.gas_counter.pay_base(base)?;
-        Ok(self.context.block_index)
+        Ok(self.context.block_number)
     }
 
     /// Returns the current block timestamp (number of non-leap-nanoseconds since January 1, 1970 0:00:00 UTC).
@@ -617,39 +611,6 @@ impl<'a> VMLogic<'a> {
     pub fn epoch_height(&mut self) -> Result<EpochHeight> {
         self.gas_counter.pay_base(base)?;
         Ok(self.context.epoch_height)
-    }
-
-    /// Get the stake of an account, if the account is currently a validator. Otherwise returns 0.
-    /// writes the value into the` u128` variable pointed by `stake_ptr`.
-    ///
-    /// # Cost
-    ///
-    /// `base + memory_write_base + memory_write_size * 16 + utf8_decoding_base + utf8_decoding_byte * account_id_len + validator_stake_base`.
-    pub fn validator_stake(
-        &mut self,
-        account_id_len: u64,
-        account_id_ptr: u64,
-        stake_ptr: u64,
-    ) -> Result<()> {
-        self.gas_counter.pay_base(base)?;
-        let account_id = self.read_and_parse_account_id(account_id_ptr, account_id_len)?;
-        self.gas_counter.pay_base(validator_stake_base)?;
-        let balance = self.ext.validator_stake(&account_id)?.unwrap_or_default();
-        self.memory_set_u128(stake_ptr, balance)
-    }
-
-    /// Get the total validator stake of the current epoch.
-    /// Write the u128 value into `stake_ptr`.
-    /// writes the value into the` u128` variable pointed by `stake_ptr`.
-    ///
-    /// # Cost
-    ///
-    /// `base + memory_write_base + memory_write_size * 16 + validator_total_stake_base`
-    pub fn validator_total_stake(&mut self, stake_ptr: u64) -> Result<()> {
-        self.gas_counter.pay_base(base)?;
-        self.gas_counter.pay_base(validator_total_stake_base)?;
-        let total_stake = self.ext.validator_total_stake()?;
-        self.memory_set_u128(stake_ptr, total_stake)
     }
 
     /// Returns the number of bytes used by the contract if it was saved to the trie as of the
@@ -680,16 +641,6 @@ impl<'a> VMLogic<'a> {
     pub fn account_balance(&mut self, balance_ptr: u64) -> Result<()> {
         self.gas_counter.pay_base(base)?;
         self.memory_set_u128(balance_ptr, self.current_account_balance)
-    }
-
-    /// The current amount of tokens locked due to staking.
-    ///
-    /// # Cost
-    ///
-    /// `base + memory_write_base + memory_write_size * 16`
-    pub fn account_locked_balance(&mut self, balance_ptr: u64) -> Result<()> {
-        self.gas_counter.pay_base(base)?;
-        self.memory_set_u128(balance_ptr, self.current_account_locked_balance)
     }
 
     /// The balance that was attached to the call that will be immediately deposited before the
@@ -753,97 +704,6 @@ impl<'a> VMLogic<'a> {
     // ############
     // # Math API #
     // ############
-
-    /// Compute multiexp on alt_bn128 curve.
-    /// See more detailed description at `alt_bn128::alt_bn128_g1_multiexp`.
-    ///
-    /// # Errors
-    ///
-    /// If `value_len + value_ptr` points outside the memory or the registers use more memory than
-    /// the limit with `MemoryAccessViolation`.
-    ///
-    /// AltBn128SerializationError, AltBn128DeserializationError
-    ///
-    /// # Cost
-    ///
-    /// `base + write_register_base + write_register_byte * num_bytes + alt_bn128_g1_multiexp_base +
-    /// alt_bn128_g1_multiexp_byte * num_bytes + alt_bn128_g1_multiexp_sublinear *
-    /// alt_bn128_g1_multiexp_sublinear_complexity_estimate(num_bytes, (alt_bn128_g1_multiexp_base *
-    /// alt_bn128_g1_multiexp_byte * num_bytes) / alt_bn128_g1_multiexp_sublinear)`
-    #[cfg(feature = "protocol_feature_alt_bn128")]
-    pub fn alt_bn128_g1_multiexp(
-        &mut self,
-        value_len: u64,
-        value_ptr: u64,
-        register_id: u64,
-    ) -> Result<()> {
-        self.gas_counter.pay_base(alt_bn128_g1_multiexp_base)?;
-        let value_buf = self.get_vec_from_memory_or_register(value_ptr, value_len)?;
-        let len = value_buf.len() as u64;
-        self.gas_counter.pay_per(alt_bn128_g1_multiexp_byte, len)?;
-
-        let discount = (alt_bn128_g1_multiexp_base as u64
-            + alt_bn128_g1_multiexp_byte as u64 * len)
-            / alt_bn128_g1_multiexp_sublinear as u64;
-        let sublinear_complexity =
-            crate::alt_bn128::alt_bn128_g1_multiexp_sublinear_complexity_estimate(len, discount);
-        self.gas_counter.pay_per(alt_bn128_g1_multiexp_sublinear, sublinear_complexity)?;
-
-        let res = crate::alt_bn128::alt_bn128_g1_multiexp(&value_buf)?;
-
-        self.internal_write_register(register_id, res)
-    }
-
-    /// Compute signed sum on alt_bn128 for g1 group.
-    /// See more detailed description at `alt_bn128::alt_bn128_g1_sum`.
-    ///
-    /// # Errors
-    ///
-    /// If `value_len + value_ptr` points outside the memory or the registers use more memory than
-    /// the limit with `MemoryAccessViolation`.
-    ///
-    /// AltBn128SerializationError, AltBn128DeserializationError
-    ///
-    /// # Cost
-    ///
-    /// `base + write_register_base + write_register_byte * num_bytes + alt_bn128_g1_sum_base + alt_bn128_g1_sum_byte * num_bytes`
-    #[cfg(feature = "protocol_feature_alt_bn128")]
-    pub fn alt_bn128_g1_sum(
-        &mut self,
-        value_len: u64,
-        value_ptr: u64,
-        register_id: u64,
-    ) -> Result<()> {
-        self.gas_counter.pay_base(alt_bn128_g1_sum_base)?;
-        let value_buf = self.get_vec_from_memory_or_register(value_ptr, value_len)?;
-        self.gas_counter.pay_per(alt_bn128_g1_sum_byte, value_buf.len() as u64)?;
-
-        let res = crate::alt_bn128::alt_bn128_g1_sum(&value_buf)?;
-
-        self.internal_write_register(register_id, res)
-    }
-
-    /// Compute pairing check on alt_bn128 curve.
-    /// See more detailed description at `alt_bn128::alt_bn128_pairing_check`.
-    ///
-    /// # Errors
-    ///
-    /// If `value_len + value_ptr` points outside the memory or the registers use more memory than
-    /// the limit with `MemoryAccessViolation`.
-    ///
-    /// AltBn128SerializationError, AltBn128DeserializationError
-    ///
-    /// # Cost
-    ///
-    /// `base + write_register_base + write_register_byte * num_bytes + alt_bn128_pairing_base + alt_bn128_pairing_byte * num_bytes`
-    #[cfg(feature = "protocol_feature_alt_bn128")]
-    pub fn alt_bn128_pairing_check(&mut self, value_len: u64, value_ptr: u64) -> Result<u64> {
-        self.gas_counter.pay_base(alt_bn128_pairing_check_base)?;
-        let value_buf = self.get_vec_from_memory_or_register(value_ptr, value_len)?;
-        self.gas_counter.pay_per(alt_bn128_pairing_check_byte, value_buf.len() as u64)?;
-
-        Ok(crate::alt_bn128::alt_bn128_pairing_check(&value_buf)? as u64)
-    }
 
     /// Writes random seed into the register.
     ///
@@ -1596,214 +1456,6 @@ impl<'a> VMLogic<'a> {
         Ok(())
     }
 
-    /// Appends `Stake` action to the batch of actions for the given promise pointed by
-    /// `promise_idx`.
-    ///
-    /// # Errors
-    ///
-    /// * If `promise_idx` does not correspond to an existing promise returns `InvalidPromiseIndex`.
-    /// * If the promise pointed by the `promise_idx` is an ephemeral promise created by
-    /// `promise_and` returns `CannotAppendActionToJointPromise`.
-    /// * If the given public key is not a valid (e.g. wrong length) returns `InvalidPublicKey`.
-    /// * If `amount_ptr + 16` or `public_key_len + public_key_ptr` points outside the memory of the
-    /// guest or host returns `MemoryAccessViolation`.
-    /// * If called as view function returns `ProhibitedInView`.
-    ///
-    /// # Cost
-    ///
-    /// `burnt_gas := base + dispatch action base fee + dispatch action per byte fee * num bytes + cost of reading public key from memory `
-    /// `used_gas := burnt_gas + exec action base fee + exec action per byte fee * num bytes`
-    pub fn promise_batch_action_stake(
-        &mut self,
-        promise_idx: u64,
-        amount_ptr: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-    ) -> Result<()> {
-        self.gas_counter.pay_base(base)?;
-        if self.context.is_view() {
-            return Err(HostError::ProhibitedInView {
-                method_name: "promise_batch_action_stake".to_string(),
-            }
-            .into());
-        }
-        let amount = self.memory_get_u128(amount_ptr)?;
-        let public_key = self.get_vec_from_memory_or_register(public_key_ptr, public_key_len)?;
-
-        let (receipt_idx, sir) = self.promise_idx_to_receipt_idx_with_sir(promise_idx)?;
-
-        self.gas_counter.pay_action_base(
-            &self.fees_config.action_creation_config.stake_cost,
-            sir,
-            ActionCosts::stake,
-        )?;
-
-        self.ext.append_action_stake(receipt_idx, amount, public_key)?;
-        Ok(())
-    }
-
-    /// Appends `AddKey` action to the batch of actions for the given promise pointed by
-    /// `promise_idx`. The access key will have `FullAccess` permission.
-    ///
-    /// # Errors
-    ///
-    /// * If `promise_idx` does not correspond to an existing promise returns `InvalidPromiseIndex`.
-    /// * If the promise pointed by the `promise_idx` is an ephemeral promise created by
-    /// `promise_and` returns `CannotAppendActionToJointPromise`.
-    /// * If the given public key is not a valid (e.g. wrong length) returns `InvalidPublicKey`.
-    /// * If `public_key_len + public_key_ptr` points outside the memory of the guest or host
-    /// returns `MemoryAccessViolation`.
-    /// * If called as view function returns `ProhibitedInView`.
-    ///
-    /// # Cost
-    ///
-    /// `burnt_gas := base + dispatch action base fee + dispatch action per byte fee * num bytes + cost of reading public key from memory `
-    /// `used_gas := burnt_gas + exec action base fee + exec action per byte fee * num bytes`
-    pub fn promise_batch_action_add_key_with_full_access(
-        &mut self,
-        promise_idx: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-        nonce: u64,
-    ) -> Result<()> {
-        self.gas_counter.pay_base(base)?;
-        if self.context.is_view() {
-            return Err(HostError::ProhibitedInView {
-                method_name: "promise_batch_action_add_key_with_full_access".to_string(),
-            }
-            .into());
-        }
-        let public_key = self.get_vec_from_memory_or_register(public_key_ptr, public_key_len)?;
-
-        let (receipt_idx, sir) = self.promise_idx_to_receipt_idx_with_sir(promise_idx)?;
-
-        self.gas_counter.pay_action_base(
-            &self.fees_config.action_creation_config.add_key_cost.full_access_cost,
-            sir,
-            ActionCosts::add_key,
-        )?;
-
-        self.ext.append_action_add_key_with_full_access(receipt_idx, public_key, nonce)?;
-        Ok(())
-    }
-
-    /// Appends `AddKey` action to the batch of actions for the given promise pointed by
-    /// `promise_idx`. The access key will have `FunctionCall` permission.
-    ///
-    /// # Errors
-    ///
-    /// * If `promise_idx` does not correspond to an existing promise returns `InvalidPromiseIndex`.
-    /// * If the promise pointed by the `promise_idx` is an ephemeral promise created by
-    /// `promise_and` returns `CannotAppendActionToJointPromise`.
-    /// * If the given public key is not a valid (e.g. wrong length) returns `InvalidPublicKey`.
-    /// * If `public_key_len + public_key_ptr`, `allowance_ptr + 16`,
-    /// `receiver_id_len + receiver_id_ptr` or `method_names_len + method_names_ptr` points outside
-    /// the memory of the guest or host returns `MemoryAccessViolation`.
-    /// * If called as view function returns `ProhibitedInView`.
-    ///
-    /// # Cost
-    ///
-    /// `burnt_gas := base + dispatch action base fee + dispatch action per byte fee * num bytes + cost of reading vector from memory
-    ///  + cost of reading u128, method_names and public key from the memory + cost of reading and parsing account name`
-    /// `used_gas := burnt_gas + exec action base fee + exec action per byte fee * num bytes`
-    pub fn promise_batch_action_add_key_with_function_call(
-        &mut self,
-        promise_idx: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-        nonce: u64,
-        allowance_ptr: u64,
-        receiver_id_len: u64,
-        receiver_id_ptr: u64,
-        method_names_len: u64,
-        method_names_ptr: u64,
-    ) -> Result<()> {
-        self.gas_counter.pay_base(base)?;
-        if self.context.is_view() {
-            return Err(HostError::ProhibitedInView {
-                method_name: "promise_batch_action_add_key_with_function_call".to_string(),
-            }
-            .into());
-        }
-        let public_key = self.get_vec_from_memory_or_register(public_key_ptr, public_key_len)?;
-        let allowance = self.memory_get_u128(allowance_ptr)?;
-        let allowance = if allowance > 0 { Some(allowance) } else { None };
-        let receiver_id = self.read_and_parse_account_id(receiver_id_ptr, receiver_id_len)?;
-        let raw_method_names =
-            self.get_vec_from_memory_or_register(method_names_ptr, method_names_len)?;
-        let method_names = split_method_names(&raw_method_names)?;
-
-        let (receipt_idx, sir) = self.promise_idx_to_receipt_idx_with_sir(promise_idx)?;
-
-        // +1 is to account for null-terminating characters.
-        let num_bytes = method_names.iter().map(|v| v.len() as u64 + 1).sum::<u64>();
-        self.gas_counter.pay_action_base(
-            &self.fees_config.action_creation_config.add_key_cost.function_call_cost,
-            sir,
-            ActionCosts::function_call,
-        )?;
-        self.gas_counter.pay_action_per_byte(
-            &self.fees_config.action_creation_config.add_key_cost.function_call_cost_per_byte,
-            num_bytes,
-            sir,
-            ActionCosts::function_call,
-        )?;
-
-        self.ext.append_action_add_key_with_function_call(
-            receipt_idx,
-            public_key,
-            nonce,
-            allowance,
-            receiver_id,
-            method_names,
-        )?;
-        Ok(())
-    }
-
-    /// Appends `DeleteKey` action to the batch of actions for the given promise pointed by
-    /// `promise_idx`.
-    ///
-    /// # Errors
-    ///
-    /// * If `promise_idx` does not correspond to an existing promise returns `InvalidPromiseIndex`.
-    /// * If the promise pointed by the `promise_idx` is an ephemeral promise created by
-    /// `promise_and` returns `CannotAppendActionToJointPromise`.
-    /// * If the given public key is not a valid (e.g. wrong length) returns `InvalidPublicKey`.
-    /// * If `public_key_len + public_key_ptr` points outside the memory of the guest or host
-    /// returns `MemoryAccessViolation`.
-    /// * If called as view function returns `ProhibitedInView`.
-    ///
-    /// # Cost
-    ///
-    /// `burnt_gas := base + dispatch action base fee + dispatch action per byte fee * num bytes + cost of reading public key from memory `
-    /// `used_gas := burnt_gas + exec action base fee + exec action per byte fee * num bytes`
-    pub fn promise_batch_action_delete_key(
-        &mut self,
-        promise_idx: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-    ) -> Result<()> {
-        self.gas_counter.pay_base(base)?;
-        if self.context.is_view() {
-            return Err(HostError::ProhibitedInView {
-                method_name: "promise_batch_action_delete_key".to_string(),
-            }
-            .into());
-        }
-        let public_key = self.get_vec_from_memory_or_register(public_key_ptr, public_key_len)?;
-
-        let (receipt_idx, sir) = self.promise_idx_to_receipt_idx_with_sir(promise_idx)?;
-
-        self.gas_counter.pay_action_base(
-            &self.fees_config.action_creation_config.delete_key_cost,
-            sir,
-            ActionCosts::delete_key,
-        )?;
-
-        self.ext.append_action_delete_key(receipt_idx, public_key)?;
-        Ok(())
-    }
-
     /// Appends `DeleteAccount` action to the batch of actions for the given promise pointed by
     /// `promise_idx`.
     ///
@@ -2388,97 +2040,6 @@ impl<'a> VMLogic<'a> {
         self.gas_counter
             .pay_per(touching_trie_node, self.ext.get_touched_nodes_count() - nodes_before)?;
         Ok(res? as u64)
-    }
-
-    /// DEPRECATED
-    /// Creates an iterator object inside the host. Returns the identifier that uniquely
-    /// differentiates the given iterator from other iterators that can be simultaneously created.
-    /// * It iterates over the keys that have the provided prefix. The order of iteration is defined
-    ///   by the lexicographic order of the bytes in the keys;
-    /// * If there are no keys, it creates an empty iterator, see below on empty iterators.
-    ///
-    /// # Errors
-    ///
-    /// * If `prefix_len + prefix_ptr` exceeds the memory container it returns
-    ///   `MemoryAccessViolation`.
-    /// * If the length of the prefix exceeds `max_length_storage_key` returns `KeyLengthExceeded`.
-    ///
-    /// # Cost
-    ///
-    /// `base + storage_iter_create_prefix_base + storage_iter_create_key_byte * num_prefix_bytes
-    ///  cost of reading the prefix`.
-    pub fn storage_iter_prefix(&mut self, _prefix_len: u64, _prefix_ptr: u64) -> Result<u64> {
-        Err(VMLogicError::HostError(HostError::Deprecated {
-            method_name: "storage_iter_prefix".to_string(),
-        }))
-    }
-
-    /// DEPRECATED
-    /// Iterates over all key-values such that keys are between `start` and `end`, where `start` is
-    /// inclusive and `end` is exclusive. Unless lexicographically `start < end`, it creates an
-    /// empty iterator. Note, this definition allows for `start` or `end` keys to not actually exist
-    /// on the given trie.
-    ///
-    /// # Errors
-    ///
-    /// * If `start_len + start_ptr` or `end_len + end_ptr` exceeds the memory container or points to
-    ///   an unused register it returns `MemoryAccessViolation`.
-    /// * If the length of the `start` exceeds `max_length_storage_key` returns `KeyLengthExceeded`.
-    /// * If the length of the `end` exceeds `max_length_storage_key` returns `KeyLengthExceeded`.
-    ///
-    /// # Cost
-    ///
-    /// `base + storage_iter_create_range_base + storage_iter_create_from_byte * num_from_bytes
-    ///  + storage_iter_create_to_byte * num_to_bytes + reading from prefix + reading to prefix`.
-    pub fn storage_iter_range(
-        &mut self,
-        _start_len: u64,
-        _start_ptr: u64,
-        _end_len: u64,
-        _end_ptr: u64,
-    ) -> Result<u64> {
-        Err(VMLogicError::HostError(HostError::Deprecated {
-            method_name: "storage_iter_range".to_string(),
-        }))
-    }
-
-    /// DEPRECATED
-    /// Advances iterator and saves the next key and value in the register.
-    /// * If iterator is not empty (after calling next it points to a key-value), copies the key
-    ///   into `key_register_id` and value into `value_register_id` and returns `1`;
-    /// * If iterator is empty returns `0`;
-    /// This allows us to iterate over the keys that have zero bytes stored in values.
-    ///
-    /// # Errors
-    ///
-    /// * If `key_register_id == value_register_id` returns `MemoryAccessViolation`;
-    /// * If the registers exceed the memory limit returns `MemoryAccessViolation`;
-    /// * If `iterator_id` does not correspond to an existing iterator returns `InvalidIteratorId`;
-    /// * If between the creation of the iterator and calling `storage_iter_next` the range over
-    ///   which it iterates was modified returns `IteratorWasInvalidated`. Specifically, if
-    ///   `storage_write` or `storage_remove` was invoked on the key key such that:
-    ///   * in case of `storage_iter_prefix`. `key` has the given prefix and:
-    ///     * Iterator was not called next yet.
-    ///     * `next` was already called on the iterator and it is currently pointing at the `key`
-    ///       `curr` such that `curr <= key`.
-    ///   * in case of `storage_iter_range`. `start<=key<end` and:
-    ///     * Iterator was not called `next` yet.
-    ///     * `next` was already called on the iterator and it is currently pointing at the key
-    ///       `curr` such that `curr<=key<end`.
-    ///
-    /// # Cost
-    ///
-    /// `base + storage_iter_next_base + storage_iter_next_key_byte * num_key_bytes + storage_iter_next_value_byte * num_value_bytes
-    ///  + writing key to register + writing value to register`.
-    pub fn storage_iter_next(
-        &mut self,
-        _iterator_id: u64,
-        _key_register_id: u64,
-        _value_register_id: u64,
-    ) -> Result<u64> {
-        Err(VMLogicError::HostError(HostError::Deprecated {
-            method_name: "storage_iter_next".to_string(),
-        }))
     }
 
     /// Computes the outcome of execution.

@@ -47,8 +47,6 @@ impl MockedExternal {
 }
 
 use crate::dependencies::Result;
-use crate::types::PublicKey;
-
 impl External for MockedExternal {
     fn storage_set(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
         self.fake_trie.insert(key.to_vec(), value.to_vec());
@@ -127,64 +125,6 @@ impl External for MockedExternal {
         Ok(())
     }
 
-    fn append_action_stake(
-        &mut self,
-        receipt_index: u64,
-        stake: u128,
-        public_key: Vec<u8>,
-    ) -> Result<()> {
-        self.receipts
-            .get_mut(receipt_index as usize)
-            .unwrap()
-            .actions
-            .push(Action::Stake(StakeAction { stake, public_key }));
-        Ok(())
-    }
-
-    fn append_action_add_key_with_full_access(
-        &mut self,
-        receipt_index: u64,
-        public_key: Vec<u8>,
-        nonce: u64,
-    ) -> Result<()> {
-        self.receipts
-            .get_mut(receipt_index as usize)
-            .unwrap()
-            .actions
-            .push(Action::AddKeyWithFullAccess(AddKeyWithFullAccessAction { public_key, nonce }));
-        Ok(())
-    }
-
-    fn append_action_add_key_with_function_call(
-        &mut self,
-        receipt_index: u64,
-        public_key: Vec<u8>,
-        nonce: u64,
-        allowance: Option<u128>,
-        receiver_id: AccountId,
-        method_names: Vec<Vec<u8>>,
-    ) -> Result<()> {
-        self.receipts.get_mut(receipt_index as usize).unwrap().actions.push(
-            Action::AddKeyWithFunctionCall(AddKeyWithFunctionCallAction {
-                public_key,
-                nonce,
-                allowance,
-                receiver_id,
-                method_names,
-            }),
-        );
-        Ok(())
-    }
-
-    fn append_action_delete_key(&mut self, receipt_index: u64, public_key: Vec<u8>) -> Result<()> {
-        self.receipts
-            .get_mut(receipt_index as usize)
-            .unwrap()
-            .actions
-            .push(Action::DeleteKey(DeleteKeyAction { public_key }));
-        Ok(())
-    }
-
     fn append_action_delete_account(
         &mut self,
         receipt_index: u64,
@@ -203,14 +143,6 @@ impl External for MockedExternal {
     }
 
     fn reset_touched_nodes_counter(&mut self) {}
-
-    fn validator_stake(&self, account_id: &AccountId) -> Result<Option<Balance>> {
-        Ok(self.validators.get(account_id).cloned())
-    }
-
-    fn validator_total_stake(&self) -> Result<Balance> {
-        Ok(self.validators.values().sum())
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -226,10 +158,6 @@ pub enum Action {
     DeployContract(DeployContractAction),
     FunctionCall(FunctionCallAction),
     Transfer(TransferAction),
-    Stake(StakeAction),
-    AddKeyWithFullAccess(AddKeyWithFullAccessAction),
-    AddKeyWithFunctionCall(AddKeyWithFunctionCallAction),
-    DeleteKey(DeleteKeyAction),
     DeleteAccount(DeleteAccountAction),
 }
 
@@ -255,37 +183,6 @@ pub struct FunctionCallAction {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TransferAction {
     deposit: Balance,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct StakeAction {
-    stake: Balance,
-    #[serde(with = "crate::serde_with::bytes_as_base58")]
-    public_key: PublicKey,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct AddKeyWithFullAccessAction {
-    #[serde(with = "crate::serde_with::bytes_as_base58")]
-    public_key: PublicKey,
-    nonce: u64,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct AddKeyWithFunctionCallAction {
-    #[serde(with = "crate::serde_with::bytes_as_base58")]
-    public_key: PublicKey,
-    nonce: u64,
-    allowance: Option<Balance>,
-    receiver_id: AccountId,
-    #[serde(with = "crate::serde_with::vec_bytes_as_str")]
-    method_names: Vec<Vec<u8>>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct DeleteKeyAction {
-    #[serde(with = "crate::serde_with::bytes_as_base58")]
-    public_key: PublicKey,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

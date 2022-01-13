@@ -11,11 +11,10 @@ pub fn create_context() -> VMContext {
         signer_account_pk: vec![0, 1, 2, 3, 4],
         predecessor_account_id: "carol".parse().unwrap(),
         input: vec![0, 1, 2, 3, 5],
-        block_index: 10,
+        block_number: 10,
         block_timestamp: 42,
         epoch_height: 1,
         account_balance: 2u128,
-        account_locked_balance: 1u128,
         storage_usage: 12,
         attached_deposit: 2u128,
         prepaid_gas: 10_u64.pow(14),
@@ -91,7 +90,7 @@ decl_test_bytes!(test_random_seed, random_seed, create_context().random_seed.as_
 
 decl_test_bytes!(test_input, input, create_context().input.as_slice());
 
-decl_test_u64!(test_block_index, block_index, create_context().block_index);
+decl_test_u64!(test_block_number, block_number, create_context().block_number);
 decl_test_u64!(test_block_timestamp, block_timestamp, create_context().block_timestamp);
 decl_test_u64!(test_storage_usage, storage_usage, create_context().storage_usage);
 decl_test_u64!(test_prepaid_gas, prepaid_gas, create_context().prepaid_gas);
@@ -100,10 +99,5 @@ decl_test_u128!(
     test_account_balance,
     account_balance,
     create_context().account_balance + create_context().attached_deposit
-);
-decl_test_u128!(
-    test_account_locked_balance,
-    account_locked_balance,
-    create_context().account_locked_balance
 );
 decl_test_u128!(test_attached_deposit, attached_deposit, create_context().attached_deposit);
