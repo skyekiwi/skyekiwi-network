@@ -6,8 +6,9 @@
   "license": "GPL-3.0-or-later",
   "scripts": {
     "vm": "npx ts-node ./scripts/vm.ts",
-    "build": "npx ts-node ./scripts/build.ts",
-    "start": "yarn build && yarn vm",
+    "test": "npx ts-node ./scripts/test.ts",
+    "contract:build": "npx ts-node ./scripts/contract-build.ts",
+    "start": "yarn contract:build && yarn vm",
     "serve": "npx ts-node ./host/index.ts"
   },
   "devDependencies": {

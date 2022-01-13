@@ -6,7 +6,6 @@ use crate::script::Script;
 use clap::Clap;
 use near_vm_logic::VMOutcome;
 use near_vm_logic::{mocks::mock_external::Receipt, ProtocolVersion};
-use near_vm_runner::internal::VMKind;
 use serde::{
     de::{MapAccess, Visitor},
     ser::SerializeMap,
@@ -120,12 +119,12 @@ fn main() {
 
     let mut script = Script::default();
 
-    match cli_args.vm_kind.as_deref() {
-        // Some("wasmtime") => script.vm_kind(VMKind::Wasmtime),
-        // Some("wasmer") => script.vm_kind(VMKind::Wasmer0),
-        Some("wasmer2") => script.vm_kind(VMKind::Wasmer2),
-        _ => (),
-    };
+    // match cli_args.vm_kind.as_deref() {
+    //     // Some("wasmtime") => script.vm_kind(VMKind::Wasmtime),
+    //     // Some("wasmer") => script.vm_kind(VMKind::Wasmer0),
+    //     Some("wasmer2") => script.vm_kind(VMKind::Wasmer2),
+    //     _ => (),
+    // };
     if let Some(config) = &cli_args.config {
         script.vm_config(serde_json::from_str(config).unwrap());
     }

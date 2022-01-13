@@ -9,8 +9,7 @@ mod runner;
 #[cfg(test)]
 mod tests;
 mod vm_kind;
-#[cfg(feature = "wasmer2_vm")]
-mod wasmer2_runner;
+mod wasmi_runner;
 
 pub use near_vm_errors::VMError;
 pub use near_vm_logic::with_ext_cost_counter;
@@ -21,10 +20,4 @@ pub use cache::precompile_contract_vm;
 pub use cache::MockCompiledContractCache;
 pub use preload::{ContractCallPrepareRequest, ContractCallPrepareResult, ContractCaller};
 pub use runner::{run, VM};
-
-/// This is public for internal experimentation use only, and should otherwise be considered an
-/// implementation detail of `near-vm-runner`.
-#[doc(hidden)]
-pub mod internal {
-    pub use crate::vm_kind::VMKind;
-}
+pub use wasmi_runner;

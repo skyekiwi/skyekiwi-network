@@ -16,6 +16,8 @@
 
     "contract:compile": "node ./scripts/contract-compile.cjs",
     "mock-enclave:start": "yarn contract:compile && npx ts-node mock-enclave/host/index.ts",
+    "mock-enclave:vm": "cd mock-enclave && yarn start",
+    "mock-enclave:test": "cd mock-enclave && yarn test",
 
     "chaos:party": "cd chaos && yarn party"
   }

@@ -8,8 +8,9 @@ use near_primitives::version::PROTOCOL_VERSION;
 use near_vm_logic::mocks::mock_external::MockedExternal;
 use near_vm_logic::types::PromiseResult;
 use near_vm_logic::{ProtocolVersion, VMConfig, VMContext, VMOutcome};
-use near_vm_runner::internal::VMKind;
+// use near_vm_runner::internal::VMKind;
 use near_vm_runner::{MockCompiledContractCache, VMError};
+use near_vm_runner::wasmi_runner::WasmiVM;
 
 use crate::State;
 
@@ -20,7 +21,6 @@ pub struct Contract(usize);
 /// intended for VM benchmarking.
 pub struct Script {
     contracts: Vec<ContractCode>,
-    vm_kind: VMKind,
     vm_config: VMConfig,
     protocol_version: ProtocolVersion,
     contract_cache: Option<Box<dyn CompiledContractCache>>,
@@ -48,7 +48,6 @@ impl Default for Script {
         let runtime_config = config_store.get_config(protocol_version).as_ref();
         Script {
             contracts: Vec::new(),
-            vm_kind: VMKind::Wasmer2,
             vm_config: runtime_config.wasm_config.clone(),
             protocol_version,
             contract_cache: None,
@@ -69,10 +68,6 @@ impl Script {
     pub(crate) fn contract_from_file(&mut self, path: &Path) -> Contract {
         let data = fs::read(path).unwrap();
         self.contract(data)
-    }
-
-    pub(crate) fn vm_kind(&mut self, vm_kind: VMKind) {
-        self.vm_kind = vm_kind;
     }
 
     pub(crate) fn vm_config(&mut self, vm_config: VMConfig) {
@@ -119,26 +114,22 @@ impl Script {
         let config_store = RuntimeConfigStore::new(None);
         let runtime_fees_config = &config_store.get_config(self.protocol_version).transaction_costs;
         let mut outcomes = Vec::new();
-        if let Some(runtime) = self.vm_kind.runtime() {
-            for step in &self.steps {
-                for _ in 0..step.repeat {
-                    let res = runtime.run(
-                        &self.contracts[step.contract.0],
-                        &step.method,
-                        &mut external,
-                        step.vm_context.clone(),
-                        &self.vm_config,
-                        runtime_fees_config,
-                        &step.promise_results,
-                        self.protocol_version,
-                        self.contract_cache.as_deref(),
-                    );
-                    outcomes.push(res);
-                }
+        // let runtime = &WasmiVM as &'static dyn VM;
+        for step in &self.steps {
+            for _ in 0..step.repeat {
+                let res = WasmiVM::run(
+                    &self.contracts[step.contract.0],
+                    &step.method,
+                    &mut external,
+                    step.vm_context.clone(),
+                    &self.vm_config,
+                    runtime_fees_config,
+                    &step.promise_results,
+                    self.protocol_version,
+                    self.contract_cache.as_deref(),
+                );
+                outcomes.push(res);
             }
-        } else {
-            // TODO(nagisa): this probably could be reported to the user in a better way.
-            panic!("the {:?} runtime has not been enabled at compile time", self.vm_kind);
         }
         ScriptResults { outcomes, state: external }
     }

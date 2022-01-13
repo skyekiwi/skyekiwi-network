@@ -99,3 +99,32 @@ export class MockBlockchainEnv {
     }, 6000);
   }
 }
+
+
+export class BlockchainSubscriber {
+  
+  // Map contractId -> nextCallIndex(as number)
+  #nextCallIndex: { [key: string]: number }
+  #callHistory: {[key: string]: any}
+  #keyring: KeyringPair
+  #api: ApiPromise
+  #provider: WsProvider
+
+  public async init() {
+    await waitReady();
+    this.#keyring = new Keyring({ type: 'sr25519' }).addFromUri(`//Alice`)
+    this.#provider = new WsProvider('wss://sgdev.skye.kiwi');
+    this.#api = await ApiPromise.create({ provider: this.#provider });
+  }
+
+  public async registerSecretKeeper() {
+    const key = randomBytes(32);
+    const sealer = new DefaultSealer();
+    sealer.unlock(key);
+
+    console.log(`keypair - private ${u8aToHex(key)}; public ${u8aToHex(sealer.getAuthorKey())}`);
+    
+    
+  }
+
+}

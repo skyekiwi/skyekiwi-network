@@ -6,8 +6,6 @@ use near_vm_errors::VMError;
 use near_vm_logic::types::PromiseResult;
 use near_vm_logic::{External, VMContext, VMOutcome};
 
-use crate::vm_kind::VMKind;
-
 /// Validate and run the specified contract.
 ///
 /// This is the entry point for executing a NEAR protocol contract. Before the entry point (as
@@ -32,22 +30,19 @@ pub fn run(
     current_protocol_version: ProtocolVersion,
     cache: Option<&dyn CompiledContractCache>,
 ) -> (Option<VMOutcome>, Option<VMError>) {
-    let vm_kind = VMKind::for_protocol_version(current_protocol_version);
-    if let Some(runtime) = vm_kind.runtime() {
-        runtime.run(
-            code,
-            method_name,
-            ext,
-            context,
-            wasm_config,
-            fees_config,
-            promise_results,
-            current_protocol_version,
-            cache,
-        )
-    } else {
-        panic!("the {:?} runtime has not been enabled at compile time", vm_kind);
-    }
+    use crate::wasmi_runner::WasmiVM;
+    // let runtime = &WasmiVM as &'static dyn VM;
+    WasmiVM::run(
+        code,
+        method_name,
+        ext,
+        context,
+        wasm_config,
+        fees_config,
+        promise_results,
+        current_protocol_version,
+        cache,
+    )
 }
 
 pub trait VM {
@@ -90,21 +85,4 @@ pub trait VM {
     ///
     /// This is intended primarily for testing purposes.
     fn check_compile(&self, code: &Vec<u8>) -> bool;
-}
-
-impl VMKind {
-    /// Make a [`Runtime`] for this [`VMKind`].
-    ///
-    /// This is not intended to be used by code other than standalone-vm-runner.
-    pub fn runtime(&self) -> Option<&'static dyn VM> {
-        match self {
-            #[cfg(feature = "wasmer2_vm")]
-            Self::Wasmer2 => {
-                use crate::wasmer2_runner::Wasmer2VM;
-                Some(&Wasmer2VM as &'static dyn VM)
-            }
-            #[allow(unreachable_patterns)] // reachable when some of the VMs are disabled.
-            _ => None,
-        }
-    }
 }
