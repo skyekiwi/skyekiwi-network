@@ -1,0 +1,26 @@
+[package]
+name = "skw-vm-primitives"
+version = "0.1.0"
+authors = ["SkyeKiwi <hello@skye.kiwi>"]
+edition = "2021"
+license = "GPL-3.0"
+readme = "README.md"
+categories = ["wasm"]
+repository = "https://github.com/skyekiwi/skyekiwi-network"
+homepage = "https://github.com/skyekiwi/skyekiwi-network"
+description = """
+Primitives types for the SkyeKiwi Network Secret Contracts
+"""
+
+[dependencies]
+sha2 = "0.9"
+serde = { version = "1", optional = true }
+num-rational = { version = "0.3.1", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+  "sha2/std",
+  "num-rational/std",
+  "serde/std",
+]

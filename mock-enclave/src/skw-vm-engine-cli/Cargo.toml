@@ -1,0 +1,40 @@
+[package]
+name = "skw-vm-engine-cli"
+version = "0.0.0"
+authors = ["SkyeKiwi <hello@skye.kiwi>", "Near Inc <hello@nearprotocol.com>"]
+publish = false
+edition = "2021"
+license = "GPL-3.0"
+readme = "README.md"
+categories = ["wasm"]
+repository = "https://github.com/skyekiwi/skyekiwi-network"
+homepage = "https://github.com/skyekiwi/skyekiwi-network"
+description = """
+A command line wrapper around `skw-vm-engine.`
+All error messages that can be raised during the contract execution are raised by `skw-vm-engine`
+and the all effects of computing the execution result of a smart contract are encapsulated inside `skw-vm-engine`.
+
+One can use `skw-vm-engine-cli` to test the smart contracts, e.g. with integration tests
+to make sure it has expected behavior once deployed to the blockchain.
+"""
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = "=3.0.0-beta.2"
+clap_derive = "=3.0.0-beta.2"
+base64 = "0.13"
+strum = "0.20"
+num-rational = "0.3"
+tracing-span-tree = "0.1"
+
+skw-vm-host = { path = "../skw-vm-host", features = ["costs_counting"]}
+skw-vm-engine = { path = "../skw-vm-engine", features = ["wasmer2_vm"] }
+skw-vm-primitives = { path = "../skw-vm-primitives" }
+
+[dev-dependencies]
+hex = "0.4"
+near-test-contracts = { git = "https://github.com/near/nearcore" }
+
+[features]
+default = []

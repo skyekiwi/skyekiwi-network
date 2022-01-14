@@ -19,10 +19,10 @@ exclude = [
     'enclave/crates/skw-types',
     'enclave/crates/skw-unit-test',
     'enclave/crates/skw-utils',
-    'mock-enclave/src/near-vm-errors',
-    'mock-enclave/src/near-vm-logic',
-    'mock-enclave/src/near-vm-runner',
-    'mock-enclave/src/near-vm-runner-standalone',
+    'mock-enclave/src/skw-vm-primitives',
+    'mock-enclave/src/skw-vm-host',
+    'mock-enclave/src/skw-vm-engine',
+    'mock-enclave/src/skw-vm-engine-cli',
 ]
 [profile.release]
 panic = 'unwind'
