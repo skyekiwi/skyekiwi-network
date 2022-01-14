@@ -1,6 +1,17 @@
 use std::fmt::{self, Error, Formatter, Write};
 use crate::account_id::AccountId;
 
+#[derive(Debug, PartialEq)]
+pub enum ContractPrecompilatonResult {
+    ContractCompiled,
+    ContractAlreadyInCache,
+    CacheNotAvailable,
+}
+
+pub trait IntoVMError {
+    fn into_vm_error(self) -> VMError;
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VMError {
     FunctionCallError(FunctionCallError),
@@ -102,7 +113,9 @@ pub enum MethodResolveError {
 pub enum CompilationError {
     CodeDoesNotExist { account_id: AccountId },
     PrepareError(PrepareError),
-    WasmerCompileError { msg: String },
+    FloatingPointError,
+    StartFunctionError,
+    WasmCompileError,
     UnsupportedCompiler { msg: String },
 }
 
@@ -370,8 +383,10 @@ impl fmt::Display for CompilationError {
                 write!(f, "cannot find contract code for account {}", account_id)
             }
             CompilationError::PrepareError(p) => write!(f, "PrepareError: {}", p),
-            CompilationError::WasmerCompileError { msg } => {
-                write!(f, "Wasmer compilation error: {}", msg)
+            CompilationError::FloatingPointError => write!(f, "floating points operations not allowed in wasm"),
+            CompilationError::StartFunctionError => write!(f, "start functions not allowed in wasm"),
+            CompilationError::WasmCompileError => {
+                write!(f, "Wasmi compilation error")
             }
             CompilationError::UnsupportedCompiler { msg } => {
                 write!(f, "Unsupported compiler: {}", msg)

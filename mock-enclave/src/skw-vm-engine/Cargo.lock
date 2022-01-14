@@ -795,7 +795,7 @@ dependencies = [
  "near-crypto 0.0.0 (git+https://github.com/near/nearcore?tag=crates-0.11.0)",
  "near-primitives-core",
  "near-rpc-error-macro",
- "near-vm-errors 0.0.0",
+ "near-vm-errors",
  "num-rational 0.3.2",
  "primitive-types",
  "rand 0.7.3",
@@ -847,11 +847,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "near-stable-hasher"
-version = "0.0.0"
-source = "git+https://github.com/near/nearcore?tag=crates-0.11.0#8d04fa95d4cb8191e636bd24517ea7744b78ec5f"
-
-[[package]]
 name = "near-test-contracts"
 version = "0.0.0"
 source = "git+https://github.com/near/nearcore?tag=crates-0.11.0#8d04fa95d4cb8191e636bd24517ea7744b78ec5f"
@@ -870,63 +865,6 @@ dependencies = [
  "near-account-id 0.0.0 (git+https://github.com/near/nearcore?tag=crates-0.11.0)",
  "near-rpc-error-macro",
  "serde",
-]
-
-[[package]]
-name = "near-vm-errors"
-version = "0.1.0"
-dependencies = [
- "borsh",
- "hex",
- "near-account-id 0.0.0 (git+https://github.com/near/nearcore)",
- "serde",
-]
-
-[[package]]
-name = "near-vm-logic"
-version = "0.0.0"
-dependencies = [
- "base64 0.13.0",
- "borsh",
- "bs58",
- "byteorder",
- "near-account-id 0.0.0 (git+https://github.com/near/nearcore?tag=crates-0.11.0)",
- "near-crypto 0.0.0 (git+https://github.com/near/nearcore)",
- "near-primitives",
- "near-primitives-core",
- "near-stable-hasher",
- "near-vm-errors 0.1.0",
- "ripemd160",
- "serde",
- "sha2",
- "sha3",
-]
-
-[[package]]
-name = "near-vm-runner"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "assert_matches",
- "base64 0.13.0",
- "borsh",
- "cached",
- "lazy_static",
- "lru",
- "memoffset",
- "near-primitives",
- "near-stable-hasher",
- "near-test-contracts",
- "near-vm-errors 0.1.0",
- "near-vm-logic",
- "parity-wasm 0.41.0",
- "pwasm-utils",
- "serde",
- "threadpool",
- "tracing",
- "wasmi",
- "wasmparser",
- "wat",
 ]
 
 [[package]]
@@ -1351,6 +1289,59 @@ name = "signature"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02658e48d89f2bec991f9a78e69cfa4c316f8d6a6c4ec12fae1aeb263d486788"
+
+[[package]]
+name = "skw-vm-engine"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "assert_matches",
+ "base64 0.13.0",
+ "borsh",
+ "cached",
+ "lazy_static",
+ "lru",
+ "memoffset",
+ "near-primitives",
+ "near-test-contracts",
+ "parity-wasm 0.41.0",
+ "pwasm-utils",
+ "serde",
+ "skw-vm-host",
+ "skw-vm-primitives",
+ "threadpool",
+ "tracing",
+ "wasmi",
+ "wasmparser",
+ "wat",
+]
+
+[[package]]
+name = "skw-vm-host"
+version = "0.0.0"
+dependencies = [
+ "base64 0.13.0",
+ "borsh",
+ "bs58",
+ "byteorder",
+ "near-crypto 0.0.0 (git+https://github.com/near/nearcore)",
+ "parity-secp256k1",
+ "ripemd160",
+ "serde",
+ "sha2",
+ "sha3",
+ "skw-vm-primitives",
+ "wasmi",
+]
+
+[[package]]
+name = "skw-vm-primitives"
+version = "0.1.0"
+dependencies = [
+ "num-rational 0.3.2",
+ "serde",
+ "sha2",
+]
 
 [[package]]
 name = "slab"

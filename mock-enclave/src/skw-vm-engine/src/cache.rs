@@ -1,90 +1,76 @@
-use crate::errors::ContractPrecompilatonResult;
 use crate::prepare;
-use crate::wasmi_runner::{wasmi_vm_hash};
+use crate::imports::{WasmiImportResolver, create_builder};
 
-use parity_wasm::elements::Module;
 use wasmi::{ModuleInstance, ModuleRef};
-
-use near_primitives::contract::ContractCode;
-use near_primitives::hash::CryptoHash;
-use near_primitives::types::CompiledContractCache;
-
-use near_vm_errors::{CacheError, CompilationError, FunctionCallError, VMError};
-use near_vm_logic::{ProtocolVersion, VMConfig};
+use skw_vm_primitives::contract_runtime::{ContractCode, CryptoHash};
+use skw_vm_primitives::errors::{CacheError, CompilationError};
+use skw_vm_primitives::config::{VMConfig};
 
 use lazy_static::lazy_static;
-use std::collections::HashMap;
-use std::fmt;
 use std::sync::{RwLock};
 
 use lru::LruCache;
-
 
 lazy_static! {
     static ref MODULE_CACHE: RwLock< LruCache<CryptoHash, wasmi::Module> > = 
         RwLock::new(LruCache::new(0));
 }
 
-pub fn configure_module_cache(cap: usize) {
-    MODULE_CACHE.write().unwrap().resize(cap);
-}
-
-pub fn create_module_instance(contract_code: ContractCode, config: &VMConfig) -> Result<ModuleRef, CacheError> {
-    // TODO: no reference?
-    let code_hash = contract_code.hash();
-
-    // TODO: write to cache
+pub fn create_module_instance(contract_code: &ContractCode, config: &VMConfig) -> Result<ModuleRef, CompilationError> {
+    let code_hash = contract_code.hash;
     MODULE_CACHE.write().unwrap().get(&code_hash);
 
-    match get_module_instance(&code_hash) {
-        Some(Ok(module_ref)) => Ok(module_ref),
-        None => {}
-        Some(Err(_)) => {
-            MODULE_CACHE.write().unwrap().pop(&code_hash);
-        }
-    }
+    // match get_module_instance(&code_hash) {
+    //     Some(Ok(module_ref)) => Ok(module_ref),
+    //     None => {}
+
+    //     // we should not ever get here
+    //     // toxic cache - removing
+    //     Some(Err(_)) => {
+    //         MODULE_CACHE.write().unwrap().pop(&code_hash);
+    //     }
+    // }
 
     let mut cache = MODULE_CACHE.write().unwrap();
-    match cache.get(&code_hash).map(craate_instance) {
+    match cache.get(&code_hash).map(create_instance) {
         Some(Ok(module_ref)) => return Ok(module_ref),
         None => {}
 
+        // we should not ever get here
+        // toxic cache - removing
         Some(Err(_)) => {
-            // toxic cache - removing
             cache.pop(&code_hash);
         }
     }
 
     // no hit in cache - compiling
-    // TODO: make sure the near impl of ContractCode can extract code this way
-    // let module = prepare_and_compile_module(contract_code.code())?;
+    let prepared_module = prepare::prepare_contract(&contract_code.code, config).map_err(|e| CompilationError::PrepareError(e))?;
+    let module = wasmi::Module::from_buffer(prepared_module).map_err(|_| CompilationError::WasmCompileError)?;
 
-    let prepared_module = prepare::prepare_contract(code, config).map_err(CompilationError::PrepareError)?;
-    let module = wasmi::Module::from_parity_wasm_module(prepared_module)
-        .map_err(|_| CacheError)?;
-    
     module.deny_floating_point()
-        .map_err(|_| FloatingPointError)?;
+        .map_err(|_| CompilationError::FloatingPointError)?;
 
-    let instance = create_instance(&module)?;
+    let result = create_instance(&module);
     cache.put(code_hash, module);
+    
+    result
 }
 
-pub fn get_module_instance(code_hash: &CodeHash) -> Option<Result<ModuleRef, CacheError>> {
-    MODULE_CACHE
-        .read()
-        .unwrap()
-        .peek(code_hash)
-        .map(create_instance)
-}
+// pub fn get_module_instance(code_hash: &CryptoHash) -> Option<Result<ModuleRef, CacheError>> {
+//     MODULE_CACHE
+//         .read()
+//         .unwrap()
+//         .peek(code_hash)
+//         .map(create_instance)
+// }
 
-pub fn create_instance(module: &wasmi::Module) -> Result<ModuleRef, CacheError> {
+pub fn create_instance(module: &wasmi::Module) -> Result<ModuleRef, CompilationError> {
     let resolver = WasmiImportResolver {};
     let imports_builder = create_builder(&resolver);
 
-    let module_instance = ModuleInstance::new(module, &imports_builder).map_err(|_| CacheError)?;
+    let module_instance = ModuleInstance::new(module, &imports_builder).map_err(|_| CompilationError::WasmCompileError)?;
     if module_instance.has_start() {
-        return Err(CacheError);
+        return Err(CompilationError::StartFunctionError);
     }
 
     Ok(module_instance.not_started_instance().clone())

@@ -5,7 +5,6 @@ pub mod mocks;
 pub mod serde_with;
 pub mod types;
 pub mod gas_counter;
-
 pub use context::VMContext;
 pub use dependencies::{RuntimeExternal, MemoryLike, ValuePtr};
 pub use logic::{VMLogic, VMOutcome};

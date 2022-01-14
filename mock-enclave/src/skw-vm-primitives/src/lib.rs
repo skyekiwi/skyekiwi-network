@@ -4,6 +4,7 @@ pub mod contract_runtime {
     use sha2::Digest;
     pub use crate::account_id::AccountId;
     
+    pub type CryptoHash = [u8; 32];
     pub type ProtocolVersion = u32;
     pub type BlockHeight = u64;
     pub type EpochHeight = u64;
@@ -12,8 +13,8 @@ pub mod contract_runtime {
     pub type Gas = u64;
     
     pub struct ContractCode {
-        code: Vec<u8>,
-        hash: [u8; 32],
+        pub code: Vec<u8>,
+        pub hash: CryptoHash,
     }
 
     // near_primitives::errors::RuntimeError;

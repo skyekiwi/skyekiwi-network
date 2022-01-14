@@ -1,6 +1,5 @@
-use wasmi::{Externals, RuntimeArgs, RuntimeValue, Trap};
-use near_vm_logic::VMLogic;
-use near_vm_errors::MethodResolveError;
+use wasmi::{Externals, RuntimeArgs, RuntimeValue, Trap, TrapKind};
+use skw_vm_host::{VMLogic};
 
 #[derive(PartialEq, Eq)]
 pub enum HostFunctions {
@@ -113,7 +112,9 @@ impl Into<usize> for HostFunctions {
   }
 }
 
-impl Externals for VMLogic {
+pub struct VMHost<'a>(pub VMLogic<'a>);
+
+impl<'a> Externals for VMHost<'a> {
   fn invoke_index(
     &mut self,
     index: usize,
@@ -121,23 +122,27 @@ impl Externals for VMLogic {
   ) -> Result<Option<RuntimeValue>, Trap> {
     match HostFunctions::from(index) {
       HostFunctions::ReadRegister => {
-        let register_id: i64 = args.nth_checked(0).map_err(|_| MethodResolveError::MethodInvalidSignature)?;
-        let ptr: i64 = args.nth_checked(1).map_err(|_| MethodResolveError::MethodInvalidSignature)?;
-        self.read_register(register_id, ptr)
-      },
-      HostFunctions::RegisterLen => {
-        let register_id: i64 = args.nth_checked(0).map_err(|_| MethodResolveError::MethodInvalidSignature)?;
-        self.register_len(register_id)
-      },
-      HostFunctions::WriteRegister => {
-        let register_id: i64 = args.nth_checked(0).map_err(|_| MethodResolveError::MethodInvalidSignature)?;
-        let data_len: i64 = args.nth_checked(1).map_err(|_| MethodResolveError::MethodInvalidSignature)?;
-        let data_ptr: i64 = args.nth_checked(2).map_err(|_| MethodResolveError::MethodInvalidSignature)?;
-        self.write_register(register_id, data_len, data_ptr)
+        let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+        let ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+        // Some(self.0.read_register(register_id, ptr).unwrap())
+        Ok(None)
       },
       _ => {
-        println!("BOOOOO");
+        Ok(None)
       }
+      // HostFunctions::RegisterLen => {
+      //   let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+      //   self.register_len(register_id)?
+      // },
+      // HostFunctions::WriteRegister => {
+      //   let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+      //   let data_len: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+      //   let data_ptr: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+      //   self.write_register(register_id, data_len, data_ptr)?
+      // },
+      // _ => {
+      //   println!("BOOOOO");
+      // }
     }
   }
 }
