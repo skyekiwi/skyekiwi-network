@@ -11,30 +11,10 @@ use near_vm_logic::types::PromiseResult;
 use near_vm_logic::{External, ProtocolVersion, VMConfig, VMContext, VMOutcome};
 
 use crate::cache::{self, into_vm_result};
-use crate::preload::VMModule::{Wasmer2};
-use crate::vm_kind::VMKind;
-use crate::wasmer2_runner::{default_wasmer2_store, run_wasmer2_module, Wasmer2Memory};
-
-const SHARE_MEMORY_INSTANCE: bool = false;
-
-enum VMModule {
-    // Wasmer0(wasmer_runtime::Module),
-    Wasmer2(wasmer::Module),
-}
-
-enum VMDataPrivate {
-    // Wasmer0(Option<WasmerMemory>),
-    Wasmer2(Option<Wasmer2Memory>),
-}
-
-#[derive(Clone)]
-enum VMDataShared {
-    // Wasmer0,
-    Wasmer2(wasmer::Store),
-}
+use crate::wasmi_runner::{run_wasmi_module, WasmiMemory};
 
 struct VMCallData {
-    result: Result<VMModule, VMError>,
+    result: Result<wasmi::Module, VMError>,
 }
 
 struct CallInner {
@@ -52,41 +32,23 @@ pub struct ContractCallPrepareResult {
 
 pub struct ContractCaller {
     pool: ThreadPool,
-    vm_kind: VMKind,
     vm_config: VMConfig,
-    vm_data_private: VMDataPrivate,
-    vm_data_shared: VMDataShared,
+    memory: wasmi::MemoryInstance,
     preloaded: Vec<CallInner>,
 }
 
 impl ContractCaller {
-    pub fn new(num_threads: usize, vm_kind: VMKind, vm_config: VMConfig) -> ContractCaller {
-        let (shared, private) = {
-            let store = default_wasmer2_store();
-            let store_clone = store.clone();
-            (
-                VMDataShared::Wasmer2(store),
-                VMDataPrivate::Wasmer2(if SHARE_MEMORY_INSTANCE {
-                    Some(
-                        Wasmer2Memory::new(
-                            &store_clone,
-                            vm_config.limit_config.initial_memory_pages,
-                            vm_config.limit_config.max_memory_pages,
-                        )
-                        .unwrap(),
-                    )
-                } else {
-                    None
-                }),
-            )
-        };
+    pub fn new(num_threads: usize, vm_config: VMConfig) -> ContractCaller {
+
+        let memory = WasmiMemory::new(
+            vm_config.limit_config.initial_memory_pages,
+            vm_config.limit_config.max_memory_pages,
+        );
 
         ContractCaller {
             pool: ThreadPool::new(num_threads),
-            vm_kind,
             vm_config,
-            vm_data_private: private,
-            vm_data_shared: shared,
+            memory: memory,
             preloaded: Vec::new(),
         }
     }
@@ -103,9 +65,7 @@ impl ContractCaller {
             self.pool.execute({
                 let tx = tx.clone();
                 let vm_config = self.vm_config.clone();
-                let vm_data_shared = self.vm_data_shared.clone();
-                let vm_kind = self.vm_kind.clone();
-                move || preload_in_thread(request, vm_kind, vm_config, vm_data_shared, tx)
+                move || preload_in_thread(request, vm_config, tx)
             });
             result.push(ContractCallPrepareResult { handle: index });
         }
@@ -128,37 +88,28 @@ impl ContractCaller {
                 match call_data.result {
                     Err(err) => (None, Some(err)),
                     Ok(module) => {
-                        match (&module, &mut self.vm_data_private, &self.vm_data_shared) {
-                            (
-                                Wasmer2(module),
-                                VMDataPrivate::Wasmer2(memory),
-                                VMDataShared::Wasmer2(store),
-                            ) => {
-                                let mut new_memory;
-                                run_wasmer2_module(
-                                    &module,
-                                    store,
-                                    if memory.is_some() {
-                                        memory.as_mut().unwrap()
-                                    } else {
-                                        new_memory = Wasmer2Memory::new(
-                                            store,
-                                            self.vm_config.limit_config.initial_memory_pages,
-                                            self.vm_config.limit_config.max_memory_pages,
-                                        )
-                                        .unwrap();
-                                        &mut new_memory
-                                    },
-                                    method_name,
-                                    ext,
-                                    context,
-                                    &self.vm_config,
-                                    fees_config,
-                                    promise_results,
-                                    current_protocol_version,
+                        let mut new_memory;
+                        let &mut memory = &mut self.vm_data;
+                        run_wasmi_module(
+                            &module,
+                            if memory.is_some() {
+                                memory.as_mut().unwrap()
+                            } else {
+                                new_memory = WasmiMemory::new(
+                                    self.vm_config.limit_config.initial_memory_pages,
+                                    self.vm_config.limit_config.max_memory_pages,
                                 )
-                            }
-                        }
+                                .unwrap();
+                                &mut new_memory
+                            },
+                            method_name,
+                            ext,
+                            context,
+                            &self.vm_config,
+                            fees_config,
+                            promise_results,
+                            current_protocol_version,
+                        )
                     }
                 }
             }
@@ -175,22 +126,13 @@ impl Drop for ContractCaller {
 
 fn preload_in_thread(
     request: ContractCallPrepareRequest,
-    vm_kind: VMKind,
     vm_config: VMConfig,
-    vm_data_shared: VMDataShared,
     tx: Sender<VMCallData>,
 ) {
-    let cache = request.cache.as_deref();
-    let result = match (vm_kind, vm_data_shared) {
-        (VMKind::Wasmer2, VMDataShared::Wasmer2(store)) => {
-            let module = cache::wasmer2_cache::compile_module_cached_wasmer2(
-                &request.code,
-                &vm_config,
-                cache,
-                &store,
-            );
-            into_vm_result(module).map(VMModule::Wasmer2)
-        }
-    };
+    let module = cache::create_module_instance(
+        request.code,
+        &vm_config,
+    );
+    let result = into_vm_result(module);
     tx.send(VMCallData { result }).unwrap();
 }

@@ -1,6 +1,6 @@
 use wasmi::{Externals, RuntimeArgs, RuntimeValue, Trap};
-use crate::logic::VMLogic;
-// import some errors
+use near_vm_logic::VMLogic;
+use near_vm_errors::MethodResolveError;
 
 #[derive(PartialEq, Eq)]
 pub enum HostFunctions {
@@ -56,53 +56,53 @@ pub enum HostFunctions {
 impl From<usize> for HostFunctions {
   fn from(v: usize) -> Self {
     match v {
-      x if x == HostFunction::ReadRegister as usize => HostFunction::ReadRegister,
-      x if x == HostFunction::RegisterLen as usize => HostFunction::RegisterLen,
-      x if x == HostFunction::WriteRegister as usize => HostFunction::WriteRegister,
-      x if x == HostFunction::CurrentAccountId as usize => HostFunction::CurrentAccountId,
-      x if x == HostFunction::SignerAccountId as usize => HostFunction::SignerAccountId,
-      x if x == HostFunction::SignerAccountPublicKey as usize => HostFunction::SignerAccountPublicKey,
-      x if x == HostFunction::PredecessorAccountId as usize => HostFunction::PredecessorAccountId,
-      x if x == HostFunction::Input as usize => HostFunction::Input,
-      x if x == HostFunction::BlockNumber as usize => HostFunction::BlockNumber,
-      x if x == HostFunction::BlockTimestamp as usize => HostFunction::BlockTimestamp,
-      x if x == HostFunction::EpochHeight as usize => HostFunction::EpochHeight,
-      x if x == HostFunction::StorageUsage as usize => HostFunction::StorageUsage,
-      x if x == HostFunction::AccountBalance as usize => HostFunction::AccountBalance,
-      x if x == HostFunction::AttachedDeposit as usize => HostFunction::AttachedDeposit,
-      x if x == HostFunction::PrepaidGas as usize => HostFunction::PrepaidGas,
-      x if x == HostFunction::UsedGas as usize => HostFunction::UsedGas,
-      x if x == HostFunction::RandomSeed as usize => HostFunction::RandomSeed,
-      x if x == HostFunction::Sha256 as usize => HostFunction::Sha256,
-      x if x == HostFunction::Keccak256 as usize => HostFunction::Keccak256,
-      x if x == HostFunction::Keccak512 as usize => HostFunction::Keccak512,
-      x if x == HostFunction::Ripemd160 as usize => HostFunction::Ripemd160,
-      x if x == HostFunction::Ecrecover as usize => HostFunction::Ecrecover,
-      x if x == HostFunction::ValueReturn as usize => HostFunction::ValueReturn,
-      x if x == HostFunction::Panic as usize => HostFunction::Panic,
-      x if x == HostFunction::PanicUtf8 as usize => HostFunction::PanicUtf8,
-      x if x == HostFunction::LogUtf8 as usize => HostFunction::LogUtf8,
-      x if x == HostFunction::LogUtf16 as usize => HostFunction::LogUtf16,
-      x if x == HostFunction::Abort as usize => HostFunction::Abort,
-      x if x == HostFunction::PromiseCreate as usize => HostFunction::PromiseCreate,
-      x if x == HostFunction::PromiseThen as usize => HostFunction::PromiseThen,
-      x if x == HostFunction::PromiseAnd as usize => HostFunction::PromiseAnd,
-      x if x == HostFunction::PromiseBatchCreate as usize => HostFunction::PromiseBatchCreate,
-      x if x == HostFunction::PromiseBatchThen as usize => HostFunction::PromiseBatchThen,
-      x if x == HostFunction::PromiseBatchActionCreateAccount as usize => HostFunction::PromiseBatchActionCreateAccount,
-      x if x == HostFunction::PromiseBatchActionDeployContract as usize => HostFunction::PromiseBatchActionDeployContract,
-      x if x == HostFunction::PromiseBatchActionFunctionCall as usize => HostFunction::PromiseBatchActionFunctionCall,
-      x if x == HostFunction::PromiseBatchActionTransfer as usize => HostFunction::PromiseBatchActionTransfer,
-      x if x == HostFunction::PromiseBatchActionDeleteAccount as usize => HostFunction::PromiseBatchActionDeleteAccount,
-      x if x == HostFunction::PromiseResultsCount as usize => HostFunction::PromiseResultsCount,
-      x if x == HostFunction::PromiseResult as usize => HostFunction::PromiseResult,
-      x if x == HostFunction::PromiseReturn as usize => HostFunction::PromiseReturn,
-      x if x == HostFunction::StorageWrite as usize => HostFunction::StorageWrite,
-      x if x == HostFunction::StorageRead as usize => HostFunction::StorageRead,
-      x if x == HostFunction::StorageRemove as usize => HostFunction::StorageRemove,
-      x if x == HostFunction::StorageHasKey as usize => HostFunction::StorageHasKey,
-      x if x == HostFunction::Gas as usize => HostFunction::Gas,
-        _ => HostFunction::Unknown,
+      x if x == HostFunctions::ReadRegister as usize => HostFunctions::ReadRegister,
+      x if x == HostFunctions::RegisterLen as usize => HostFunctions::RegisterLen,
+      x if x == HostFunctions::WriteRegister as usize => HostFunctions::WriteRegister,
+      x if x == HostFunctions::CurrentAccountId as usize => HostFunctions::CurrentAccountId,
+      x if x == HostFunctions::SignerAccountId as usize => HostFunctions::SignerAccountId,
+      x if x == HostFunctions::SignerAccountPublicKey as usize => HostFunctions::SignerAccountPublicKey,
+      x if x == HostFunctions::PredecessorAccountId as usize => HostFunctions::PredecessorAccountId,
+      x if x == HostFunctions::Input as usize => HostFunctions::Input,
+      x if x == HostFunctions::BlockNumber as usize => HostFunctions::BlockNumber,
+      x if x == HostFunctions::BlockTimestamp as usize => HostFunctions::BlockTimestamp,
+      x if x == HostFunctions::EpochHeight as usize => HostFunctions::EpochHeight,
+      x if x == HostFunctions::StorageUsage as usize => HostFunctions::StorageUsage,
+      x if x == HostFunctions::AccountBalance as usize => HostFunctions::AccountBalance,
+      x if x == HostFunctions::AttachedDeposit as usize => HostFunctions::AttachedDeposit,
+      x if x == HostFunctions::PrepaidGas as usize => HostFunctions::PrepaidGas,
+      x if x == HostFunctions::UsedGas as usize => HostFunctions::UsedGas,
+      x if x == HostFunctions::RandomSeed as usize => HostFunctions::RandomSeed,
+      x if x == HostFunctions::Sha256 as usize => HostFunctions::Sha256,
+      x if x == HostFunctions::Keccak256 as usize => HostFunctions::Keccak256,
+      x if x == HostFunctions::Keccak512 as usize => HostFunctions::Keccak512,
+      x if x == HostFunctions::Ripemd160 as usize => HostFunctions::Ripemd160,
+      x if x == HostFunctions::Ecrecover as usize => HostFunctions::Ecrecover,
+      x if x == HostFunctions::ValueReturn as usize => HostFunctions::ValueReturn,
+      x if x == HostFunctions::Panic as usize => HostFunctions::Panic,
+      x if x == HostFunctions::PanicUtf8 as usize => HostFunctions::PanicUtf8,
+      x if x == HostFunctions::LogUtf8 as usize => HostFunctions::LogUtf8,
+      x if x == HostFunctions::LogUtf16 as usize => HostFunctions::LogUtf16,
+      x if x == HostFunctions::Abort as usize => HostFunctions::Abort,
+      x if x == HostFunctions::PromiseCreate as usize => HostFunctions::PromiseCreate,
+      x if x == HostFunctions::PromiseThen as usize => HostFunctions::PromiseThen,
+      x if x == HostFunctions::PromiseAnd as usize => HostFunctions::PromiseAnd,
+      x if x == HostFunctions::PromiseBatchCreate as usize => HostFunctions::PromiseBatchCreate,
+      x if x == HostFunctions::PromiseBatchThen as usize => HostFunctions::PromiseBatchThen,
+      x if x == HostFunctions::PromiseBatchActionCreateAccount as usize => HostFunctions::PromiseBatchActionCreateAccount,
+      x if x == HostFunctions::PromiseBatchActionDeployContract as usize => HostFunctions::PromiseBatchActionDeployContract,
+      x if x == HostFunctions::PromiseBatchActionFunctionCall as usize => HostFunctions::PromiseBatchActionFunctionCall,
+      x if x == HostFunctions::PromiseBatchActionTransfer as usize => HostFunctions::PromiseBatchActionTransfer,
+      x if x == HostFunctions::PromiseBatchActionDeleteAccount as usize => HostFunctions::PromiseBatchActionDeleteAccount,
+      x if x == HostFunctions::PromiseResultsCount as usize => HostFunctions::PromiseResultsCount,
+      x if x == HostFunctions::PromiseResult as usize => HostFunctions::PromiseResult,
+      x if x == HostFunctions::PromiseReturn as usize => HostFunctions::PromiseReturn,
+      x if x == HostFunctions::StorageWrite as usize => HostFunctions::StorageWrite,
+      x if x == HostFunctions::StorageRead as usize => HostFunctions::StorageRead,
+      x if x == HostFunctions::StorageRemove as usize => HostFunctions::StorageRemove,
+      x if x == HostFunctions::StorageHasKey as usize => HostFunctions::StorageHasKey,
+      x if x == HostFunctions::Gas as usize => HostFunctions::Gas,
+        _ => HostFunctions::Unknown,
     }
   }
 }
@@ -120,144 +120,24 @@ impl Externals for VMLogic {
     args: RuntimeArgs,
   ) -> Result<Option<RuntimeValue>, Trap> {
     match HostFunctions::from(index) {
-      HostFunction::ReadRegister => {
-        &&&
+      HostFunctions::ReadRegister => {
+        let register_id: i64 = args.nth_checked(0).map_err(|_| MethodResolveError::MethodInvalidSignature)?;
+        let ptr: i64 = args.nth_checked(1).map_err(|_| MethodResolveError::MethodInvalidSignature)?;
+        self.read_register(register_id, ptr)
       },
-      HostFunction::RegisterLen => {
-        &&&
+      HostFunctions::RegisterLen => {
+        let register_id: i64 = args.nth_checked(0).map_err(|_| MethodResolveError::MethodInvalidSignature)?;
+        self.register_len(register_id)
       },
-      HostFunction::WriteRegister => {
-        &&&
+      HostFunctions::WriteRegister => {
+        let register_id: i64 = args.nth_checked(0).map_err(|_| MethodResolveError::MethodInvalidSignature)?;
+        let data_len: i64 = args.nth_checked(1).map_err(|_| MethodResolveError::MethodInvalidSignature)?;
+        let data_ptr: i64 = args.nth_checked(2).map_err(|_| MethodResolveError::MethodInvalidSignature)?;
+        self.write_register(register_id, data_len, data_ptr)
       },
-      HostFunction::CurrentAccountId => {
-        &&&
-      },
-      HostFunction::SignerAccountId => {
-        &&&
-      },
-      HostFunction::SignerAccountPublicKey => {
-        &&&
-      },
-      HostFunction::PredecessorAccountId => {
-        &&&
-      },
-      HostFunction::Input => {
-        &&&
-      },
-      HostFunction::BlockNumber => {
-        &&&
-      },
-      HostFunction::BlockTimestamp => {
-        &&&
-      },
-      HostFunction::EpochHeight => {
-        &&&
-      },
-      HostFunction::StorageUsage => {
-        &&&
-      },
-      HostFunction::AccountBalance => {
-        &&&
-      },
-      HostFunction::AttachedDeposit => {
-        &&&
-      },
-      HostFunction::PrepaidGas => {
-        &&&
-      },
-      HostFunction::UsedGas => {
-        &&&
-      },
-      HostFunction::RandomSeed => {
-        &&&
-      },
-      HostFunction::Sha256 => {
-        &&&
-      },
-      HostFunction::Keccak256 => {
-        &&&
-      },
-      HostFunction::Keccak512 => {
-        &&&
-      },
-      HostFunction::Ripemd160 => {
-        &&&
-      },
-      HostFunction::Ecrecover => {
-        &&&
-      },
-      HostFunction::ValueReturn => {
-        &&&
-      },
-      HostFunction::Panic => {
-        &&&
-      },
-      HostFunction::PanicUtf8 => {
-        &&&
-      },
-      HostFunction::LogUtf8 => {
-        &&&
-      },
-      HostFunction::LogUtf16 => {
-        &&&
-      },
-      HostFunction::Abort => {
-        &&&
-      },
-      HostFunction::PromiseCreate => {
-        &&&
-      },
-      HostFunction::PromiseThen => {
-        &&&
-      },
-      HostFunction::PromiseAnd => {
-        &&&
-      },
-      HostFunction::PromiseBatchCreate => {
-        &&&
-      },
-      HostFunction::PromiseBatchThen => {
-        &&&
-      },
-      HostFunction::PromiseBatchActionCreateAccount => {
-        &&&
-      },
-      HostFunction::PromiseBatchActionDeployContract => {
-        &&&
-      },
-      HostFunction::PromiseBatchActionFunctionCall => {
-        &&&
-      },
-      HostFunction::PromiseBatchActionTransfer => {
-        &&&
-      },
-      HostFunction::PromiseBatchActionDeleteAccount => {
-        &&&
-      },
-      HostFunction::PromiseResultsCount => {
-        &&&
-      },
-      HostFunction::PromiseResult => {
-        &&&
-      },
-      HostFunction::PromiseReturn => {
-        &&&
-      },
-      HostFunction::StorageWrite => {
-        &&&
-      },
-      HostFunction::StorageRead => {
-        &&&
-      },
-      HostFunction::StorageRemove => {
-        &&&
-      },
-      HostFunction::StorageHasKey => {
-        &&&
-      },
-      HostFunction::Gas => {
-        &&&
-      },
+      _ => {
+        println!("BOOOOO");
+      }
     }
   }
 }

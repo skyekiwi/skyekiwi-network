@@ -3,7 +3,7 @@ use wasmi::{
   Signature, ValueType,
 };
 
-use super externals::HostFunctions;
+use crate::externals::HostFunctions;
 
 pub fn create_builder(resolver: &dyn ModuleImportResolver) -> ImportsBuilder {
   ImportsBuilder::new.with_resolver("env", resolver)
@@ -12,18 +12,20 @@ pub fn create_builder(resolver: &dyn ModuleImportResolver) -> ImportsBuilder {
 #[derive(Debug, Clone)]
 pub struct WasmiImportResolver {}
 
+// https://paritytech.github.io/wasmi/wasmi/trait.Externals.html
+
 impl ModuleImportResolver for WasmiImportResolver {
   fn resolve_func(
     &self, 
     func_name: &str,
     _signature: &Signature,
   ) -> Result<FuncRef, InterpeterError> {
-    let func_ref = match func_name {
+    match func_name {
       "read_register" => FuncInstance::alloc_host(
         Signature::new(&[ValueType::I64, ValueType::I64][..], None),
         HostFunctions::ReadRegister.into(),
       ),
-      "register_len":=> FuncInstance::alloc_host(
+      "register_len" => FuncInstance::alloc_host(
         Signature::new(&[ValueType::I64][..], Some(ValueType::I64)),
         HostFunctions::RegisterLen.into(),
       ),

@@ -23,9 +23,11 @@ sha2 = ">=0.8,<0.10"
 sha3 = ">=0.8,<0.10"
 
 near-crypto = { git = "https://github.com/near/nearcore" }
-near-account-id = { git = "https://github.com/near/nearcore", features = [ "internal_unstable" ] }
-near-primitives = { git = "https://github.com/near/nearcore" }
-near-primitives-core = { git = "https://github.com/near/nearcore" }
+near-account-id = { git = "https://github.com/near/nearcore", features = [ "internal_unstable" ], tag = "crates-0.11.0" }
+near-primitives = { git = "https://github.com/near/nearcore", tag = "crates-0.11.0" }
+near-stable-hasher = { git = "https://github.com/near/nearcore", tag = "crates-0.11.0" }
+
+near-primitives-core = { git = "https://github.com/near/nearcore", tag = "crates-0.11.0"}
 near-vm-errors = { path = "../near-vm-errors" }
 
 bn = { package = "zeropool-bn", version = "0.5.9", features = [], optional = true }

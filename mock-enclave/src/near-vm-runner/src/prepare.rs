@@ -2,7 +2,7 @@
 //! wasm module before execution.
 
 use parity_wasm::builder;
-use parity_wasm::elements::{self, External, MemorySection, Type};
+use parity_wasm::elements::{self, External, MemorySection, Type, Module};
 use pwasm_utils::{self, rules};
 
 use near_vm_errors::PrepareError;
@@ -183,7 +183,7 @@ impl<'a> ContractModule<'a> {
 /// - functions number does not exceed limit specified in VMConfig,
 ///
 /// The preprocessing includes injecting code for gas metering and metering the height of stack.
-pub fn prepare_contract(original_code: &[u8], config: &VMConfig) -> Result<Vec<u8>, PrepareError> {
+pub fn prepare_contract(original_code: &[u8], config: &VMConfig) -> Result<Module, PrepareError> {
     ContractModule::init(original_code, config)?
         .validate_functions_number()?
         .standardize_mem()
@@ -191,7 +191,6 @@ pub fn prepare_contract(original_code: &[u8], config: &VMConfig) -> Result<Vec<u
         .inject_gas_metering()?
         .inject_stack_height_metering()?
         .scan_imports()?
-        .into_wasm_code()
 }
 
 #[cfg(test)]
@@ -200,7 +199,7 @@ mod tests {
 
     use super::*;
 
-    fn parse_and_prepare_wat(wat: &str) -> Result<Vec<u8>, PrepareError> {
+    fn parse_and_prepare_wat(wat: &str) -> Result<Module, PrepareError> {
         let wasm = wat::parse_str(wat).unwrap();
         let config = VMConfig::test();
         prepare_contract(wasm.as_ref(), &config)

@@ -1,4 +1,3 @@
-use crate::cache::into_vm_result;
 use crate::errors::IntoVMError;
 use crate::{cache, imports};
 use near_primitives::contract::ContractCode;
@@ -11,7 +10,7 @@ use near_vm_errors::{
     WasmTrap,
 };
 use near_vm_logic::types::{PromiseResult, ProtocolVersion};
-use near_vm_logic::{External, MemoryLike, VMConfig, VMContext, VMLogic, VMOutcome};
+use near_vm_logic::{MemoryLike, VMConfig, VMContext, VMLogic, VMOutcome};
 
 use wasmi::{
     MemoryInstance, TrapKind, ModuleInstance,
@@ -211,7 +210,7 @@ pub(crate) fn run_wasmi_module<'a>(
     (Some(logic.outcome()), err)
 }
 
-pub(crate) struct WasmiVM;
+pub struct WasmiVM;
 
 impl WasmiVM {
     pub fn run(
