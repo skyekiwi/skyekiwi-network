@@ -3,6 +3,7 @@
 
 use parity_wasm::builder;
 use parity_wasm::elements::{self, External, MemorySection, Type};
+use wasmi::Module;
 use pwasm_utils::{self, rules};
 
 use skw_vm_primitives::errors::PrepareError;
@@ -200,7 +201,7 @@ mod tests {
 
     use super::*;
 
-    fn parse_and_prepare_wat(wat: &str) -> Result<Module, PrepareError> {
+    fn parse_and_prepare_wat(wat: &str) -> Result<Vec<u8>, PrepareError> {
         let wasm = wat::parse_str(wat).unwrap();
         let config = VMConfig::test();
         prepare_contract(wasm.as_ref(), &config)

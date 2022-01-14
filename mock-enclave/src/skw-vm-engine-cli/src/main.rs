@@ -94,9 +94,6 @@ struct CliArgs {
     /// Prints execution times of various components.
     #[clap(long)]
     timings: bool,
-    /// Protocol version.
-    #[clap(long)]
-    protocol_version: Option<ProtocolVersion>,
 }
 
 #[derive(Debug, Clone)]
@@ -121,9 +118,6 @@ fn main() {
     }
     if let Some(path) = &cli_args.config_file {
         script.vm_config_from_file(path);
-    }
-    if let Some(version) = cli_args.protocol_version {
-        script.protocol_version(version)
     }
 
     if let Some(state_str) = &cli_args.state {

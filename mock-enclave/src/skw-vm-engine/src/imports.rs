@@ -12,7 +12,6 @@ pub fn create_builder(resolver: &dyn ModuleImportResolver) -> ImportsBuilder {
 #[derive(Debug, Clone)]
 pub struct WasmiImportResolver {}
 
-// https://paritytech.github.io/wasmi/wasmi/trait.Externals.html
 impl ModuleImportResolver for WasmiImportResolver {
   fn resolve_func(
     &self, 

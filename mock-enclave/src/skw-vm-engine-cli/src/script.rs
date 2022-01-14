@@ -1,17 +1,14 @@
 use std::fs;
 use std::path::Path;
 
-use near_primitives::contract::ContractCode;
-use near_primitives::runtime::config_store::RuntimeConfigStore;
-use near_primitives::types::CompiledContractCache;
-use near_primitives::version::PROTOCOL_VERSION;
+use skw_vm_primitives::contract_runtime::ContractCode;
+use skw_vm_primitives::fees::RuntimeFeesConfig;
 
 use skw_vm_host::mocks::mock_external::MockedExternal;
 use skw_vm_host::types::PromiseResult;
-use skw_vm_host::{ProtocolVersion, VMConfig, VMContext, VMOutcome};
-// use near_vm_runner::internal::VMKind;
-use skw_vm_engine::{MockCompiledContractCache, VMError};
-use skw_vm_engine::wasmi_runner::WasmiVM;
+use skw_vm_host::{VMConfig, VMContext, VMOutcome};
+use skw_vm_engine::{VMError};
+use skw_vm_engine::WasmiVM;
 
 use crate::State;
 
@@ -23,8 +20,6 @@ pub struct Contract(usize);
 pub struct Script {
     contracts: Vec<ContractCode>,
     vm_config: VMConfig,
-    protocol_version: ProtocolVersion,
-    contract_cache: Option<Box<dyn CompiledContractCache>>,
     initial_state: Option<State>,
     steps: Vec<Step>,
 }
@@ -44,14 +39,9 @@ pub struct ScriptResults {
 
 impl Default for Script {
     fn default() -> Self {
-        let protocol_version = PROTOCOL_VERSION;
-        let config_store = RuntimeConfigStore::new(None);
-        let runtime_config = config_store.get_config(protocol_version).as_ref();
         Script {
             contracts: Vec::new(),
-            vm_config: runtime_config.wasm_config.clone(),
-            protocol_version,
-            contract_cache: None,
+            vm_config: VMConfig::test(),
             initial_state: None,
             steps: Vec::new(),
         }
@@ -61,7 +51,7 @@ impl Default for Script {
 impl Script {
     pub(crate) fn contract(&mut self, code: Vec<u8>) -> Contract {
         let res = Contract(self.contracts.len());
-        self.contracts.push(ContractCode::new(code, None));
+        self.contracts.push(ContractCode::new(&code));
         res
     }
 
@@ -79,16 +69,6 @@ impl Script {
         let data = fs::read(path).unwrap();
         let vm_config = serde_json::from_slice(&data).unwrap();
         self.vm_config(vm_config)
-    }
-
-    pub(crate) fn protocol_version(&mut self, protocol_version: ProtocolVersion) {
-        self.protocol_version = protocol_version;
-    }
-
-    #[allow(unused)]
-    pub(crate) fn contract_cache(&mut self, yes: bool) {
-        self.contract_cache =
-            if yes { Some(Box::new(MockCompiledContractCache::default())) } else { None };
     }
 
     pub(crate) fn initial_state(&mut self, state: State) {
@@ -112,8 +92,6 @@ impl Script {
             external.fake_trie = trie;
         }
 
-        let config_store = RuntimeConfigStore::new(None);
-        let runtime_fees_config = &config_store.get_config(self.protocol_version).transaction_costs;
         let mut outcomes = Vec::new();
         // let runtime = &WasmiVM as &'static dyn VM;
         for step in &self.steps {
@@ -124,10 +102,8 @@ impl Script {
                     &mut external,
                     step.vm_context.clone(),
                     &self.vm_config,
-                    runtime_fees_config,
+                    &RuntimeFeesConfig::test(),
                     &step.promise_results,
-                    self.protocol_version,
-                    self.contract_cache.as_deref(),
                 );
                 outcomes.push(res);
             }
@@ -192,13 +168,11 @@ fn default_vm_context() -> VMContext {
 
 #[test]
 fn vm_script_smoke_test() {
-    use near_vm_logic::ReturnData;
+    use skw_vm_host::ReturnData;
 
     tracing_span_tree::span_tree().enable();
 
     let mut script = Script::default();
-    script.contract_cache(true);
-
     let contract = script.contract(near_test_contracts::rs_contract().to_vec());
 
     script.step(contract, "log_something").repeat(3);
@@ -220,7 +194,6 @@ fn vm_script_smoke_test() {
 #[test]
 fn profile_data_is_per_outcome() {
     let mut script = Script::default();
-    script.contract_cache(true);
 
     let contract = script.contract(near_test_contracts::rs_contract().to_vec());
 

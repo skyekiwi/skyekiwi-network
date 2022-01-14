@@ -85,7 +85,6 @@ fn check_method(module: &ModuleInstance, method_name: &str) -> Result<(), VMErro
 pub struct WasmiVM;
 impl WasmiVM {
     pub fn run(
-        &self,
         code: &ContractCode,
         method_name: &str,
         ext: &mut dyn RuntimeExternal,
