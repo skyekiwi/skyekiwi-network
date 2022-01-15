@@ -342,9 +342,6 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "impl-codec"
@@ -389,15 +386,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67c21572b4949434e4fc1e1978b99c5f77064153c59d998bf13ecd96fb5ecba7"
 
 [[package]]
-name = "lazy_static"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
-dependencies = [
- "spin",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.112"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -411,14 +399,14 @@ checksum = "c7d73b3f436185384286bd8098d17ec07c9a7d2388a6599f824d8502b529702a"
 
 [[package]]
 name = "memory_units"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71d96e3f3c0b6325d8ccd83c33b28acb183edcb6c67938ba104ec546854b0882"
+checksum = "8452105ba047068f40ff7093dd1d9da90898e63dd61736462e9cdda6a90ad3c3"
 
 [[package]]
 name = "near-account-id"
 version = "0.0.0"
-source = "git+https://github.com/near/nearcore#1338d817efeb30721d56ca776aa5bae83706e1d8"
+source = "git+https://github.com/near/nearcore#14f249db13765108a01cf5ba5f5d0ba26378aaa7"
 dependencies = [
  "borsh",
  "serde",
@@ -427,7 +415,7 @@ dependencies = [
 [[package]]
 name = "near-crypto"
 version = "0.0.0"
-source = "git+https://github.com/near/nearcore#1338d817efeb30721d56ca776aa5bae83706e1d8"
+source = "git+https://github.com/near/nearcore#14f249db13765108a01cf5ba5f5d0ba26378aaa7"
 dependencies = [
  "arrayref",
  "blake2",
@@ -796,12 +784,9 @@ name = "skw-vm-host"
 version = "0.0.0"
 dependencies = [
  "base64",
- "borsh",
  "bs58",
  "byteorder",
- "hex",
  "near-crypto",
- "parity-secp256k1",
  "ripemd160",
  "serde",
  "serde_json",
@@ -809,7 +794,6 @@ dependencies = [
  "sha3",
  "skw-vm-primitives",
  "wasmi",
- "zeropool-bn",
 ]
 
 [[package]]
@@ -819,13 +803,14 @@ dependencies = [
  "num-rational 0.3.2",
  "serde",
  "sha2",
+ "wasmi",
 ]
 
 [[package]]
 name = "spin"
-version = "0.5.2"
+version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
+checksum = "511254be0c5bcf062b019a6c89c01a664aa359ded62f78aa72c6fc137c0590e5"
 
 [[package]]
 name = "static_assertions"
@@ -941,9 +926,28 @@ checksum = "fd6fbd9a79829dd1ad0cc20627bf1ed606756a7f77edff7b66b7064f9cb327c6"
 
 [[package]]
 name = "wasmi"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03919fcab96ed058e0c411c47b370883d6393c40307f3140876f68a9256cadb1"
+version = "0.11.0"
+source = "git+https://github.com/paritytech/wasmi#88b38b7702a5830b00669ef7c622db5fbfd6b335"
+dependencies = [
+ "parity-wasm",
+ "spin",
+ "wasmi-validation",
+ "wasmi_core",
+ "wasmi_v1",
+]
+
+[[package]]
+name = "wasmi-validation"
+version = "0.4.1"
+source = "git+https://github.com/paritytech/wasmi#88b38b7702a5830b00669ef7c622db5fbfd6b335"
+dependencies = [
+ "parity-wasm",
+]
+
+[[package]]
+name = "wasmi_core"
+version = "0.1.0"
+source = "git+https://github.com/paritytech/wasmi#88b38b7702a5830b00669ef7c622db5fbfd6b335"
 dependencies = [
  "downcast-rs",
  "libm",
@@ -951,16 +955,17 @@ dependencies = [
  "num-rational 0.4.0",
  "num-traits",
  "parity-wasm",
- "wasmi-validation",
 ]
 
 [[package]]
-name = "wasmi-validation"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "165343ecd6c018fc09ebcae280752702c9a2ef3e6f8d02f1cfcbdb53ef6d7937"
+name = "wasmi_v1"
+version = "0.11.0"
+source = "git+https://github.com/paritytech/wasmi#88b38b7702a5830b00669ef7c622db5fbfd6b335"
 dependencies = [
  "parity-wasm",
+ "spin",
+ "wasmi-validation",
+ "wasmi_core",
 ]
 
 [[package]]
@@ -971,35 +976,21 @@ checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
 
 [[package]]
 name = "zeroize"
-version = "1.4.3"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d68d9dcec5f9b43a30d38c49f91dfedfaac384cb8f085faca366c26207dd1619"
+checksum = "cc222aec311c323c717f56060324f32b82da1ce1dd81d9a09aa6a9030bfe08db"
 dependencies = [
  "zeroize_derive",
 ]
 
 [[package]]
 name = "zeroize_derive"
-version = "1.2.2"
+version = "1.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65f1a51723ec88c66d5d1fe80c841f17f63587d6691901d66be9bec6c3b51f73"
+checksum = "81e8f13fef10b63c06356d65d416b070798ddabcadc10d3ece0c5be9b3c7eddb"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn",
  "synstructure",
-]
-
-[[package]]
-name = "zeropool-bn"
-version = "0.5.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59a25023b8f5e576f5d81f000e6262ab873987a913f3399256e23f7038031f1c"
-dependencies = [
- "borsh",
- "byteorder",
- "crunchy",
- "lazy_static",
- "rand 0.8.4",
- "rustc-hex",
 ]

@@ -19,7 +19,7 @@ extern "C" {
     fn predecessor_account_id(register_id: u64);
     fn input(register_id: u64);
     // TODO #1903 fn block_height() -> u64;
-    fn block_index() -> u64;
+    fn block_number() -> u64;
     fn block_timestamp() -> u64;
     fn epoch_height() -> u64;
     fn storage_usage() -> u64;
@@ -86,34 +86,6 @@ extern "C" {
         gas: u64,
     );
     fn promise_batch_action_transfer(promise_index: u64, amount_ptr: u64);
-    fn promise_batch_action_stake(
-        promise_index: u64,
-        amount_ptr: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-    );
-    fn promise_batch_action_add_key_with_full_access(
-        promise_index: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-        nonce: u64,
-    );
-    fn promise_batch_action_add_key_with_function_call(
-        promise_index: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-        nonce: u64,
-        allowance_ptr: u64,
-        receiver_id_len: u64,
-        receiver_id_ptr: u64,
-        method_names_len: u64,
-        method_names_ptr: u64,
-    );
-    fn promise_batch_action_delete_key(
-        promise_index: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-    );
     fn promise_batch_action_delete_account(
         promise_index: u64,
         beneficiary_id_len: u64,
@@ -138,28 +110,10 @@ extern "C" {
     fn storage_read(key_len: u64, key_ptr: u64, register_id: u64) -> u64;
     fn storage_remove(key_len: u64, key_ptr: u64, register_id: u64) -> u64;
     fn storage_has_key(key_len: u64, key_ptr: u64) -> u64;
-    fn storage_iter_prefix(prefix_len: u64, prefix_ptr: u64) -> u64;
-    fn storage_iter_range(start_len: u64, start_ptr: u64, end_len: u64, end_ptr: u64) -> u64;
-    fn storage_iter_next(iterator_id: u64, key_register_id: u64, value_register_id: u64) -> u64;
-    // #################
-    // # Validator API #
-    // #################
-    fn validator_stake(account_id_len: u64, account_id_ptr: u64, stake_ptr: u64);
-    fn validator_total_stake(stake_ptr: u64);
     // ###################
     // # Math Extensions #
     // ###################
-    #[cfg(not(feature = "base_protocol"))]
     fn ripemd160(value_len: u64, value_ptr: u64, register_id: u64);
-    // #################
-    // # alt_bn128 API #
-    // #################
-    #[cfg(feature = "protocol_feature_alt_bn128")]
-    fn alt_bn128_g1_multiexp(value_len: u64, value_ptr: u64, register_id: u64);
-    #[cfg(feature = "protocol_feature_alt_bn128")]
-    fn alt_bn128_g1_sum(value_len: u64, value_ptr: u64, register_id: u64);
-    #[cfg(feature = "protocol_feature_alt_bn128")]
-    fn alt_bn128_pairing_check(value_len: u64, value_ptr: u64) -> u64;
 }
 
 macro_rules! ext_test {
@@ -197,7 +151,7 @@ macro_rules! ext_test_u128 {
 }
 
 ext_test_u64!(ext_storage_usage, storage_usage);
-ext_test_u64!(ext_block_index, block_index);
+ext_test_u64!(ext_block_number, block_number);
 ext_test_u64!(ext_block_timestamp, block_timestamp);
 ext_test_u64!(ext_prepaid_gas, prepaid_gas);
 
@@ -209,8 +163,6 @@ ext_test!(ext_account_id, current_account_id);
 
 ext_test_u128!(ext_account_balance, account_balance);
 ext_test_u128!(ext_attached_deposit, attached_deposit);
-
-ext_test_u128!(ext_validator_total_stake, validator_total_stake);
 
 #[no_mangle]
 pub unsafe fn ext_sha256() {
@@ -239,45 +191,6 @@ pub unsafe fn ext_used_gas() {
     value_return(result.len() as u64, result.as_ptr() as *const u64 as u64);
 }
 
-#[cfg(feature = "protocol_feature_alt_bn128")]
-#[no_mangle]
-pub unsafe fn ext_alt_bn128_g1_multiexp() {
-    input(0);
-    alt_bn128_g1_multiexp(u64::MAX, 0, 1);
-    value_return(u64::MAX, 1);
-}
-
-#[cfg(feature = "protocol_feature_alt_bn128")]
-#[no_mangle]
-pub unsafe fn ext_alt_bn128_g1_sum() {
-    input(0);
-    alt_bn128_g1_sum(u64::MAX, 0, 1);
-    value_return(u64::MAX, 1);
-}
-
-#[cfg(feature = "protocol_feature_alt_bn128")]
-#[no_mangle]
-pub unsafe fn ext_alt_bn128_pairing_check() {
-    input(0);
-    let res = alt_bn128_pairing_check(u64::MAX, 0);
-    let byte = [res as u8; 1];
-    value_return(1, byte.as_ptr() as _);
-}
-
-#[no_mangle]
-pub unsafe fn ext_validator_stake() {
-    input(0);
-    let account_id = vec![0; register_len(0) as usize];
-    read_register(0, account_id.as_ptr() as *const u64 as u64);
-    let result = [0u8; size_of::<u128>()];
-    validator_stake(
-        account_id.len() as u64,
-        account_id.as_ptr() as *const u64 as u64,
-        result.as_ptr() as *const u64 as u64,
-    );
-    value_return(result.len() as u64, result.as_ptr() as *const u64 as u64);
-}
-
 #[no_mangle]
 pub unsafe fn write_key_value() {
     input(0);
@@ -300,10 +213,10 @@ pub unsafe fn write_key_value() {
 }
 
 #[no_mangle]
-pub unsafe fn write_block_height() {
-    let block_height = block_index();
+pub unsafe fn write_block_number() {
+    let block_number = block_number();
     let mut key = [0u8; size_of::<u64>()];
-    key.copy_from_slice(&block_height.to_le_bytes());
+    key.copy_from_slice(&block_number.to_le_bytes());
     let value = b"hello";
     storage_write(key.len() as _, key.as_ptr() as _, value.len() as _, value.as_ptr() as _, 0);
 }
@@ -721,56 +634,6 @@ fn call_promise() {
                     &amount as *const u128 as *const u64 as u64,
                 );
                 promise_index
-            } else if let Some(action) = arg.get("action_stake") {
-                let promise_index = action["promise_index"].as_i64().unwrap() as u64;
-                let amount = action["amount"].as_str().unwrap().parse::<u128>().unwrap();
-                let public_key = from_base64(action["public_key"].as_str().unwrap());
-                promise_batch_action_stake(
-                    promise_index,
-                    &amount as *const u128 as *const u64 as u64,
-                    public_key.len() as u64,
-                    public_key.as_ptr() as u64,
-                );
-                promise_index
-            } else if let Some(action) = arg.get("action_add_key_with_full_access") {
-                let promise_index = action["promise_index"].as_i64().unwrap() as u64;
-                let public_key = from_base64(action["public_key"].as_str().unwrap());
-                let nonce = action["nonce"].as_i64().unwrap() as u64;
-                promise_batch_action_add_key_with_full_access(
-                    promise_index,
-                    public_key.len() as u64,
-                    public_key.as_ptr() as u64,
-                    nonce,
-                );
-                promise_index
-            } else if let Some(action) = arg.get("action_add_key_with_function_call") {
-                let promise_index = action["promise_index"].as_i64().unwrap() as u64;
-                let public_key = from_base64(action["public_key"].as_str().unwrap());
-                let nonce = action["nonce"].as_i64().unwrap() as u64;
-                let allowance = action["allowance"].as_str().unwrap().parse::<u128>().unwrap();
-                let receiver_id = action["receiver_id"].as_str().unwrap().as_bytes();
-                let method_names = action["method_names"].as_str().unwrap().as_bytes();
-                promise_batch_action_add_key_with_function_call(
-                    promise_index,
-                    public_key.len() as u64,
-                    public_key.as_ptr() as u64,
-                    nonce,
-                    &allowance as *const u128 as *const u64 as u64,
-                    receiver_id.len() as u64,
-                    receiver_id.as_ptr() as u64,
-                    method_names.len() as u64,
-                    method_names.as_ptr() as u64,
-                );
-                promise_index
-            } else if let Some(action) = arg.get("action_delete_key") {
-                let promise_index = action["promise_index"].as_i64().unwrap() as u64;
-                let public_key = from_base64(action["public_key"].as_str().unwrap());
-                promise_batch_action_delete_key(
-                    promise_index,
-                    public_key.len() as u64,
-                    public_key.as_ptr() as u64,
-                );
-                promise_index
             } else if let Some(action) = arg.get("action_delete_account") {
                 let promise_index = action["promise_index"].as_i64().unwrap() as u64;
                 let beneficiary_id = action["beneficiary_id"].as_str().unwrap().as_bytes();
@@ -793,8 +656,6 @@ fn call_promise() {
         }
     }
 }
-
-#[cfg(not(feature = "base_protocol"))]
 #[no_mangle]
 fn do_ripemd() {
     let data = b"tesdsst";

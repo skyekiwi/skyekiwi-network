@@ -27,7 +27,7 @@ skw-vm-primitives = { path = "../skw-vm-primitives" }
 
 [dev-dependencies]
 hex = "0.4"
-near-test-contracts = { git = "https://github.com/near/nearcore" }
+near-test-contracts = { path = "../near-test-contracts" }
 
 [features]
 default = []

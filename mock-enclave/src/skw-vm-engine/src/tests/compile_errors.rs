@@ -1,7 +1,9 @@
-use skw_vm_primitives::errors::{CompilationError, FunctionCallError, PrepareError, VMError};
+use skw_vm_primitives::errors::{
+    CompilationError, FunctionCallError, PrepareError, VMError, WasmTrap
+};
 use assert_matches::assert_matches;
 
-use crate::tests::{make_simple_contract_call_vm};
+use crate::tests::{make_simple_contract_call_vm, gas_and_error_match};
 
 fn initializer_wrong_signature_contract() -> Vec<u8> {
     wat::parse_str(
@@ -139,15 +141,56 @@ fn test_limit_contract_functions_number() {
 
     let code = near_test_contracts::many_functions_contract(functions_number_limit);
     let (_, err) = make_simple_contract_call_vm(&code, method_name);
+
     assert_eq!(err, None);
 
     let code = near_test_contracts::many_functions_contract(functions_number_limit + 1);
     let (_, err) = make_simple_contract_call_vm(&code, method_name);
-    
+
     assert_matches!(
         err,
         Some(VMError::FunctionCallError(FunctionCallError::CompilationError(
             CompilationError::PrepareError(PrepareError::TooManyFunctions)
         )))
+    );
+}
+
+fn many_locals(n_locals: usize) -> Vec<u8> {
+    wat::parse_str(&format!(
+        r#"
+            (module
+              (func $main (export "main")
+                (local {})
+                (call $main))
+            )"#,
+        "i32 ".repeat(n_locals)
+    ))
+    .unwrap()
+}
+
+#[test]
+fn test_limit_locals() {
+    let wasm_err = many_locals(50_001);
+    let res = make_simple_contract_call_vm(&wasm_err, "main");
+    gas_and_error_match(
+        res,
+        None,
+        Some(
+            VMError::FunctionCallError(
+                FunctionCallError::CompilationError(
+                    CompilationError::PrepareError(PrepareError::Deserialization),
+                )
+            )
+        ),
+    );
+
+    let wasm_ok = many_locals(50_000);
+    let res = make_simple_contract_call_vm(&wasm_ok, "main");
+
+    // behavior in the original near vm
+    gas_and_error_match(
+        res,
+        Some(47583963),
+        Some(VMError::FunctionCallError(FunctionCallError::WasmTrap(WasmTrap::Unreachable))),
     );
 }

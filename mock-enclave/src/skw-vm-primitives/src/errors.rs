@@ -211,7 +211,15 @@ pub enum HostError {
     Deprecated { method_name: String },
     /// General errors for ECDSA recover.
     ECRecoverError { msg: String },
+
+    /// work-around for Traps
+    ExternalError(Vec<u8>),
+    InconsistentStateError(InconsistentStateError),
+    Unknown,
 }
+
+// impl wasmi::HostError for VMLogicError {}
+impl wasmi::HostError for HostError {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum VMLogicError {
@@ -223,7 +231,6 @@ pub enum VMLogicError {
     InconsistentStateError(InconsistentStateError),
 }
 
-impl wasmi::HostError for VMLogicError {}
 
 /// An error which can be returned when parsing a NEAR Account ID.
 #[derive(Eq, Clone, Debug, PartialEq)]
@@ -461,6 +468,9 @@ impl std::fmt::Display for HostError {
             ContractSizeExceeded { size, limit } => write!(f, "The size of a contract code in DeployContract action {} exceeds the limit {}", size, limit),
             Deprecated {method_name}=> write!(f, "Attempted to call deprecated host function {}", method_name),
             ECRecoverError { msg } => write!(f, "ECDSA recover error: {}", msg),
+            ExternalError(_) => write!(f, "external error"),
+            InconsistentStateError(e) => write!(f, "InconsistentStateError: {}", e),
+            Unknown => write!(f, "unkonw error"),
         }
     }
 }

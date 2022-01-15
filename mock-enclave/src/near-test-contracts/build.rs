@@ -12,17 +12,17 @@ fn main() {
 
 fn try_main() -> io::Result<()> {
     build_contract("./test-contract-rs", &[], "test_contract_rs")?;
-    build_contract(
-        "./test-contract-rs",
-        &["--features", "nightly_protocol_features"],
-        "nightly_test_contract_rs",
-    )?;
-    build_contract("./contract-for-fuzzing-rs", &[], "contract_for_fuzzing_rs")?;
-    build_contract(
-        "./test-contract-rs",
-        &["--features", "base_protocol"],
-        "test_contract_rs_base_protocol",
-    )?;
+    // build_contract(
+    //     "./test-contract-rs",
+    //     &["--features", "nightly_protocol_features"],
+    //     "nightly_test_contract_rs",
+    // )?;
+    // build_contract("./contract-for-fuzzing-rs", &[], "contract_for_fuzzing_rs")?;
+    // build_contract(
+    //     "./test-contract-rs",
+    //     &["--features", "base_protocol"],
+    //     "test_contract_rs_base_protocol",
+    // )?;
     Ok(())
 }
 

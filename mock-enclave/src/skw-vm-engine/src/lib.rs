@@ -1,8 +1,6 @@
 mod cache;
 pub mod prepare;
 mod runner;
-mod externals;
-mod imports;
 
 #[cfg(test)]
 mod tests;

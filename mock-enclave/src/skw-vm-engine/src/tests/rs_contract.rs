@@ -1,4 +1,4 @@
-use skw_vm_primitives::contract_runtime::{ContractCode, Balance};
+use skw_vm_primitives::contract_runtime::{ContractCode};
 use skw_vm_primitives::fees::RuntimeFeesConfig;
 use skw_vm_primitives::errors::{FunctionCallError, VMError, WasmTrap};
 
@@ -19,6 +19,8 @@ fn test_contract() -> ContractCode {
 }
 
 fn assert_run_result((outcome, err): (Option<VMOutcome>, Option<VMError>), expected_value: u64) {
+    println!("{:?}", err);
+
     if let Some(_) = err {
         panic!("Failed execution");
     }
@@ -80,7 +82,7 @@ pub fn test_read_write() {
 }
 
 #[test]
-pub fn test_stablized_host_function() {
+pub fn test_do_ripemd() {
     let code = test_contract();
     let mut fake_external = MockedExternal::new();
 
@@ -99,20 +101,6 @@ pub fn test_stablized_host_function() {
         &promise_results,
     );
     assert_eq!(result.1, None);
-
-    let result = WasmiVM::run(
-        &code,
-        "do_ripemd",
-        &mut fake_external,
-        context,
-        &config,
-        &fees,
-        &promise_results,
-    );
-    match result.1 {
-        Some(VMError::FunctionCallError(FunctionCallError::LinkError { msg: _ })) => {}
-        _ => panic!("should return a link error due to missing import"),
-    }
 }
 
 macro_rules! def_test_ext {
@@ -184,11 +172,10 @@ def_test_ext!(ext_signer_pk, "ext_signer_pk", &SIGNER_ACCOUNT_PK);
 def_test_ext!(ext_random_seed, "ext_random_seed", &[0, 1, 2]);
 
 def_test_ext!(ext_prepaid_gas, "ext_prepaid_gas", &(10_u64.pow(14)).to_le_bytes());
-
-// TODO: change block_index to block_number
-def_test_ext!(ext_block_index, "ext_block_index", &10u64.to_le_bytes());
+def_test_ext!(ext_block_number, "ext_block_number", &10u64.to_le_bytes());
 def_test_ext!(ext_block_timestamp, "ext_block_timestamp", &42u64.to_le_bytes());
 def_test_ext!(ext_storage_usage, "ext_storage_usage", &12u64.to_le_bytes());
+
 // Note, the used_gas is not a global used_gas at the beginning of method, but instead a diff
 // in used_gas for computing fib(30) in a loop
 def_test_ext!(ext_used_gas, "ext_used_gas", &[111, 10, 200, 15, 0, 0, 0, 0]);

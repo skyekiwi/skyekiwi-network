@@ -1,7 +1,7 @@
 [package]
 name = "test-contract-rs"
 version = "0.1.0"
-authors = ["Near Inc <hello@nearprotocol.com>"]
+authors = ["SkyeKiwi <hello@skye.kiwi>", "Near Inc <hello@nearprotocol.com>"]
 publish = false
 # Please update rust-toolchain.toml as well when changing version here:
 rust-version = "1.56.0"
@@ -30,6 +30,3 @@ incremental = false
 members = []
 
 [features]
-nightly_protocol_features = ["protocol_feature_alt_bn128"]
-protocol_feature_alt_bn128 = []
-base_protocol = []

@@ -1,10 +1,10 @@
 mod compile_errors;
-// mod contract_preload;
 mod rs_contract;
 mod runtime_errors;
 mod ts_contract;
 mod wasm_validation;
 
+// mod contract_preload;
 use crate::runner::WasmiVM;
 
 use skw_vm_primitives::contract_runtime::ContractCode;
@@ -71,3 +71,21 @@ fn make_simple_contract_call_vm(
     make_simple_contract_call_with_gas_vm(code, method_name, 10u64.pow(14))
 }
 
+#[track_caller]
+fn gas_and_error_match(
+    outcome_and_error: (Option<VMOutcome>, Option<VMError>),
+    expected_gas: Option<u64>,
+    expected_error: Option<VMError>,
+) {
+    match expected_gas {
+        Some(gas) => {
+            println!("outcome_and_error {:?}",outcome_and_error.0);
+            let outcome = outcome_and_error.0.unwrap();
+            assert_eq!(outcome.used_gas, gas, "used gas differs");
+            assert_eq!(outcome.burnt_gas, gas, "burnt gas differs");
+        }
+        None => assert!(outcome_and_error.0.is_none()),
+    }
+
+    assert_eq!(outcome_and_error.1, expected_error);
+}

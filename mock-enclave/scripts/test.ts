@@ -12,9 +12,9 @@ function build() {
   const srcPath = path.join(__dirname, '../src');
 
   // compile the runner
-  execute(`cd ${srcPath}/near-vm-logic && cargo test --release`);
-  execute(`cd ${srcPath}/near-vm-runner && cargo test --release`);
-  execute(`cd ${srcPath}/near-vm-errors && cargo test --release`);
+  execute(`cd ${srcPath}/skw-vm-host && cargo check --release && cargo test --release`);
+  execute(`cd ${srcPath}/skw-vm-engine && cargo check --release && cargo test --release`);
+  execute(`cd ${srcPath}/skw-vm-engine-cli && cargo check --release && cargo test --release`);
 }
 
 build();

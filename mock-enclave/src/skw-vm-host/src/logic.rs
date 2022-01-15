@@ -2103,13 +2103,13 @@ impl std::fmt::Debug for VMOutcome {
             ReturnData::ReceiptIndex(_) => "Receipt".to_string(),
             ReturnData::Value(v) => format!("{:?}", v),
         };
-        write!(
-            f, "{}", return_data_str
-        )
         // write!(
-        //     f,
-        //     "VMOutcome: balance {} storage_usage {} return data {} burnt gas {} used gas {}",
-        //     self.balance, self.storage_usage, return_data_str, self.burnt_gas, self.used_gas
+        //     f, "{}", return_data_str
         // )
+        write!(
+            f,
+            "VMOutcome: balance {} storage_usage {} return data {} burnt gas {} used gas {}",
+            self.balance, self.storage_usage, return_data_str, self.burnt_gas, self.used_gas
+        )
     }
 }

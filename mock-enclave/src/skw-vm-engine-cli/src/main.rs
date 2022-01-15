@@ -1,11 +1,9 @@
-#![doc = include_str!("../README.md")]
-
 mod script;
 
 use crate::script::Script;
 use clap::Clap;
 use skw_vm_host::VMOutcome;
-use skw_vm_host::{mocks::mock_external::Receipt, ProtocolVersion};
+use skw_vm_host::{mocks::mock_external::Receipt};
 use serde::{
     de::{MapAccess, Visitor},
     ser::SerializeMap,

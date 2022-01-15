@@ -11,7 +11,7 @@ console.log('$ yarn vm', process.argv.slice(2).join(' '));
 
 function compile() {
   // compile the runner
-  execute('cd src/near-vm-runner-standalone && cargo build --release')
+  execute('cd src/skw-vm-engine-cli && cargo build --release')
 }
 
 
@@ -48,7 +48,7 @@ function runVM({
   wasmFile = "./wasm/greeting.wasm",
   profiling = false
 }) {
-  const runnerPath = "./src/near-vm-runner-standalone/target/release/near-vm-runner-standalone";
+  const runnerPath = "./src/skw-vm-engine-cli/target/release/skw-vm-engine-cli";
   execute(`${runnerPath} --context '${injectOrigin(origin)}' --wasm-file ${wasmFile} --method-name ${methodName} --input \'${input}\' --state \'${stateInput}\' ${profiling ? "--timings" : ""} > result.json`)
   
   // parse the output 

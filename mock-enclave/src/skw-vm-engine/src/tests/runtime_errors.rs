@@ -2,30 +2,9 @@ use skw_vm_primitives::errors::{
     CompilationError, FunctionCallError, HostError, MethodResolveError, PrepareError, VMError,
     WasmTrap,
 };
-use skw_vm_host::VMOutcome;
+use crate::tests::{make_simple_contract_call_vm, make_simple_contract_call_with_gas_vm, gas_and_error_match};
 
-use crate::runner::WasmiVM;
-use crate::tests::{make_simple_contract_call_vm, make_simple_contract_call_with_gas_vm};
-
-#[track_caller]
-fn gas_and_error_match(
-    outcome_and_error: (Option<VMOutcome>, Option<VMError>),
-    expected_gas: Option<u64>,
-    expected_error: Option<VMError>,
-) {
-    match expected_gas {
-        Some(gas) => {
-            let outcome = outcome_and_error.0.unwrap();
-            assert_eq!(outcome.used_gas, gas, "used gas differs");
-            assert_eq!(outcome.burnt_gas, gas, "burnt gas differs");
-        }
-        None => assert!(outcome_and_error.0.is_none()),
-    }
-
-    assert_eq!(outcome_and_error.1, expected_error);
-}
-
-
+// DIFF: these functions won't past compile in SkyeKiwi VM
 // fn infinite_initializer_contract() -> Vec<u8> {
 //     wat::parse_str(
 //         r#"
@@ -167,10 +146,16 @@ fn trap_initializer() -> Vec<u8> {
 
 #[test]
 fn test_trap_initializer() {
+    // DIFF: behavior of the origianl NEAR VM
+    // gas_and_error_match(
+    //     make_simple_contract_call_vm(&trap_initializer(), "hello"),
+    //     Some(47755584),
+    //     Some(VMError::FunctionCallError(FunctionCallError::WasmTrap(WasmTrap::Unreachable))),
+    // );
     gas_and_error_match(
         make_simple_contract_call_vm(&trap_initializer(), "hello"),
-        Some(47755584),
-        Some(VMError::FunctionCallError(FunctionCallError::WasmTrap(WasmTrap::Unreachable))),
+        None,
+        Some(VMError::FunctionCallError(FunctionCallError::CompilationError(CompilationError::StartFunctionError))),
     );
 }
 
@@ -450,6 +435,8 @@ fn bad_import_func(env: &str) -> Vec<u8> {
 // Weird behavior:
 // Invalid import not from "env" -> PrepareError::Instantiate
 // Invalid import from "env" -> LinkError
+
+// DIFF: these tests won't pass compile in SkyeKiwi VM
 fn test_bad_import_1() {
     gas_and_error_match(
         make_simple_contract_call_vm(&bad_import_global("wtf"), "hello"),
@@ -551,15 +538,22 @@ fn bad_many_imports() -> Vec<u8> {
 #[test]
 fn test_bad_many_imports() {
     let result = make_simple_contract_call_vm(&bad_many_imports(), "hello");
-    let outcome = result.0.unwrap();
-    assert_eq!(outcome.used_gas, 299664213);
-    assert_eq!(outcome.burnt_gas, 299664213);
-    if let Some(VMError::FunctionCallError(FunctionCallError::LinkError { msg })) = result.1 {
-        eprintln!("{}", msg);
-        assert!(msg.len() < 1000, "Huge error message: {}", msg.len());
-    } else {
-        panic!("{:?}", result.1);
-    }
+    assert_eq!(result.1
+        ,Some(VMError::FunctionCallError(FunctionCallError::CompilationError(
+            CompilationError::WasmCompileError,
+        )))
+    );
+    
+    // DIFF: Original Behavior of NEAR VM
+    // let outcome = result.0.unwrap();
+    // assert_eq!(outcome.used_gas, 299664213);
+    // assert_eq!(outcome.burnt_gas, 299664213);
+    // if let Some(VMError::FunctionCallError(FunctionCallError::LinkError { msg })) = result.1 {
+    //     eprintln!("{}", msg);
+    //     assert!(msg.len() < 1000, "Huge error message: {}", msg.len());
+    // } else {
+    //     panic!("{:?}", result.1);
+    // }
 }
 
 fn external_call_contract() -> Vec<u8> {
@@ -619,6 +613,7 @@ fn test_external_call_indirect() {
     gas_and_error_match((outcome, err), Some(334541937), None);
 }
 
+// DIFF: included with the original NEAR VM tests
 // #[test]
 // fn test_contract_error_caching() {
 //     let code = [42; 1000];

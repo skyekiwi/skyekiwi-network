@@ -607,7 +607,7 @@ pub mod config {
                 max_promises_per_function_call_action: 1024,
                 // Unlikely to hit it for normal development.
                 max_number_input_data_dependencies: 128,
-                max_functions_number_per_contract: None,
+                max_functions_number_per_contract: Some(10_000),
             }
         }
     }

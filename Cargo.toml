@@ -23,6 +23,7 @@ exclude = [
     'mock-enclave/src/skw-vm-host',
     'mock-enclave/src/skw-vm-engine',
     'mock-enclave/src/skw-vm-engine-cli',
+    'mock-enclave/src/near-test-contracts',
 ]
 [profile.release]
 panic = 'unwind'

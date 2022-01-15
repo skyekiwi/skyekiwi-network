@@ -2,8 +2,7 @@
 //! wasm module before execution.
 
 use parity_wasm::builder;
-use parity_wasm::elements::{self, External, MemorySection, Type};
-use wasmi::Module;
+use parity_wasm::elements::{self, External, MemorySection, Type, Module};
 use pwasm_utils::{self, rules};
 
 use skw_vm_primitives::errors::PrepareError;
@@ -82,7 +81,7 @@ impl<'a> ContractModule<'a> {
             return Ok(Self { module, config });
         }
         let gas_rules = rules::Set::new(1, Default::default()).with_grow_cost(config.grow_mem_cost);
-        let module = pwasm_utils::inject_gas_counter(module, &gas_rules)
+        let module = pwasm_utils::inject_gas_counter(module, &gas_rules, "env")
             .map_err(|_| PrepareError::GasInstrumentation)?;
         Ok(Self { module, config })
     }
@@ -168,8 +167,8 @@ impl<'a> ContractModule<'a> {
         Ok(self)
     }
 
-    fn into_wasm_code(self) -> Result<Vec<u8>, PrepareError> {
-        elements::serialize(self.module).map_err(|_| PrepareError::Serialization)
+    fn get_module(self) -> Result<Module, PrepareError> {
+        Ok(self.module)
     }
 }
 
@@ -184,7 +183,7 @@ impl<'a> ContractModule<'a> {
 /// - functions number does not exceed limit specified in VMConfig,
 ///
 /// The preprocessing includes injecting code for gas metering and metering the height of stack.
-pub fn prepare_contract(original_code: &[u8], config: &VMConfig) -> Result<Vec<u8>, PrepareError> {
+pub fn prepare_contract(original_code: &[u8], config: &VMConfig) -> Result<Module, PrepareError> {
     ContractModule::init(original_code, config)?
         .validate_functions_number()?
         .standardize_mem()
@@ -192,7 +191,8 @@ pub fn prepare_contract(original_code: &[u8], config: &VMConfig) -> Result<Vec<u
         .inject_gas_metering()?
         .inject_stack_height_metering()?
         .scan_imports()?
-        .into_wasm_code()
+        .get_module()
+        // .into_wasm_code()
 }
 
 #[cfg(test)]
@@ -201,7 +201,7 @@ mod tests {
 
     use super::*;
 
-    fn parse_and_prepare_wat(wat: &str) -> Result<Vec<u8>, PrepareError> {
+    fn parse_and_prepare_wat(wat: &str) -> Result<Module, PrepareError> {
         let wasm = wat::parse_str(wat).unwrap();
         let config = VMConfig::test();
         prepare_contract(wasm.as_ref(), &config)
