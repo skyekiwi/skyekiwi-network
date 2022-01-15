@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
 jobs:
   check:
+    if: "! startsWith(github.event.head_commit.message, '[CI Skip]')"
     runs-on: ubuntu-20.04
 
     steps:
@@ -40,3 +41,7 @@ jobs:
       - name: Check Enclave Compile
         run: |
           yarn enclave:ci
+      
+      - name: Check Mock-Enclave VM Compile
+        run: |
+          yarn mock-enclave:test

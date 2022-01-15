@@ -108,7 +108,7 @@ impl IpfsClient {
 
 #[test]
 fn ipfs_works() {
-  const CONTENT: &'static str = "some random string ...";
+  const CONTENT: &str = "some random string ...";
 
   let result = IpfsClient::add(CONTENT.as_bytes().to_vec()).unwrap();
   let recovered = IpfsClient::cat(result.cid).unwrap();
