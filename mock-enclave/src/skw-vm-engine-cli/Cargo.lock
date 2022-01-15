@@ -1451,7 +1451,6 @@ dependencies = [
  "sha2",
  "sha3",
  "skw-vm-primitives",
- "wasmi",
 ]
 
 [[package]]
@@ -1461,6 +1460,7 @@ dependencies = [
  "num-rational 0.3.2",
  "serde",
  "sha2",
+ "wasmi",
 ]
 
 [[package]]

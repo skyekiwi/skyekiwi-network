@@ -223,6 +223,8 @@ pub enum VMLogicError {
     InconsistentStateError(InconsistentStateError),
 }
 
+impl wasmi::HostError for VMLogicError {}
+
 /// An error which can be returned when parsing a NEAR Account ID.
 #[derive(Eq, Clone, Debug, PartialEq)]
 pub struct ParseAccountError {

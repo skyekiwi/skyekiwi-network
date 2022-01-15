@@ -25,7 +25,6 @@ parity-secp256k1 = "0.7"
 
 near-crypto = { git = "https://github.com/near/nearcore" }
 skw-vm-primitives = { path = "../skw-vm-primitives" }
-wasmi = "0.10.0"
 
 bn = { package = "zeropool-bn", version = "0.5.9", features = [], optional = true }
 

@@ -20,17 +20,6 @@ pub fn create_module_instance(contract_code: &ContractCode, config: &VMConfig) -
     let code_hash = contract_code.hash;
     MODULE_CACHE.write().unwrap().get(&code_hash);
 
-    // match get_module_instance(&code_hash) {
-    //     Some(Ok(module_ref)) => Ok(module_ref),
-    //     None => {}
-
-    //     // we should not ever get here
-    //     // toxic cache - removing
-    //     Some(Err(_)) => {
-    //         MODULE_CACHE.write().unwrap().pop(&code_hash);
-    //     }
-    // }
-
     let mut cache = MODULE_CACHE.write().unwrap();
     match cache.get(&code_hash).map(create_instance) {
         Some(Ok(module_ref)) => return Ok(module_ref),
@@ -56,13 +45,13 @@ pub fn create_module_instance(contract_code: &ContractCode, config: &VMConfig) -
     result
 }
 
-// pub fn get_module_instance(code_hash: &CryptoHash) -> Option<Result<ModuleRef, CacheError>> {
-//     MODULE_CACHE
-//         .read()
-//         .unwrap()
-//         .peek(code_hash)
-//         .map(create_instance)
-// }
+pub fn get_module_instance(code_hash: &CryptoHash) -> Option<Result<ModuleRef, CompilationError>> {
+    MODULE_CACHE
+        .read()
+        .unwrap()
+        .peek(code_hash)
+        .map(create_instance)
+}
 
 pub fn create_instance(module: &wasmi::Module) -> Result<ModuleRef, CompilationError> {
     let resolver = WasmiImportResolver {};

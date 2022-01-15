@@ -1,5 +1,10 @@
-use wasmi::{Externals, RuntimeArgs, RuntimeValue, Trap, TrapKind};
+use wasmi::{
+  Externals, RuntimeArgs, Trap, TrapKind, HostError,
+  RuntimeValue,
+};
+
 use skw_vm_host::{VMLogic};
+use skw_vm_primitives::errors::{VMLogicError};
 
 #[derive(PartialEq, Eq)]
 pub enum HostFunctions {
@@ -121,28 +126,342 @@ impl<'a> Externals for VMHost<'a> {
     args: RuntimeArgs,
   ) -> Result<Option<RuntimeValue>, Trap> {
     match HostFunctions::from(index) {
-      HostFunctions::ReadRegister => {
-        let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
-        let ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
-        // Some(self.0.read_register(register_id, ptr).unwrap())
-        Ok(None)
-      },
-      _ => {
-        Ok(None)
-      }
-      // HostFunctions::RegisterLen => {
-      //   let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
-      //   self.register_len(register_id)?
-      // },
-      // HostFunctions::WriteRegister => {
-      //   let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
-      //   let data_len: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
-      //   let data_ptr: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
-      //   self.write_register(register_id, data_len, data_ptr)?
-      // },
-      // _ => {
-      //   println!("BOOOOO");
-      // }
+		HostFunctions::ReadRegister => {
+			let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.read_register(register_id, ptr)
+				.map(|_| None)
+				.map_err(|e| e.into())
+		},
+		HostFunctions::RegisterLen => {
+			let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.register_len(register_id)
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::WriteRegister => {
+			let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let data_len: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let data_ptr: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.write_register(register_id, data_len, data_ptr)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::CurrentAccountId => {
+			let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.current_account_id(register_id)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::SignerAccountId => {
+			let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.signer_account_id(register_id)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::SignerAccountPublicKey => {
+			let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.signer_account_pk(register_id)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PredecessorAccountId => {
+			let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.predecessor_account_id(register_id)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::Input => {
+			let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.input(register_id)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::BlockNumber => {
+			self.0.block_number()
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::BlockTimestamp => {
+			self.0.block_timestamp()
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::EpochHeight => {
+			self.0.epoch_height()
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::StorageUsage => {
+			self.0.storage_usage()
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::AccountBalance => {
+			let balance_ptr: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.account_balance(balance_ptr)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::AttachedDeposit => {
+			let balance_ptr: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.attached_deposit(balance_ptr)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PrepaidGas => {
+			self.0.prepaid_gas()
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::UsedGas => {
+			self.0.used_gas()
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::RandomSeed => {
+			let register_id: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.random_seed(register_id)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::Sha256 => {
+			let value_len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let value_ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let register_id: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.sha256(value_len, value_ptr, register_id)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::Keccak256 => {
+			let value_len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let value_ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let register_id: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.keccak256(value_len, value_ptr, register_id)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::Keccak512 => {
+			let value_len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let value_ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let register_id: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.keccak512(value_len, value_ptr, register_id)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::Ripemd160 => {
+			let value_len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let value_ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let register_id: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.ripemd160(value_len, value_ptr, register_id)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::Ecrecover => {
+			let hash_len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let hash_ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let sign_len: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let sig_ptr: u64 = args.nth_checked(3).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let v: u64 = args.nth_checked(4).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let malleability_flag: u64 = args.nth_checked(5).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let register_id: u64 = args.nth_checked(6).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.ecrecover(hash_len, hash_ptr, sign_len, sig_ptr, v, malleability_flag, register_id)
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::ValueReturn => {
+			let value_len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let value_ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.value_return(value_len, value_ptr)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::Panic => {
+			self.0.panic()
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PanicUtf8 => {
+			let len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.panic_utf8(len, ptr)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::LogUtf8 => {
+			let len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.log_utf8(len, ptr)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::LogUtf16 => {
+			let len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.log_utf16(len, ptr)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::Abort => {
+			let msg_ptr: u32 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let filename_ptr: u32 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let line: u32 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let col: u32 = args.nth_checked(3).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.abort(msg_ptr, filename_ptr, line, col)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PromiseCreate => {
+			let account_id_len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let account_id_ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let method_name_len: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let method_name_ptr: u64 = args.nth_checked(3).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let arguments_len: u64 = args.nth_checked(4).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let arguments_ptr: u64 = args.nth_checked(5).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let amount_ptr: u64 = args.nth_checked(6).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let gas: u64 = args.nth_checked(7).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.promise_create(account_id_len, account_id_ptr, method_name_len, method_name_ptr, arguments_len, arguments_ptr, amount_ptr, gas)
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PromiseThen => {
+			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let account_id_len: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let account_id_ptr: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let method_name_len: u64 = args.nth_checked(3).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let method_name_ptr: u64 = args.nth_checked(4).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let arguments_len: u64 = args.nth_checked(5).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let arguments_ptr: u64 = args.nth_checked(6).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let amount_ptr: u64 = args.nth_checked(7).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let gas: u64 = args.nth_checked(8).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.promise_then(promise_index, account_id_len, account_id_ptr, method_name_len, method_name_ptr, arguments_len, arguments_ptr, amount_ptr, gas)
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PromiseAnd => {
+			let promise_idx_ptr: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let promise_idx_count: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.promise_and(promise_idx_ptr, promise_idx_count)
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PromiseBatchCreate => {
+			let account_id_len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let account_id_ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.promise_batch_create(account_id_len, account_id_ptr)
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PromiseBatchThen => {
+			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let account_id_len: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let account_id_ptr: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.promise_batch_then(promise_index, account_id_len, account_id_ptr)
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PromiseBatchActionCreateAccount => {
+			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.promise_batch_action_create_account(promise_index)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PromiseBatchActionDeployContract => {
+			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let code_len: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let code_ptr: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.promise_batch_action_deploy_contract(promise_index, code_len, code_ptr)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PromiseBatchActionFunctionCall => {
+			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let method_name_len: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let method_name_ptr: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let arguments_len: u64 = args.nth_checked(3).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let arguments_ptr: u64 = args.nth_checked(4).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let amount_ptr: u64 = args.nth_checked(5).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let gas: u64 = args.nth_checked(6).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.promise_batch_action_function_call(promise_index, method_name_len, method_name_ptr, arguments_len, arguments_ptr, amount_ptr, gas)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PromiseBatchActionTransfer => {
+			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let amount_ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.promise_batch_action_transfer(promise_index, amount_ptr)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PromiseBatchActionDeleteAccount => {
+			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let beneficiary_id_len: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let beneficiary_id_ptr: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.promise_batch_action_delete_account(promise_index, beneficiary_id_len, beneficiary_id_ptr)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PromiseResultsCount => {
+			self.0.promise_results_count()
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PromiseResult => {
+			let result_idx: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let register_id: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.promise_result(result_idx, register_id)
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::PromiseReturn => {
+			let promise_idx: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.promise_return(promise_idx)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::StorageWrite => {
+			let key_len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let key_ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let value_len: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let value_ptr: u64 = args.nth_checked(3).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let register_id: u64 = args.nth_checked(4).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.storage_write(key_len, key_ptr, value_len, value_ptr, register_id)
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::StorageRead => {
+			let key_len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let key_ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let register_id: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.storage_read(key_len, key_ptr, register_id)
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::StorageRemove => {
+			let key_len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let key_ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let register_id: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.storage_remove(key_len, key_ptr, register_id)
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::StorageHasKey => {
+			let key_len: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let key_ptr: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.storage_has_key(key_len, key_ptr)
+				.map(|ret| Some(ret.into()) )
+				.map_err(|e| e.into())
+		},
+		HostFunctions::Gas => {
+			let gas_amount: u32 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.0.gas(gas_amount)
+				.map(|_| None )
+				.map_err(|e| e.into())
+		},
+
+		_ => {
+			Err(Trap::new(TrapKind::Unreachable))
+		}
     }
   }
 }

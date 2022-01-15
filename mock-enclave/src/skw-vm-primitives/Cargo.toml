@@ -16,6 +16,7 @@ Primitives types for the SkyeKiwi Network Secret Contracts
 sha2 = "0.9"
 serde = { version = "1", optional = true }
 num-rational = { version = "0.3.1", default-features = false }
+wasmi = "0.10.0"
 
 [features]
 default = ["std"]

@@ -39,6 +39,11 @@ fn main() {
         },
     };
 
+    const CONTENT: &str = "some random string ...";
+    let result = skw_ipfs::IpfsClient::add(CONTENT.as_bytes().to_vec()).unwrap();
+    let recovered = skw_ipfs::IpfsClient::cat(result.cid).unwrap();
+    println!("{:?}", String::from_utf8(recovered));
+
     let input_string = String::from("This is a normal world string passed into Enclave!\n");
     let mut retval = sgx_status_t::SGX_SUCCESS;
 

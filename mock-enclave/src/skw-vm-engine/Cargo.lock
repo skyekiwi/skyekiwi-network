@@ -849,7 +849,6 @@ dependencies = [
 [[package]]
 name = "near-test-contracts"
 version = "0.0.0"
-source = "git+https://github.com/near/nearcore?tag=crates-0.11.0#8d04fa95d4cb8191e636bd24517ea7744b78ec5f"
 dependencies = [
  "once_cell",
  "wat",
@@ -1331,7 +1330,6 @@ dependencies = [
  "sha2",
  "sha3",
  "skw-vm-primitives",
- "wasmi",
 ]
 
 [[package]]
@@ -1341,6 +1339,7 @@ dependencies = [
  "num-rational 0.3.2",
  "serde",
  "sha2",
+ "wasmi",
 ]
 
 [[package]]

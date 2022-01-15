@@ -1,0 +1,25 @@
+[package]
+name = "contract-for-fuzzing-rs"
+version = "0.1.0"
+authors = ["Near Inc <hello@nearprotocol.com>"]
+publish = false
+# Please update rust-toolchain.toml as well when changing version here:
+rust-version = "1.56.0"
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+codegen-units = 1
+# Tell `rustc` to optimize for small code size.
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+rpath = false
+debug-assertions = false
+incremental = false
+
+[workspace]
+members = []
