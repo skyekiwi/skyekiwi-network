@@ -5,7 +5,7 @@ const execSync = require('./execSync.cjs');
 console.log('$ yarn contract:compile', process.argv.slice(2).join(' '));
 
 function contractBuild() {
-  execSync('cd skw-contract-sdk/skw-contract-sdk && cargo test --release');
+  execSync('cd skw-contract-sdk/skw-contract-sdk && rustup target add wasm32-unknown-unknown && cargo test --release');
 }
 
 contractBuild();
