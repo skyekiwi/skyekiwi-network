@@ -90,9 +90,6 @@ fn check_method(module: &ModuleInstance, method_name: &str) -> Result<(), VMErro
 }
 
 fn map_invoke_err(err: wasmi::Error) -> VMError {
-
-    println!("Real {:?}", err);
-
     // Real Trap(Host(HostError(GasExceeded)))
     let result = match err {
         wasmi::Error::Trap(Trap::Code(e)) => {
@@ -109,13 +106,10 @@ fn map_invoke_err(err: wasmi::Error) -> VMError {
             }
         },
         wasmi::Error::Trap(Trap::Host(e)) => {
-            println!("{:?}", e.downcast_ref::<HostError>());
-            println!("before {:?}", e);
             VMError::FunctionCallError(FunctionCallError::HostError(e.downcast_ref::<HostError>().unwrap().clone()))
         },
         _ => VMError::FunctionCallError(FunctionCallError::WasmTrap(WasmTrap::Unreachable))
     };
-    println!("Fake {:?}", result.clone());
     result
 }
 
@@ -170,9 +164,7 @@ impl WasmiVM {
                 )))
             )
         }
-
-        println!("{:?}", logic.clone_outcome());
-
+        
         let module = cache::create_module_instance(&code, wasm_config, memory_copy);
 
         let module = match module {

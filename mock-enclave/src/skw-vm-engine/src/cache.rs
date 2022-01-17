@@ -31,8 +31,7 @@ pub fn create_module_instance(contract_code: &ContractCode, config: &VMConfig, m
         },
         None => {
             let prepared_module = prepare::prepare_contract(&contract_code.code, config).map_err(|e| CompilationError::PrepareError(e))?;
-            let module = wasmi::Module::from_parity_wasm_module(prepared_module).map_err(|e| {
-                println!("create_module {:?}", e);
+            let module = wasmi::Module::from_parity_wasm_module(prepared_module).map_err(|_| {
                 CompilationError::WasmCompileError
             })?;
 
@@ -52,8 +51,7 @@ pub fn create_instance(module: &wasmi::Module, memory: MemoryRef) -> Result<Modu
     let resolver = WasmiImportResolver::new(memory);
     let imports_builder = create_builder(&resolver);
 
-    let module_instance = ModuleInstance::new(module, &imports_builder).map_err(|e| {
-        println!("create_instance {:?}", e);
+    let module_instance = ModuleInstance::new(module, &imports_builder).map_err(|_| {
         CompilationError::WasmCompileError
     })?;
     if module_instance.has_start() {

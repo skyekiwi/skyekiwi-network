@@ -21,11 +21,10 @@ const defaultContext = {
   signer_account_pk: '15T',
   predecessor_account_id: 'system.sk',
   input: '',
-  block_index: 1,
+  block_number: 1,
   block_timestamp: '1586796191203000000',
   epoch_height: 1,
   account_balance: '10000000000000000000000000',
-  account_locked_balance: '0',
   storage_usage: 100,
   attached_deposit: '0',
   prepaid_gas: 1000000000000000000,
@@ -45,18 +44,25 @@ function runVM({
   stateInput = "{}",
   input = "",
   origin = "system.sk",
-  wasmFile = "./wasm/greeting.wasm",
+  wasmFile = "./wasm/status_message.wasm",
   profiling = false
 }) {
   const runnerPath = "./src/skw-vm-engine-cli/target/release/skw-vm-engine-cli";
-  execute(`${runnerPath} --context '${injectOrigin(origin)}' --wasm-file ${wasmFile} --method-name ${methodName} --input \'${input}\' --state \'${stateInput}\' ${profiling ? "--timings" : ""} > result.json`)
-  
+  execute(`${runnerPath} \
+    --context '${injectOrigin(origin)}' \
+    --wasm-file ${wasmFile} \
+    --method-name ${methodName} \
+    ${input ? "--input \'" + input + "\'" : "" } \
+    ${stateInput ? "--state \'" + stateInput + "\'" : "" } \
+    ${profiling ? "--timings" : ""} \
+    > result.json`)
+
   // parse the output 
   const contentRaw = fs.readFileSync('result.json');
   const content = JSON.parse(contentRaw.toString());
   const stateB64 = JSON.parse(content.state);
-  let state: {[key: string]: string} = {}
-  
+  let state: { [key: string]: string } = {}
+
   for (const key in stateB64) {
     const k = u8aToString(toByteArray(key))
     const v = u8aToString(toByteArray(stateB64[key]))
@@ -65,14 +71,17 @@ function runVM({
 
   console.log()
   console.log("-------EXEC RESULT BEGINS-------");
+  console.log("VM Output");
+  console.log(content);
+  console.log("Current State");
+  console.log(state);
+
   try {
     console.log("Return Value", u8aToString(Uint8Array.from(JSON.parse(content.outcome))));
-  } catch(err) {
+  } catch (err) {
     // pass - in case of the outcome is 'None'
-    // console.error(err)
   }
 
-  console.log(state);
   console.log("------- EXEC RESULT ENDS -------");
   console.log()
 
@@ -84,11 +93,30 @@ compile()
 let state = {}
 
 state = runVM({
-  methodName: 'set_greeting',
-  input: '{"message": "system_hello"}',
+  methodName: 'set_status',
+  input: JSON.stringify({'message': 'jkj'}),
+  origin: "system.sk",
   stateInput: '{}',
 })
 
+state = runVM({
+  methodName: 'set_status',
+  input: JSON.stringify({ 'message': 'bob_hello' }),
+  origin: "bob.sk",
+  stateInput: JSON.stringify(state),
+})
+
+state = runVM({
+  methodName: 'get_status',
+  input: JSON.stringify({ 'account_id': 'bob.sk' }),
+  stateInput: JSON.stringify(state),
+})
+
+// state = runVM({
+//   methodName: 'get_status',
+//   input: JSON.stringify({ 'account_id': 'system.sk' }),
+//   stateInput: JSON.stringify(state),
+// })
 // state = runVM({
 //   contextFile: './context/bob.json',
 //   methodName: 'set_greeting',
@@ -108,3 +136,5 @@ state = runVM({
 //   input: '{"account_id": "bob.sk"}',
 //   stateInput: JSON.stringify(state),
 // })
+
+// console.log(state);
