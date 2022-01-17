@@ -1,0 +1,15 @@
+[workspace]
+members = [
+    "near-sdk",
+    "near-sdk-macros",
+    "near-sdk-sim",
+    "near-contract-standards",
+    "sys",
+]
+exclude = ["examples/"]
+
+# Special triple # comment for ci.
+[patch.crates-io]
+### borsh = { git = "https://github.com/near/borsh-rs", branch = "master" }
+### near-vm-logic = { git = "https://github.com/near/nearcore", branch = "master" }
+### near-primitives-core = { git = "https://github.com/near/nearcore", branch = "master" }
