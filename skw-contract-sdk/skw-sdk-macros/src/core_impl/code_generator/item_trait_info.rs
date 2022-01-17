@@ -13,7 +13,7 @@ impl ItemTraitInfo {
         quote! {
            pub mod #mod_name {
                 use super::*;
-                use near_sdk::{Gas, Balance, AccountId, Promise};
+                use skw_contract_sdk::{Gas, Balance, AccountId, Promise};
                 #result
             }
         }
@@ -52,31 +52,31 @@ mod tests {
         let expected = quote! {
             pub mod external_cross_contract {
                 use super::*;
-                use near_sdk::{Gas, Balance, AccountId, Promise};
+                use skw_contract_sdk::{Gas, Balance, AccountId, Promise};
                 pub fn merge_sort(
                     arr: Vec<u8>,
                     __account_id: AccountId,
-                    __balance: near_sdk::Balance,
-                    __gas: near_sdk::Gas
-                ) -> near_sdk::Promise {
-                    #[derive(near_sdk :: serde :: Serialize)]
-                    #[serde(crate = "near_sdk::serde")]
+                    __balance: skw_contract_sdk::Balance,
+                    __gas: skw_contract_sdk::Gas
+                ) -> skw_contract_sdk::Promise {
+                    #[derive(skw_contract_sdk :: serde :: Serialize)]
+                    #[serde(crate = "skw_contract_sdk::serde")]
                     struct Input {
                         arr: Vec<u8>,
                     }
                     let args = Input { arr, };
-                    let args = near_sdk::serde_json::to_vec(&args)
+                    let args = skw_contract_sdk::serde_json::to_vec(&args)
                         .expect("Failed to serialize the cross contract args using JSON.");
-                    near_sdk::Promise::new(__account_id).function_call(
+                    skw_contract_sdk::Promise::new(__account_id).function_call(
                         "merge_sort".to_string(),
                         args,
                         __balance,
                         __gas,
                     )
                 }
-                pub fn merge(__account_id: AccountId, __balance: near_sdk::Balance, __gas: near_sdk::Gas) -> near_sdk::Promise {
+                pub fn merge(__account_id: AccountId, __balance: skw_contract_sdk::Balance, __gas: skw_contract_sdk::Gas) -> skw_contract_sdk::Promise {
                     let args = vec![];
-                    near_sdk::Promise::new(__account_id).function_call(
+                    skw_contract_sdk::Promise::new(__account_id).function_call(
                         "merge".to_string(),
                         args,
                         __balance,
@@ -104,21 +104,21 @@ mod tests {
         let expected = quote! {
           pub mod test_ext {
             use super::*;
-            use near_sdk::{Gas, Balance, AccountId, Promise};
+            use skw_contract_sdk::{Gas, Balance, AccountId, Promise};
             pub fn test(
                 v: Vec<String>,
                 __account_id: AccountId,
-                __balance: near_sdk::Balance,
-                __gas: near_sdk::Gas
-            ) -> near_sdk::Promise {
-                #[derive(near_sdk :: borsh :: BorshSerialize)]
+                __balance: skw_contract_sdk::Balance,
+                __gas: skw_contract_sdk::Gas
+            ) -> skw_contract_sdk::Promise {
+                #[derive(skw_contract_sdk :: borsh :: BorshSerialize)]
                 struct Input {
                     v: Vec<String>,
                 }
                 let args = Input { v, };
-                let args = near_sdk::borsh::BorshSerialize::try_to_vec(&args)
+                let args = skw_contract_sdk::borsh::BorshSerialize::try_to_vec(&args)
                     .expect("Failed to serialize the cross contract args using Borsh.");
-                near_sdk::Promise::new(__account_id).function_call(
+                skw_contract_sdk::Promise::new(__account_id).function_call(
                     "test".to_string(),
                     args,
                     __balance,

@@ -16,9 +16,9 @@ impl TraitItemMethodInfo {
             &self.attr_sig_info.result_serializer,
         );
         quote! {
-            pub fn #ident(#pat_type_list __account_id: AccountId, __balance: near_sdk::Balance, __gas: near_sdk::Gas) -> near_sdk::Promise {
+            pub fn #ident(#pat_type_list __account_id: AccountId, __balance: skw_contract_sdk::Balance, __gas: skw_contract_sdk::Gas) -> skw_contract_sdk::Promise {
                 #serialize
-                near_sdk::Promise::new(__account_id)
+                skw_contract_sdk::Promise::new(__account_id)
                 .function_call(
                     #ident_byte_str.to_string(),
                     args,
@@ -42,10 +42,10 @@ impl TraitItemMethodInfo {
         let constructor = quote! { let args = #constructor_call; };
         let value_ser = match serializer {
             SerializerType::JSON => quote! {
-                let args = near_sdk::serde_json::to_vec(&args).expect("Failed to serialize the cross contract args using JSON.");
+                let args = skw_contract_sdk::serde_json::to_vec(&args).expect("Failed to serialize the cross contract args using JSON.");
             },
             SerializerType::Borsh => quote! {
-                let args = near_sdk::borsh::BorshSerialize::try_to_vec(&args).expect("Failed to serialize the cross contract args using Borsh.");
+                let args = skw_contract_sdk::borsh::BorshSerialize::try_to_vec(&args).expect("Failed to serialize the cross contract args using Borsh.");
             },
         };
 

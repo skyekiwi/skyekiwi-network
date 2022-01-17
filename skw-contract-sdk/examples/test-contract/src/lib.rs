@@ -1,7 +1,7 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::{env, near_bindgen};
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::{env, skw_bindgen};
 
-#[near_bindgen]
+#[skw_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct TestContract {}
 
@@ -11,7 +11,7 @@ impl Default for TestContract {
     }
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl TestContract {
     #[init]
     pub fn new() -> Self {

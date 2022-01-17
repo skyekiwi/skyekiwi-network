@@ -9,7 +9,7 @@ use quote::{quote, ToTokens};
 use syn::visit::Visit;
 use syn::{Error, ItemImpl};
 
-/// Information relevant to metadata extracted from the `impl` section decorated with `#[near_bindgen]`.
+/// Information relevant to metadata extracted from the `impl` section decorated with `#[skw_bindgen]`.
 #[derive(Default)]
 pub struct MetadataVisitor {
     impl_item_infos: Vec<ItemImplInfo>,
@@ -19,11 +19,11 @@ pub struct MetadataVisitor {
 
 impl<'ast> Visit<'ast> for MetadataVisitor {
     fn visit_item_impl(&mut self, i: &'ast ItemImpl) {
-        let has_near_sdk_attr = i
+        let has_skw_contract_sdk_attr = i
             .attrs
             .iter()
-            .any(|attr| attr.path.to_token_stream().to_string().as_str() == "near_bindgen");
-        if has_near_sdk_attr {
+            .any(|attr| attr.path.to_token_stream().to_string().as_str() == "skw_bindgen");
+        if has_skw_contract_sdk_attr {
             match ItemImplInfo::new(&mut i.clone()) {
                 Ok(info) => self.impl_item_infos.push(info),
                 Err(err) => self.errors.push(err),
@@ -43,7 +43,7 @@ impl MetadataVisitor {
             return Err(self.errors[0].clone());
         }
         let panic_hook = quote! {
-            near_sdk::env::setup_panic_hook();
+            skw_contract_sdk::env::setup_panic_hook();
         };
         let methods: Vec<TokenStream2> = self
             .impl_item_infos
@@ -57,11 +57,11 @@ impl MetadataVisitor {
             pub extern "C" fn metadata() {
                 #panic_hook
                 use borsh::*;
-                let metadata = near_sdk::Metadata::new(vec![
+                let metadata = skw_contract_sdk::Metadata::new(vec![
                     #(#methods),*
                 ]);
-                let data = near_sdk::borsh::BorshSerialize::try_to_vec(&metadata).expect("Failed to serialize the metadata using Borsh");
-                near_sdk::env::value_return(&data);
+                let data = skw_contract_sdk::borsh::BorshSerialize::try_to_vec(&metadata).expect("Failed to serialize the metadata using Borsh");
+                skw_contract_sdk::env::value_return(&data);
             }
         })
     }
@@ -76,13 +76,13 @@ mod tests {
     #[test]
     fn several_methods() {
         let code = quote! {
-            #[near_bindgen]
+            #[skw_bindgen]
             impl Hello {
                 pub fn f1(&self) { }
                 pub fn f2(&mut self, arg0: FancyStruct, arg1: u64) { }
             }
 
-            #[near_bindgen]
+            #[skw_bindgen]
             impl SomeTrait for Hello {
                 fn f3(&mut self, arg0: FancyStruct, arg1: u64) -> Result<IsOk, Error> { }
             }
@@ -98,10 +98,10 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn metadata() {
-                near_sdk::env::setup_panic_hook();
+                skw_contract_sdk::env::setup_panic_hook();
                 use borsh::*;
-                let metadata = near_sdk::Metadata::new(vec![
-                    near_sdk::MethodMetadata {
+                let metadata = skw_contract_sdk::Metadata::new(vec![
+                    skw_contract_sdk::MethodMetadata {
                         name: "f1".to_string(),
                         is_view: true,
                         is_init: false,
@@ -110,15 +110,15 @@ mod tests {
                         callbacks_vec: None,
                         result: None
                     },
-                    near_sdk::MethodMetadata {
+                    skw_contract_sdk::MethodMetadata {
                         name: "f2".to_string(),
                         is_view: false,
                         is_init: false,
                         args: {
                             #[derive(borsh::BorshSchema)]
                             #[allow(dead_code)]
-                            #[derive(near_sdk :: serde :: Deserialize)]
-                            #[serde(crate = "near_sdk::serde")]
+                            #[derive(skw_contract_sdk :: serde :: Deserialize)]
+                            #[serde(crate = "skw_contract_sdk::serde")]
                             struct Input {
                                 arg0: FancyStruct,
                                 arg1: u64,
@@ -129,15 +129,15 @@ mod tests {
                         callbacks_vec: None,
                         result: None
                     },
-                    near_sdk::MethodMetadata {
+                    skw_contract_sdk::MethodMetadata {
                         name: "f3".to_string(),
                         is_view: false,
                         is_init: false,
                         args: {
                             #[derive(borsh::BorshSchema)]
                             #[allow(dead_code)]
-                            #[derive(near_sdk :: serde :: Deserialize)]
-                            #[serde(crate = "near_sdk::serde")]
+                            #[derive(skw_contract_sdk :: serde :: Deserialize)]
+                            #[serde(crate = "skw_contract_sdk::serde")]
                             struct Input {
                                 arg0: FancyStruct,
                                 arg1: u64,
@@ -149,9 +149,9 @@ mod tests {
                         result: Some(Result < IsOk, Error > ::schema_container())
                     }
                 ]);
-                let data = near_sdk::borsh::BorshSerialize::try_to_vec(&metadata)
+                let data = skw_contract_sdk::borsh::BorshSerialize::try_to_vec(&metadata)
                     .expect("Failed to serialize the metadata using Borsh");
-                near_sdk::env::value_return(&data);
+                skw_contract_sdk::env::value_return(&data);
             }
         );
         assert_eq!(expected.to_string(), actual.to_string());

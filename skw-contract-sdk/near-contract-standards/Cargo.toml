@@ -13,4 +13,4 @@ NEAR smart contracts standard library.
 """
 
 [dependencies]
-near-sdk = { path = "../near-sdk", version = "=4.0.0-pre.5" }
+skw-contract-sdk = { path = "../skw-contract-sdk" }

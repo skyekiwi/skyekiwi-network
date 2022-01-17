@@ -1,18 +1,18 @@
-use near_sdk_sim::{
+use skw_sdk_sim::{
     call, deploy, init_simulator, to_yocto, ContractAccount, UserAccount, DEFAULT_GAS,
     STORAGE_AMOUNT,
 };
 extern crate cross_contract_high_level;
-// Note: the struct xxxxxxContract is created by #[near_bindgen] from near-sdk in combination with
-// near-sdk-sim
+// Note: the struct xxxxxxContract is created by #[skw_bindgen] from skw-sdk in combination with
+// skw-sdk-sim
 use cross_contract_high_level::CrossContractContract;
 
-near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
+skw_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
     TOKEN_WASM_BYTES => "res/cross_contract_high_level.wasm",
 }
 
 fn init() -> (UserAccount, ContractAccount<CrossContractContract>) {
-    let mut genesis = near_sdk_sim::runtime::GenesisConfig::default();
+    let mut genesis = skw_sdk_sim::runtime::GenesisConfig::default();
     genesis.gas_limit = u64::MAX;
     genesis.gas_price = 0;
     let master_account = init_simulator(Some(genesis));

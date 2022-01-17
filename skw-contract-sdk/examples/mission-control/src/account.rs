@@ -1,7 +1,7 @@
 use crate::asset::*;
 use crate::rate::*;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::serde::{Deserialize, Serialize};
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops;
 
@@ -18,11 +18,11 @@ use std::ops;
     BorshDeserialize,
     BorshSerialize,
 )]
-#[serde(crate = "near_sdk::serde")]
+#[serde(crate = "skw_contract_sdk::serde")]
 pub struct Quantity(pub i32);
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
-#[serde(crate = "near_sdk::serde")]
+#[serde(crate = "skw_contract_sdk::serde")]
 pub struct Account(pub HashMap<Asset, Quantity>);
 
 pub enum Tranx {

@@ -19,15 +19,15 @@ use near_contract_standards::fungible_token::metadata::{
     FungibleTokenMetadata, FungibleTokenMetadataProvider, FT_METADATA_SPEC,
 };
 use near_contract_standards::fungible_token::FungibleToken;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::LazyOption;
-use near_sdk::json_types::U128;
-use near_sdk::{
-    env, log, near_bindgen, require, AccountId, Balance, BorshStorageKey, PanicOnDefault,
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::collections::LazyOption;
+use skw_contract_sdk::json_types::U128;
+use skw_contract_sdk::{
+    env, log, skw_bindgen, require, AccountId, Balance, BorshStorageKey, PanicOnDefault,
     PromiseOrValue,
 };
 
-#[near_bindgen]
+#[skw_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
     token: FungibleToken,
@@ -42,7 +42,7 @@ enum StorageKey {
     Metadata,
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl Contract {
     /// Initializes the contract with the given total supply owned by the given `owner_id` with
     /// default metadata (for example purposes only).
@@ -90,7 +90,7 @@ impl Contract {
 near_contract_standards::impl_fungible_token_core!(Contract, token, on_tokens_burned);
 near_contract_standards::impl_fungible_token_storage!(Contract, token, on_account_closed);
 
-#[near_bindgen]
+#[skw_bindgen]
 impl FungibleTokenMetadataProvider for Contract {
     fn ft_metadata(&self) -> FungibleTokenMetadata {
         self.metadata.get().unwrap()

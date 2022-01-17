@@ -31,23 +31,23 @@ impl AttrSigInfo {
         let attribute = match input_struct_type {
             InputStructType::Serialization => match &self.input_serializer {
                 SerializerType::JSON => quote! {
-                    #[derive(near_sdk::serde::Serialize)]
-                    #[serde(crate = "near_sdk::serde")]
+                    #[derive(skw_contract_sdk::serde::Serialize)]
+                    #[serde(crate = "skw_contract_sdk::serde")]
                 },
                 SerializerType::Borsh => {
                     quote! {
-                        #[derive(near_sdk::borsh::BorshSerialize)]
+                        #[derive(skw_contract_sdk::borsh::BorshSerialize)]
                     }
                 }
             },
             InputStructType::Deserialization => match &self.input_serializer {
                 SerializerType::JSON => quote! {
-                    #[derive(near_sdk::serde::Deserialize)]
-                    #[serde(crate = "near_sdk::serde")]
+                    #[derive(skw_contract_sdk::serde::Deserialize)]
+                    #[serde(crate = "skw_contract_sdk::serde")]
                 },
                 SerializerType::Borsh => {
                     quote! {
-                        #[derive(near_sdk::borsh::BorshDeserialize)]
+                        #[derive(skw_contract_sdk::borsh::BorshDeserialize)]
                     }
                 }
             },
@@ -178,9 +178,9 @@ impl AttrSigInfo {
                     BindgenArgType::CallbackArg => {
                         let error_msg = format!("Callback computation {} was not successful", idx);
                         let read_data = quote! {
-                            let data: Vec<u8> = match near_sdk::env::promise_result(#idx) {
-                                near_sdk::PromiseResult::Successful(x) => x,
-                                _ => near_sdk::env::panic_str(#error_msg)
+                            let data: Vec<u8> = match skw_contract_sdk::env::promise_result(#idx) {
+                                skw_contract_sdk::PromiseResult::Successful(x) => x,
+                                _ => skw_contract_sdk::env::panic_str(#error_msg)
                             };
                         };
                         let invocation = deserialize_data(serializer_ty);
@@ -193,10 +193,10 @@ impl AttrSigInfo {
                     BindgenArgType::CallbackResultArg => {
                         let deserialize = deserialize_data(serializer_ty);
                         let result = quote! {
-                            match near_sdk::env::promise_result(#idx) {
-                                near_sdk::PromiseResult::Successful(data) => Ok(#deserialize),
-                                near_sdk::PromiseResult::NotReady => Err(near_sdk::PromiseError::NotReady),
-                                near_sdk::PromiseResult::Failed => Err(near_sdk::PromiseError::Failed),
+                            match skw_contract_sdk::env::promise_result(#idx) {
+                                skw_contract_sdk::PromiseResult::Successful(data) => Ok(#deserialize),
+                                skw_contract_sdk::PromiseResult::NotReady => Err(skw_contract_sdk::PromiseError::NotReady),
+                                skw_contract_sdk::PromiseResult::Failed => Err(skw_contract_sdk::PromiseError::Failed),
                             }
                         };
                         quote! {
@@ -220,11 +220,11 @@ impl AttrSigInfo {
                 let invocation = deserialize_data(&arg.serializer_ty);
                 quote! {
                 #acc
-                let #mutability #ident: #ty = (0..near_sdk::env::promise_results_count())
+                let #mutability #ident: #ty = (0..skw_contract_sdk::env::promise_results_count())
                 .map(|i| {
-                    let data: Vec<u8> = match near_sdk::env::promise_result(i) {
-                        near_sdk::PromiseResult::Successful(x) => x,
-                        _ => near_sdk::env::panic_str(&format!("Callback computation {} was not successful", i)),
+                    let data: Vec<u8> = match skw_contract_sdk::env::promise_result(i) {
+                        skw_contract_sdk::PromiseResult::Successful(x) => x,
+                        _ => skw_contract_sdk::env::panic_str(&format!("Callback computation {} was not successful", i)),
                     };
                     #invocation
                 }).collect();
@@ -236,10 +236,10 @@ impl AttrSigInfo {
 pub fn deserialize_data(ty: &SerializerType) -> TokenStream2 {
     match ty {
         SerializerType::JSON => quote! {
-            near_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON")
+            skw_contract_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON")
         },
         SerializerType::Borsh => quote! {
-            near_sdk::borsh::BorshDeserialize::try_from_slice(&data).expect("Failed to deserialize callback using Borsh")
+            skw_contract_sdk::borsh::BorshDeserialize::try_from_slice(&data).expect("Failed to deserialize callback using Borsh")
         },
     }
 }

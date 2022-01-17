@@ -55,8 +55,8 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                let contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                skw_contract_sdk::env::setup_panic_hook();
+                let contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.method();
             }
         );
@@ -73,8 +73,8 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                let contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                skw_contract_sdk::env::setup_panic_hook();
+                let contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.method();
             }
         );
@@ -91,8 +91,8 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                let contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                skw_contract_sdk::env::setup_panic_hook();
+                let contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.method();
             }
         );
@@ -110,8 +110,8 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                let mut contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                skw_contract_sdk::env::setup_panic_hook();
+                let mut contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.method();
             }
         );
@@ -128,13 +128,13 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                if near_sdk::env::attached_deposit() != 0 {
-                    near_sdk::env::panic_str("Method method doesn't accept deposit");
+                skw_contract_sdk::env::setup_panic_hook();
+                if skw_contract_sdk::env::attached_deposit() != 0 {
+                    skw_contract_sdk::env::panic_str("Method method doesn't accept deposit");
                 }
-                let mut contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                let mut contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.method();
-                near_sdk::env::state_write(&contract);
+                skw_contract_sdk::env::state_write(&contract);
             }
         );
         assert_eq!(expected.to_string(), actual.to_string());
@@ -150,17 +150,17 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                #[derive(near_sdk :: serde :: Deserialize)]
-                #[serde(crate = "near_sdk::serde")]
+                skw_contract_sdk::env::setup_panic_hook();
+                #[derive(skw_contract_sdk :: serde :: Deserialize)]
+                #[serde(crate = "skw_contract_sdk::serde")]
                 struct Input {
                     k: u64,
                 }
-                let Input { k, }: Input = near_sdk::serde_json::from_slice(
-                    &near_sdk::env::input().expect("Expected input since method has arguments.")
+                let Input { k, }: Input = skw_contract_sdk::serde_json::from_slice(
+                    &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                 )
                 .expect("Failed to deserialize input from JSON.");
-                let contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                let contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.method(k, );
             }
         );
@@ -178,23 +178,23 @@ mod tests {
                 #[cfg(target_arch = "wasm32")]
                 #[no_mangle]
                 pub extern "C" fn method() {
-                    near_sdk::env::setup_panic_hook();
-                    if near_sdk::env::attached_deposit() != 0 {
-                        near_sdk::env::panic_str("Method method doesn't accept deposit");
+                    skw_contract_sdk::env::setup_panic_hook();
+                    if skw_contract_sdk::env::attached_deposit() != 0 {
+                        skw_contract_sdk::env::panic_str("Method method doesn't accept deposit");
                     }
-                    #[derive(near_sdk :: serde :: Deserialize)]
-                    #[serde(crate = "near_sdk::serde")]
+                    #[derive(skw_contract_sdk :: serde :: Deserialize)]
+                    #[serde(crate = "skw_contract_sdk::serde")]
                     struct Input {
                         k: u64,
                         m: Bar,
                     }
-                    let Input { k, m, }: Input = near_sdk::serde_json::from_slice(
-                        &near_sdk::env::input().expect("Expected input since method has arguments.")
+                    let Input { k, m, }: Input = skw_contract_sdk::serde_json::from_slice(
+                        &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                     )
                     .expect("Failed to deserialize input from JSON.");
-                    let mut contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                    let mut contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                     contract.method(k, m, );
-                    near_sdk::env::state_write(&contract);
+                    skw_contract_sdk::env::state_write(&contract);
                 }
         );
         assert_eq!(expected.to_string(), actual.to_string());
@@ -211,26 +211,26 @@ mod tests {
                 #[cfg(target_arch = "wasm32")]
                 #[no_mangle]
                 pub extern "C" fn method() {
-                    near_sdk::env::setup_panic_hook();
-                    if near_sdk::env::attached_deposit() != 0 {
-                        near_sdk::env::panic_str("Method method doesn't accept deposit");
+                    skw_contract_sdk::env::setup_panic_hook();
+                    if skw_contract_sdk::env::attached_deposit() != 0 {
+                        skw_contract_sdk::env::panic_str("Method method doesn't accept deposit");
                     }
-                    #[derive(near_sdk :: serde :: Deserialize)]
-                    #[serde(crate = "near_sdk::serde")]
+                    #[derive(skw_contract_sdk :: serde :: Deserialize)]
+                    #[serde(crate = "skw_contract_sdk::serde")]
                     struct Input {
                         k: u64,
                         m: Bar,
                     }
-                    let Input { k, m, }: Input = near_sdk::serde_json::from_slice(
-                        &near_sdk::env::input().expect("Expected input since method has arguments.")
+                    let Input { k, m, }: Input = skw_contract_sdk::serde_json::from_slice(
+                        &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                     )
                     .expect("Failed to deserialize input from JSON.");
-                    let mut contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                    let mut contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                     let result = contract.method(k, m, );
                     let result =
-                        near_sdk::serde_json::to_vec(&result).expect("Failed to serialize the return value using JSON.");
-                    near_sdk::env::value_return(&result);
-                    near_sdk::env::state_write(&contract);
+                        skw_contract_sdk::serde_json::to_vec(&result).expect("Failed to serialize the return value using JSON.");
+                    skw_contract_sdk::env::value_return(&result);
+                    skw_contract_sdk::env::state_write(&contract);
                 }
         );
         assert_eq!(expected.to_string(), actual.to_string());
@@ -247,12 +247,12 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                let contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                skw_contract_sdk::env::setup_panic_hook();
+                let contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 let result = contract.method();
                 let result =
-                    near_sdk::serde_json::to_vec(&result).expect("Failed to serialize the return value using JSON.");
-                near_sdk::env::value_return(&result);
+                    skw_contract_sdk::serde_json::to_vec(&result).expect("Failed to serialize the return value using JSON.");
+                skw_contract_sdk::env::value_return(&result);
             }
         );
         assert_eq!(expected.to_string(), actual.to_string());
@@ -268,17 +268,17 @@ mod tests {
                 #[cfg(target_arch = "wasm32")]
                 #[no_mangle]
                 pub extern "C" fn method() {
-                    near_sdk::env::setup_panic_hook();
-                    #[derive(near_sdk :: serde :: Deserialize)]
-                    #[serde(crate = "near_sdk::serde")]
+                    skw_contract_sdk::env::setup_panic_hook();
+                    #[derive(skw_contract_sdk :: serde :: Deserialize)]
+                    #[serde(crate = "skw_contract_sdk::serde")]
                     struct Input {
                         k: u64,
                     }
-                    let Input { k, }: Input = near_sdk::serde_json::from_slice(
-                        &near_sdk::env::input().expect("Expected input since method has arguments.")
+                    let Input { k, }: Input = skw_contract_sdk::serde_json::from_slice(
+                        &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                     )
                     .expect("Failed to deserialize input from JSON.");
-                    let contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                    let contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                     contract.method(&k, );
                 }
         );
@@ -296,17 +296,17 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                #[derive(near_sdk :: serde :: Deserialize)]
-                #[serde(crate = "near_sdk::serde")]
+                skw_contract_sdk::env::setup_panic_hook();
+                #[derive(skw_contract_sdk :: serde :: Deserialize)]
+                #[serde(crate = "skw_contract_sdk::serde")]
                 struct Input {
                     k: u64,
                 }
-                let Input { mut k, }: Input = near_sdk::serde_json::from_slice(
-                    &near_sdk::env::input().expect("Expected input since method has arguments.")
+                let Input { mut k, }: Input = skw_contract_sdk::serde_json::from_slice(
+                    &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                 )
                 .expect("Failed to deserialize input from JSON.");
-                let contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                let contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.method(&mut k, );
             }
         );
@@ -325,32 +325,32 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                if near_sdk::env::current_account_id() != near_sdk::env::predecessor_account_id() {
-                    near_sdk::env::panic_str("Method method is private");
+                skw_contract_sdk::env::setup_panic_hook();
+                if skw_contract_sdk::env::current_account_id() != skw_contract_sdk::env::predecessor_account_id() {
+                    skw_contract_sdk::env::panic_str("Method method is private");
                 }
-                #[derive(near_sdk :: serde :: Deserialize)]
-                #[serde(crate = "near_sdk::serde")]
+                #[derive(skw_contract_sdk :: serde :: Deserialize)]
+                #[serde(crate = "skw_contract_sdk::serde")]
                 struct Input {
                     y: String,
                 }
-                let Input { y, }: Input = near_sdk::serde_json::from_slice(
-                    &near_sdk::env::input().expect("Expected input since method has arguments.")
+                let Input { y, }: Input = skw_contract_sdk::serde_json::from_slice(
+                    &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                 )
                 .expect("Failed to deserialize input from JSON.");
-                let data: Vec<u8> = match near_sdk::env::promise_result(0u64) {
-                    near_sdk::PromiseResult::Successful(x) => x,
-                    _ => near_sdk::env::panic_str("Callback computation 0 was not successful")
+                let data: Vec<u8> = match skw_contract_sdk::env::promise_result(0u64) {
+                    skw_contract_sdk::PromiseResult::Successful(x) => x,
+                    _ => skw_contract_sdk::env::panic_str("Callback computation 0 was not successful")
                 };
                 let mut x: u64 =
-                    near_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON");
-                let data: Vec<u8> = match near_sdk::env::promise_result(1u64) {
-                    near_sdk::PromiseResult::Successful(x) => x,
-                    _ => near_sdk::env::panic_str("Callback computation 1 was not successful")
+                    skw_contract_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON");
+                let data: Vec<u8> = match skw_contract_sdk::env::promise_result(1u64) {
+                    skw_contract_sdk::PromiseResult::Successful(x) => x,
+                    _ => skw_contract_sdk::env::panic_str("Callback computation 1 was not successful")
                 };
                 let z: Vec<u8> =
-                    near_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON");
-                let contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                    skw_contract_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON");
+                let contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.method(&mut x, y, z, );
             }
         );
@@ -369,23 +369,23 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                if near_sdk::env::current_account_id() != near_sdk::env::predecessor_account_id() {
-                    near_sdk::env::panic_str("Method method is private");
+                skw_contract_sdk::env::setup_panic_hook();
+                if skw_contract_sdk::env::current_account_id() != skw_contract_sdk::env::predecessor_account_id() {
+                    skw_contract_sdk::env::panic_str("Method method is private");
                 }
-                let data: Vec<u8> = match near_sdk::env::promise_result(0u64) {
-                    near_sdk::PromiseResult::Successful(x) => x,
-                    _ => near_sdk::env::panic_str("Callback computation 0 was not successful")
+                let data: Vec<u8> = match skw_contract_sdk::env::promise_result(0u64) {
+                    skw_contract_sdk::PromiseResult::Successful(x) => x,
+                    _ => skw_contract_sdk::env::panic_str("Callback computation 0 was not successful")
                 };
                 let mut x: u64 =
-                    near_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON");
-                let data: Vec<u8> = match near_sdk::env::promise_result(1u64) {
-                    near_sdk::PromiseResult::Successful(x) => x,
-                    _ => near_sdk::env::panic_str("Callback computation 1 was not successful")
+                    skw_contract_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON");
+                let data: Vec<u8> = match skw_contract_sdk::env::promise_result(1u64) {
+                    skw_contract_sdk::PromiseResult::Successful(x) => x,
+                    _ => skw_contract_sdk::env::panic_str("Callback computation 1 was not successful")
                 };
                 let y: String =
-                    near_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON");
-                let contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                    skw_contract_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON");
+                let contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.method(&mut x, y, );
             }
         );
@@ -405,21 +405,21 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                if near_sdk::env::current_account_id() != near_sdk::env::predecessor_account_id() {
-                    near_sdk::env::panic_str("Method method is private");
+                skw_contract_sdk::env::setup_panic_hook();
+                if skw_contract_sdk::env::current_account_id() != skw_contract_sdk::env::predecessor_account_id() {
+                    skw_contract_sdk::env::panic_str("Method method is private");
                 }
-                let mut x: Result<u64, PromiseError> = match near_sdk::env::promise_result(0u64) {
-                    near_sdk::PromiseResult::Successful(data) => Ok(near_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON")),
-                    near_sdk::PromiseResult::NotReady => Err(near_sdk::PromiseError::NotReady),
-                    near_sdk::PromiseResult::Failed => Err(near_sdk::PromiseError::Failed),
+                let mut x: Result<u64, PromiseError> = match skw_contract_sdk::env::promise_result(0u64) {
+                    skw_contract_sdk::PromiseResult::Successful(data) => Ok(skw_contract_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON")),
+                    skw_contract_sdk::PromiseResult::NotReady => Err(skw_contract_sdk::PromiseError::NotReady),
+                    skw_contract_sdk::PromiseResult::Failed => Err(skw_contract_sdk::PromiseError::Failed),
                 };
-                let y: Result<String, PromiseError> = match near_sdk::env::promise_result(1u64) {
-                    near_sdk::PromiseResult::Successful(data) => Ok(near_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON")),
-                    near_sdk::PromiseResult::NotReady => Err(near_sdk::PromiseError::NotReady),
-                    near_sdk::PromiseResult::Failed => Err(near_sdk::PromiseError::Failed),
+                let y: Result<String, PromiseError> = match skw_contract_sdk::env::promise_result(1u64) {
+                    skw_contract_sdk::PromiseResult::Successful(data) => Ok(skw_contract_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON")),
+                    skw_contract_sdk::PromiseResult::NotReady => Err(skw_contract_sdk::PromiseError::NotReady),
+                    skw_contract_sdk::PromiseResult::Failed => Err(skw_contract_sdk::PromiseError::Failed),
                 };
-                let contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                let contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.method(&mut x, y, );
             }
         );
@@ -439,29 +439,29 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                if near_sdk::env::current_account_id() != near_sdk::env::predecessor_account_id() {
-                    near_sdk::env::panic_str("Method method is private");
+                skw_contract_sdk::env::setup_panic_hook();
+                if skw_contract_sdk::env::current_account_id() != skw_contract_sdk::env::predecessor_account_id() {
+                    skw_contract_sdk::env::panic_str("Method method is private");
                 }
-                #[derive(near_sdk :: serde :: Deserialize)]
-                #[serde(crate = "near_sdk::serde")]
+                #[derive(skw_contract_sdk :: serde :: Deserialize)]
+                #[serde(crate = "skw_contract_sdk::serde")]
                 struct Input {
                     y: String,
                 }
-                let Input { y, }: Input = near_sdk::serde_json::from_slice(
-                    &near_sdk::env::input().expect("Expected input since method has arguments.")
+                let Input { y, }: Input = skw_contract_sdk::serde_json::from_slice(
+                    &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                 )
                 .expect("Failed to deserialize input from JSON.");
-                let x: Vec<String> = (0..near_sdk::env::promise_results_count())
+                let x: Vec<String> = (0..skw_contract_sdk::env::promise_results_count())
                     .map(|i| {
-                        let data: Vec<u8> = match near_sdk::env::promise_result(i) {
-                            near_sdk::PromiseResult::Successful(x) => x,
-                            _ => near_sdk::env::panic_str(&format!("Callback computation {} was not successful", i)),
+                        let data: Vec<u8> = match skw_contract_sdk::env::promise_result(i) {
+                            skw_contract_sdk::PromiseResult::Successful(x) => x,
+                            _ => skw_contract_sdk::env::panic_str(&format!("Callback computation {} was not successful", i)),
                         };
-                        near_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON")
+                        skw_contract_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON")
                     })
                     .collect();
-                let contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                let contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.method(x, y, );
             }
         );
@@ -481,24 +481,24 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                if near_sdk::env::attached_deposit() != 0 {
-                    near_sdk::env::panic_str("Method method doesn't accept deposit");
+                skw_contract_sdk::env::setup_panic_hook();
+                if skw_contract_sdk::env::attached_deposit() != 0 {
+                    skw_contract_sdk::env::panic_str("Method method doesn't accept deposit");
                 }
-                #[derive(near_sdk :: serde :: Deserialize)]
-                #[serde(crate = "near_sdk::serde")]
+                #[derive(skw_contract_sdk :: serde :: Deserialize)]
+                #[serde(crate = "skw_contract_sdk::serde")]
                 struct Input {
                     k: u64,
                 }
-                let Input { mut k, }: Input = near_sdk::serde_json::from_slice(
-                    &near_sdk::env::input().expect("Expected input since method has arguments.")
+                let Input { mut k, }: Input = skw_contract_sdk::serde_json::from_slice(
+                    &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                 )
                 .expect("Failed to deserialize input from JSON.");
-                if near_sdk::env::state_exists() {
-                    near_sdk::env::panic_str("The contract has already been initialized");
+                if skw_contract_sdk::env::state_exists() {
+                    skw_contract_sdk::env::panic_str("The contract has already been initialized");
                 }
                 let contract = Hello::method(&mut k,);
-                near_sdk::env::state_write(&contract);
+                skw_contract_sdk::env::state_write(&contract);
             }
         );
         assert_eq!(expected.to_string(), actual.to_string());
@@ -532,21 +532,21 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                if near_sdk::env::attached_deposit() != 0 {
-                    near_sdk::env::panic_str("Method method doesn't accept deposit");
+                skw_contract_sdk::env::setup_panic_hook();
+                if skw_contract_sdk::env::attached_deposit() != 0 {
+                    skw_contract_sdk::env::panic_str("Method method doesn't accept deposit");
                 }
-                #[derive(near_sdk :: serde :: Deserialize)]
-                #[serde(crate = "near_sdk::serde")]
+                #[derive(skw_contract_sdk :: serde :: Deserialize)]
+                #[serde(crate = "skw_contract_sdk::serde")]
                 struct Input {
                     k: u64,
                 }
-                let Input { mut k, }: Input = near_sdk::serde_json::from_slice(
-                    &near_sdk::env::input().expect("Expected input since method has arguments.")
+                let Input { mut k, }: Input = skw_contract_sdk::serde_json::from_slice(
+                    &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                 )
                 .expect("Failed to deserialize input from JSON.");
                 let contract = Hello::method(&mut k,);
-                near_sdk::env::state_write(&contract);
+                skw_contract_sdk::env::state_write(&contract);
             }
         );
         assert_eq!(expected.to_string(), actual.to_string());
@@ -566,21 +566,21 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                #[derive(near_sdk :: serde :: Deserialize)]
-                #[serde(crate = "near_sdk::serde")]
+                skw_contract_sdk::env::setup_panic_hook();
+                #[derive(skw_contract_sdk :: serde :: Deserialize)]
+                #[serde(crate = "skw_contract_sdk::serde")]
                 struct Input {
                     k: u64,
                 }
-                let Input { mut k, }: Input = near_sdk::serde_json::from_slice(
-                    &near_sdk::env::input().expect("Expected input since method has arguments.")
+                let Input { mut k, }: Input = skw_contract_sdk::serde_json::from_slice(
+                    &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                 )
                 .expect("Failed to deserialize input from JSON.");
-                if near_sdk::env::state_exists() {
-                    near_sdk::env::panic_str("The contract has already been initialized");
+                if skw_contract_sdk::env::state_exists() {
+                    skw_contract_sdk::env::panic_str("The contract has already been initialized");
                 }
                 let contract = Hello::method(&mut k,);
-                near_sdk::env::state_write(&contract);
+                skw_contract_sdk::env::state_write(&contract);
             }
         );
         assert_eq!(expected.to_string(), actual.to_string());
@@ -599,25 +599,25 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                if near_sdk::env::attached_deposit() != 0 {
-                    near_sdk::env::panic_str("Method method doesn't accept deposit");
+                skw_contract_sdk::env::setup_panic_hook();
+                if skw_contract_sdk::env::attached_deposit() != 0 {
+                    skw_contract_sdk::env::panic_str("Method method doesn't accept deposit");
                 }
-                #[derive(near_sdk :: borsh :: BorshDeserialize)]
+                #[derive(skw_contract_sdk :: borsh :: BorshDeserialize)]
                 struct Input {
                     k: u64,
                     m: Bar,
                 }
-                let Input { k, m, }: Input = near_sdk::borsh::BorshDeserialize::try_from_slice(
-                    &near_sdk::env::input().expect("Expected input since method has arguments.")
+                let Input { k, m, }: Input = skw_contract_sdk::borsh::BorshDeserialize::try_from_slice(
+                    &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                 )
                 .expect("Failed to deserialize input from Borsh.");
-                let mut contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                let mut contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 let result = contract.method(k, m, );
-                let result = near_sdk::borsh::BorshSerialize::try_to_vec(&result)
+                let result = skw_contract_sdk::borsh::BorshSerialize::try_to_vec(&result)
                     .expect("Failed to serialize the return value using Borsh.");
-                near_sdk::env::value_return(&result);
-                near_sdk::env::state_write(&contract);
+                skw_contract_sdk::env::value_return(&result);
+                skw_contract_sdk::env::state_write(&contract);
             }
         );
         assert_eq!(expected.to_string(), actual.to_string());
@@ -635,31 +635,31 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                if near_sdk::env::current_account_id() != near_sdk::env::predecessor_account_id() {
-                    near_sdk::env::panic_str("Method method is private");
+                skw_contract_sdk::env::setup_panic_hook();
+                if skw_contract_sdk::env::current_account_id() != skw_contract_sdk::env::predecessor_account_id() {
+                    skw_contract_sdk::env::panic_str("Method method is private");
                 }
-                #[derive(near_sdk :: borsh :: BorshDeserialize)]
+                #[derive(skw_contract_sdk :: borsh :: BorshDeserialize)]
                 struct Input {
                     y: String,
                 }
-                let Input { y, }: Input = near_sdk::borsh::BorshDeserialize::try_from_slice(
-                    &near_sdk::env::input().expect("Expected input since method has arguments.")
+                let Input { y, }: Input = skw_contract_sdk::borsh::BorshDeserialize::try_from_slice(
+                    &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                 )
                 .expect("Failed to deserialize input from Borsh.");
-                let data: Vec<u8> = match near_sdk::env::promise_result(0u64) {
-                    near_sdk::PromiseResult::Successful(x) => x,
-                    _ => near_sdk::env::panic_str("Callback computation 0 was not successful")
+                let data: Vec<u8> = match skw_contract_sdk::env::promise_result(0u64) {
+                    skw_contract_sdk::PromiseResult::Successful(x) => x,
+                    _ => skw_contract_sdk::env::panic_str("Callback computation 0 was not successful")
                 };
-                let mut x: u64 = near_sdk::borsh::BorshDeserialize::try_from_slice(&data)
+                let mut x: u64 = skw_contract_sdk::borsh::BorshDeserialize::try_from_slice(&data)
                     .expect("Failed to deserialize callback using Borsh");
-                let data: Vec<u8> = match near_sdk::env::promise_result(1u64) {
-                    near_sdk::PromiseResult::Successful(x) => x,
-                    _ => near_sdk::env::panic_str("Callback computation 1 was not successful")
+                let data: Vec<u8> = match skw_contract_sdk::env::promise_result(1u64) {
+                    skw_contract_sdk::PromiseResult::Successful(x) => x,
+                    _ => skw_contract_sdk::env::panic_str("Callback computation 1 was not successful")
                 };
                 let z: Vec<u8> =
-                    near_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON");
-                let contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                    skw_contract_sdk::serde_json::from_slice(&data).expect("Failed to deserialize callback using JSON");
+                let contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.method(&mut x, y, z, );
             }
         );
@@ -676,10 +676,10 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn method() {
-                near_sdk::env::setup_panic_hook();
-                let mut contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                skw_contract_sdk::env::setup_panic_hook();
+                let mut contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.method();
-                near_sdk::env::state_write(&contract);
+                skw_contract_sdk::env::state_write(&contract);
             }
         );
         assert_eq!(expected.to_string(), actual.to_string());
@@ -695,16 +695,16 @@ mod tests {
             #[cfg(target_arch = "wasm32")]
             #[no_mangle]
             pub extern "C" fn private_method() {
-                near_sdk::env::setup_panic_hook();
-                if near_sdk::env::current_account_id() != near_sdk::env::predecessor_account_id() {
-                    near_sdk::env::panic_str("Method private_method is private");
+                skw_contract_sdk::env::setup_panic_hook();
+                if skw_contract_sdk::env::current_account_id() != skw_contract_sdk::env::predecessor_account_id() {
+                    skw_contract_sdk::env::panic_str("Method private_method is private");
                 }
-                if near_sdk::env::attached_deposit() != 0 {
-                    near_sdk::env::panic_str("Method private_method doesn't accept deposit");
+                if skw_contract_sdk::env::attached_deposit() != 0 {
+                    skw_contract_sdk::env::panic_str("Method private_method doesn't accept deposit");
                 }
-                let mut contract: Hello = near_sdk::env::state_read().unwrap_or_default();
+                let mut contract: Hello = skw_contract_sdk::env::state_read().unwrap_or_default();
                 contract.private_method();
-                near_sdk::env::state_write(&contract);
+                skw_contract_sdk::env::state_write(&contract);
             }
         );
         assert_eq!(expected.to_string(), actual.to_string());
@@ -718,11 +718,11 @@ mod tests {
         let actual = method_info.marshal_method();
         let expected = quote!(
                 #[cfg(not(target_arch = "wasm32"))]
-                pub fn method(&self, k: String,) -> near_sdk::PendingContractTx {
-                  let args = near_sdk::serde_json::json!({ "k": k })
+                pub fn method(&self, k: String,) -> skw_contract_sdk::PendingContractTx {
+                  let args = skw_contract_sdk::serde_json::json!({ "k": k })
                   .to_string()
                   .into_bytes();
-                  near_sdk::PendingContractTx::new_from_bytes(self.account_id.clone(), "method", args, true)
+                  skw_contract_sdk::PendingContractTx::new_from_bytes(self.account_id.clone(), "method", args, true)
                 }
         );
         assert_eq!(expected.to_string(), actual.to_string());
@@ -738,15 +738,15 @@ mod tests {
         let actual = method_info.marshal_method();
         let expected = quote!(
                 #[cfg(not(target_arch = "wasm32"))]
-                pub fn borsh_test(&self, a: String,) -> near_sdk::PendingContractTx {
-                  #[derive(near_sdk :: borsh :: BorshSerialize)]
+                pub fn borsh_test(&self, a: String,) -> skw_contract_sdk::PendingContractTx {
+                  #[derive(skw_contract_sdk :: borsh :: BorshSerialize)]
                   struct Input {
                       a: String,
                   }
                   let args = Input { a, };
-                  let args = near_sdk::borsh::BorshSerialize::try_to_vec(&args)
+                  let args = skw_contract_sdk::borsh::BorshSerialize::try_to_vec(&args)
                       .expect("Failed to serialize the cross contract args using Borsh.");
-                  near_sdk::PendingContractTx::new_from_bytes(self.account_id.clone(), "borsh_test", args, false)
+                  skw_contract_sdk::PendingContractTx::new_from_bytes(self.account_id.clone(), "borsh_test", args, false)
                 }
         );
         assert_eq!(expected.to_string(), actual.to_string());

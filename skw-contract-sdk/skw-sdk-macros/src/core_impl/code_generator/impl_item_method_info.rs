@@ -13,7 +13,7 @@ impl ImplItemMethodInfo {
         let has_input_args = attr_signature_info.input_args().next().is_some();
 
         let panic_hook = quote! {
-            near_sdk::env::setup_panic_hook();
+            skw_contract_sdk::env::setup_panic_hook();
         };
         let arg_struct;
         let arg_parsing;
@@ -22,13 +22,13 @@ impl ImplItemMethodInfo {
             let decomposition = attr_signature_info.decomposition_pattern();
             let serializer_invocation = match attr_signature_info.input_serializer {
                 SerializerType::JSON => quote! {
-                    near_sdk::serde_json::from_slice(
-                        &near_sdk::env::input().expect("Expected input since method has arguments.")
+                    skw_contract_sdk::serde_json::from_slice(
+                        &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                     ).expect("Failed to deserialize input from JSON.")
                 },
                 SerializerType::Borsh => quote! {
-                    near_sdk::borsh::BorshDeserialize::try_from_slice(
-                        &near_sdk::env::input().expect("Expected input since method has arguments.")
+                    skw_contract_sdk::borsh::BorshDeserialize::try_from_slice(
+                        &skw_contract_sdk::env::input().expect("Expected input since method has arguments.")
                     ).expect("Failed to deserialize input from Borsh.")
                 },
             };
@@ -62,16 +62,16 @@ impl ImplItemMethodInfo {
             // If method is not payable, do a check to make sure that it doesn't consume deposit
             let error = format!("Method {} doesn't accept deposit", ident);
             quote! {
-                if near_sdk::env::attached_deposit() != 0 {
-                    near_sdk::env::panic_str(#error);
+                if skw_contract_sdk::env::attached_deposit() != 0 {
+                    skw_contract_sdk::env::panic_str(#error);
                 }
             }
         };
         let is_private_check = if *is_private {
             let error = format!("Method {} is private", ident);
             quote! {
-                if near_sdk::env::current_account_id() != near_sdk::env::predecessor_account_id() {
-                    near_sdk::env::panic_str(#error);
+                if skw_contract_sdk::env::current_account_id() != skw_contract_sdk::env::predecessor_account_id() {
+                    skw_contract_sdk::env::panic_str(#error);
                 }
             }
         } else {
@@ -86,11 +86,11 @@ impl ImplItemMethodInfo {
                 .to_compile_error();
             }
             quote! {
-                if near_sdk::env::state_exists() {
-                    near_sdk::env::panic_str("The contract has already been initialized");
+                if skw_contract_sdk::env::state_exists() {
+                    skw_contract_sdk::env::panic_str("The contract has already been initialized");
                 }
                 let contract = #struct_type::#ident(#arg_list);
-                near_sdk::env::state_write(&contract);
+                skw_contract_sdk::env::state_write(&contract);
             }
         } else if matches!(method_type, &MethodType::InitIgnoreState) {
             if matches!(returns, ReturnType::Default) {
@@ -102,7 +102,7 @@ impl ImplItemMethodInfo {
             }
             quote! {
                 let contract = #struct_type::#ident(#arg_list);
-                near_sdk::env::state_write(&contract);
+                skw_contract_sdk::env::state_write(&contract);
             }
         } else {
             let contract_deser;
@@ -111,14 +111,14 @@ impl ImplItemMethodInfo {
             if let Some(receiver) = receiver {
                 let mutability = &receiver.mutability;
                 contract_deser = quote! {
-                    let #mutability contract: #struct_type = near_sdk::env::state_read().unwrap_or_default();
+                    let #mutability contract: #struct_type = skw_contract_sdk::env::state_read().unwrap_or_default();
                 };
                 method_invocation = quote! {
                     contract.#ident(#arg_list)
                 };
                 if matches!(method_type, &MethodType::Regular) {
                     contract_ser = quote! {
-                        near_sdk::env::state_write(&contract);
+                        skw_contract_sdk::env::state_write(&contract);
                     };
                 } else {
                     contract_ser = TokenStream2::new();
@@ -139,17 +139,17 @@ impl ImplItemMethodInfo {
                 ReturnType::Type(_, _) => {
                     let value_ser = match result_serializer {
                         SerializerType::JSON => quote! {
-                            let result = near_sdk::serde_json::to_vec(&result).expect("Failed to serialize the return value using JSON.");
+                            let result = skw_contract_sdk::serde_json::to_vec(&result).expect("Failed to serialize the return value using JSON.");
                         },
                         SerializerType::Borsh => quote! {
-                            let result = near_sdk::borsh::BorshSerialize::try_to_vec(&result).expect("Failed to serialize the return value using Borsh.");
+                            let result = skw_contract_sdk::borsh::BorshSerialize::try_to_vec(&result).expect("Failed to serialize the return value using Borsh.");
                         },
                     };
                     quote! {
                     #contract_deser
                     let result = #method_invocation;
                     #value_ser
-                    near_sdk::env::value_return(&result);
+                    skw_contract_sdk::env::value_return(&result);
                     #contract_ser
                     }
                 }
@@ -208,7 +208,7 @@ impl ImplItemMethodInfo {
             original_sig,
             ..
         } = attr_signature_info;
-        let return_ident = quote! { -> near_sdk::PendingContractTx };
+        let return_ident = quote! { -> skw_contract_sdk::PendingContractTx };
         let params = quote! {
             &self, #pat_type_list
         };
@@ -229,9 +229,9 @@ impl ImplItemMethodInfo {
         quote! {
             #[cfg(not(target_arch = "wasm32"))]
             #non_bindgen_attrs
-            pub fn #ident#generics(#params) #return_ident {
+            pub fn #ident #generics(#params) #return_ident {
                 #serialize_args
-                near_sdk::PendingContractTx::new_from_bytes(self.account_id.clone(), #ident_str, args, #is_view)
+                skw_contract_sdk::PendingContractTx::new_from_bytes(self.account_id.clone(), #ident_str, args, #is_view)
             }
         }
     }
@@ -250,6 +250,6 @@ fn json_serialize(attr_signature_info: &AttrSigInfo) -> TokenStream2 {
         })
         .unwrap();
     quote! {
-      let args = near_sdk::serde_json::json!({#args}).to_string().into_bytes();
+      let args = skw_contract_sdk::serde_json::json!({#args}).to_string().into_bytes();
     }
 }

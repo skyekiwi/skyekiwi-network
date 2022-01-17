@@ -147,7 +147,7 @@ pub fn derive_no_default(item: TokenStream) -> TokenStream {
         TokenStream::from(quote! {
             impl Default for #name {
                 fn default() -> Self {
-                    near_sdk::env::panic_str("The contract is not initialized");
+                    skw_contract_sdk::env::panic_str("The contract is not initialized");
                 }
             }
         })
@@ -181,6 +181,6 @@ pub fn borsh_storage_key(item: TokenStream) -> TokenStream {
         );
     };
     TokenStream::from(quote! {
-        impl near_sdk::BorshIntoStorageKey for #name {}
+        impl skw_contract_sdk::BorshIntoStorageKey for #name {}
     })
 }

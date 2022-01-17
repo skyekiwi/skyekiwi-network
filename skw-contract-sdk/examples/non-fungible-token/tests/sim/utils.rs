@@ -4,11 +4,11 @@ use non_fungible_token::ContractContract as NftContract;
 use token_receiver::TokenReceiverContract;
 
 use near_contract_standards::non_fungible_token::TokenId;
-use near_sdk::AccountId;
-use near_sdk_sim::{call, deploy, init_simulator, to_yocto, ContractAccount, UserAccount};
+use skw_contract_sdk::AccountId;
+use skw_sdk_sim::{call, deploy, init_simulator, to_yocto, ContractAccount, UserAccount};
 
 // Load in contract bytes at runtime
-near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
+skw_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
     NFT_WASM_BYTES => "res/non_fungible_token.wasm",
     TOKEN_RECEIVER_WASM_BYTES => "res/token_receiver.wasm",
     APPROVAL_RECEIVER_WASM_BYTES => "res/approval_receiver.wasm",

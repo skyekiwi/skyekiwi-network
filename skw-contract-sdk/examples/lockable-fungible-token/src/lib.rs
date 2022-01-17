@@ -1,6 +1,6 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::UnorderedMap;
-use near_sdk::{env, near_bindgen, AccountId, Balance, PanicOnDefault};
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::collections::UnorderedMap;
+use skw_contract_sdk::{env, skw_bindgen, AccountId, Balance, PanicOnDefault};
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -44,7 +44,7 @@ impl Account {
     }
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct FunToken {
     /// AccountID -> Account details.
@@ -54,7 +54,7 @@ pub struct FunToken {
     pub total_supply: Balance,
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl FunToken {
     #[init]
     pub fn new(owner_id: AccountId, total_supply: String) -> Self {

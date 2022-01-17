@@ -2,15 +2,15 @@ use crate::account::*;
 use crate::agent::Agent;
 use crate::asset::*;
 use crate::rate::*;
-use near_sdk::AccountId;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, near_bindgen};
+use skw_contract_sdk::AccountId;
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::serde::{Deserialize, Serialize};
+use skw_contract_sdk::{env, near_bindgen};
 use std::collections::HashMap;
 
 #[near_bindgen]
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
-#[serde(crate = "near_sdk::serde")]
+#[serde(crate = "skw_contract_sdk::serde")]
 pub struct MissionControl {
     account: Account,
     agents: HashMap<AccountId, Agent>,
@@ -84,7 +84,7 @@ fn rates_default() -> HashMap<Exchange, Rate> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use near_sdk::env;
+    use skw_contract_sdk::env;
 
     #[test]
     fn add_agent() {

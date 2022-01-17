@@ -1,9 +1,9 @@
-use near_sdk::require;
-use near_sdk::{env, ext_contract, near_bindgen, Promise, PromiseError};
+use skw_contract_sdk::require;
+use skw_contract_sdk::{env, ext_contract, skw_bindgen, Promise, PromiseError};
 
 const A_VALUE: u8 = 8;
 
-#[near_bindgen]
+#[skw_bindgen]
 pub struct Callback;
 
 // One can provide a name, e.g. `ext` to use for generated methods.
@@ -19,7 +19,7 @@ pub trait ExtCrossContract {
     ) -> (bool, bool, bool);
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl Callback {
     /// Call functions a, b, and c asynchronously and handle results with `handle_callbacks`.
     pub fn call_all(fail_b: bool, c_value: u8) -> Promise {

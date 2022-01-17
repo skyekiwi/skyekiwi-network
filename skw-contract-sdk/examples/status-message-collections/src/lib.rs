@@ -1,6 +1,6 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, LookupSet};
-use near_sdk::{env, near_bindgen, BorshStorageKey, AccountId};
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::collections::{LookupMap, LookupSet};
+use skw_contract_sdk::{env, skw_bindgen, BorshStorageKey, AccountId};
 
 #[derive(BorshSerialize, BorshStorageKey)]
 enum StorageKey {
@@ -8,7 +8,7 @@ enum StorageKey {
     UniqueValues,
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct StatusMessage {
     pub records: LookupMap<AccountId, String>,
@@ -24,7 +24,7 @@ impl Default for StatusMessage {
     }
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl StatusMessage {
     /// Returns true if the message is unique
     pub fn set_status(&mut self, message: String) -> bool {

@@ -8,7 +8,7 @@ pub fn generate_proxy_struct(input: &ItemStruct) -> proc_macro2::TokenStream {
     quote! {
          #[cfg(not(target_arch = "wasm32"))]
          pub struct #name {
-            pub account_id: near_sdk::AccountId,
+            pub account_id: skw_contract_sdk::AccountId,
           }
     }
 }

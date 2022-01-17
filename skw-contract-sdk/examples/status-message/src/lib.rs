@@ -1,10 +1,10 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::{env, log, metadata, near_bindgen, AccountId, collections::LookupMap};
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::{env, log, metadata, skw_bindgen, AccountId, collections::LookupMap};
 
 // use std::collections::HashMap;
 
 metadata! {
-#[near_bindgen]
+#[skw_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct StatusMessage {
     records: LookupMap<String, String>,
@@ -19,7 +19,7 @@ impl Default for StatusMessage {
   }
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl StatusMessage {
     #[payable]
     pub fn set_status(&mut self, message: String) {

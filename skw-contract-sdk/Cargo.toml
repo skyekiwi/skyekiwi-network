@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "near-sdk",
-    "near-sdk-macros",
-    "near-sdk-sim",
+    "skw-contract-sdk",
+    "skw-sdk-sim",
+    "skw-sdk-macros",
     "near-contract-standards",
     "sys",
 ]

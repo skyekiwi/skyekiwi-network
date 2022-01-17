@@ -1,5 +1,0 @@
-error: Unsupported argument type.
-  --> compilation_tests/bad_argument.rs:30:56
-   |
-30 |     pub fn insert(&mut self, key: TypeA, value: TypeB, t: impl MyTrait) -> Option<TypeB> {
-   |                                                        ^

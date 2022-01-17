@@ -3,9 +3,9 @@ A stub contract that implements nft_on_approve for simulation testing nft_approv
 */
 use near_contract_standards::non_fungible_token::approval::NonFungibleTokenApprovalReceiver;
 use near_contract_standards::non_fungible_token::TokenId;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::{
-    env, ext_contract, log, near_bindgen, require, AccountId, Balance, Gas, PanicOnDefault,
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::{
+    env, ext_contract, log, skw_bindgen, require, AccountId, Balance, Gas, PanicOnDefault,
     PromiseOrValue,
 };
 
@@ -15,7 +15,7 @@ const GAS_FOR_NFT_ON_APPROVE: Gas = Gas(BASE_GAS + PROMISE_CALL);
 
 const NO_DEPOSIT: Balance = 0;
 
-#[near_bindgen]
+#[skw_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct ApprovalReceiver {
     non_fungible_token_account_id: AccountId,
@@ -32,7 +32,7 @@ trait ValueReturnTrait {
     fn ok_go(&self, msg: String) -> PromiseOrValue<String>;
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl ApprovalReceiver {
     #[init]
     pub fn new(non_fungible_token_account_id: AccountId) -> Self {
@@ -40,7 +40,7 @@ impl ApprovalReceiver {
     }
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl NonFungibleTokenApprovalReceiver for ApprovalReceiver {
     /// Could do anything useful to the approval-receiving contract, such as store the given
     /// approval_id for use later when calling the NFT contract. Can also return whatever it wants,
@@ -79,7 +79,7 @@ impl NonFungibleTokenApprovalReceiver for ApprovalReceiver {
     }
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl ValueReturnTrait for ApprovalReceiver {
     fn ok_go(&self, msg: String) -> PromiseOrValue<String> {
         log!("in ok_go, msg={}", msg);

@@ -8,10 +8,10 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = { path = "../../near-sdk" }
+skw-contract-sdk = { path = "../../skw-contract-sdk" }
 
 [dev-dependencies]
-near-sdk-sim = { path = "../../near-sdk-sim" }
+skw-sdk-sim = { path = "../../skw-sdk-sim" }
 
 [profile.release]
 codegen-units = 1

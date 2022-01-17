@@ -1,6 +1,6 @@
 use crate::utils::{init, TOKEN_ID};
 use near_contract_standards::non_fungible_token::Token;
-use near_sdk_sim::{call, view};
+use skw_sdk_sim::{call, view};
 use std::collections::HashMap;
 
 #[test]

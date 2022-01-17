@@ -1,16 +1,16 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::{
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::{
     env,
     ext_contract,
     json_types::U128,
     log,
-    near_bindgen,
+    skw_bindgen,
     AccountId,
     Promise,
     PromiseOrValue,
 };
 
-#[near_bindgen]
+#[skw_bindgen]
 #[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct CrossContract {}
 
@@ -37,13 +37,13 @@ pub trait ExtStatusMessage {
     fn get_status(&self, account_id: AccountId) -> Option<String>;
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl CrossContract {
     pub fn deploy_status_message(&self, account_id: AccountId, amount: U128) {
         Promise::new(account_id)
             .create_account()
             .transfer(amount.0)
-            .add_full_access_key(env::signer_account_pk())
+            // .add_full_access_key(env::signer_account_pk())
             .deploy_contract(
                 include_bytes!("../../status-message/res/status_message.wasm").to_vec(),
             );

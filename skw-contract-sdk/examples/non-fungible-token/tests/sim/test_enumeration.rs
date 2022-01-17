@@ -1,7 +1,7 @@
 use crate::utils::{helper_mint, init};
 use near_contract_standards::non_fungible_token::Token;
-use near_sdk::json_types::U128;
-use near_sdk_sim::{view, ContractAccount, UserAccount};
+use skw_contract_sdk::json_types::U128;
+use skw_sdk_sim::{view, ContractAccount, UserAccount};
 use non_fungible_token::ContractContract as NftContract;
 
 fn mint_more(root: &UserAccount, nft: &ContractAccount<NftContract>) {

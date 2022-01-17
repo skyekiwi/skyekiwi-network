@@ -1,12 +1,12 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::U128;
-use near_sdk::serde_json::{self, json};
-use near_sdk::{env, near_bindgen, require, AccountId, Gas, PromiseResult};
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::json_types::U128;
+use skw_contract_sdk::serde_json::{self, json};
+use skw_contract_sdk::{env, skw_bindgen, require, AccountId, Gas, PromiseResult};
 
 // Prepaid gas for making a single simple call.
 const SINGLE_CALL_GAS: Gas = Gas(200000000000000);
 
-#[near_bindgen]
+#[skw_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct CrossContract {
     checked_promise: bool,
@@ -18,7 +18,7 @@ impl Default for CrossContract {
     }
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl CrossContract {
     pub fn deploy_status_message(&self, account_id: AccountId, amount: U128) {
         let promise_idx = env::promise_batch_create(&account_id);
