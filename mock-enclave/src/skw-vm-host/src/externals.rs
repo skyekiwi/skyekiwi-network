@@ -18,42 +18,38 @@ pub enum HostFunctions {
   Input = 7,
   BlockNumber = 8,
   BlockTimestamp = 9,
-  EpochHeight = 10,
-  StorageUsage = 11,
-  AccountBalance = 12,
-  AttachedDeposit = 13,
-  PrepaidGas = 14,
-  UsedGas = 15,
-  RandomSeed = 16,
-  Sha256 = 17,
-  Keccak256 = 18,
-  Keccak512 = 19,
-  Ripemd160 = 20,
-  Ecrecover = 21,
-  ValueReturn = 22,
-  Panic = 23,
-  PanicUtf8 = 24,
-  LogUtf8 = 25,
-  LogUtf16 = 26,
-  Abort = 27,
-  PromiseCreate = 28,
-  PromiseThen = 29,
-  PromiseAnd = 30,
-  PromiseBatchCreate = 31,
-  PromiseBatchThen = 32,
-  PromiseBatchActionCreateAccount = 33,
-  PromiseBatchActionDeployContract = 34,
-  PromiseBatchActionFunctionCall = 35,
-  PromiseBatchActionTransfer = 36,
-  PromiseBatchActionDeleteAccount = 37,
-  PromiseResultsCount = 38,
-  PromiseResult = 39,
-  PromiseReturn = 40,
-  StorageWrite = 41,
-  StorageRead = 42,
-  StorageRemove = 43,
-  StorageHasKey = 44,
-  Gas = 45,
+  StorageUsage = 10,
+  AccountBalance = 11,
+  AttachedDeposit = 12,
+  PrepaidGas = 13,
+  UsedGas = 14,
+  RandomSeed = 15,
+  Sha256 = 16,
+  Keccak256 = 17,
+  Keccak512 = 18,
+  Ripemd160 = 19,
+  Ecrecover = 20,
+  ValueReturn = 21,
+  Panic = 22,
+  PanicUtf8 = 23,
+  LogUtf8 = 24,
+  LogUtf16 = 25,
+  Abort = 26,
+  PromiseCreate = 27,
+  PromiseThen = 28,
+  PromiseAnd = 29,
+  PromiseBatchCreate = 30,
+  PromiseBatchThen = 31,
+  PromiseBatchActionDeployContract = 32,
+  PromiseBatchActionFunctionCall = 33,
+  PromiseResultsCount = 34,
+  PromiseResult = 35,
+  PromiseReturn = 36,
+  StorageWrite = 37,
+  StorageRead = 38,
+  StorageRemove = 39,
+  StorageHasKey = 40,
+  Gas = 41,
   Unknown,
 }
 
@@ -70,7 +66,6 @@ impl From<usize> for HostFunctions {
       x if x == HostFunctions::Input as usize => HostFunctions::Input,
       x if x == HostFunctions::BlockNumber as usize => HostFunctions::BlockNumber,
       x if x == HostFunctions::BlockTimestamp as usize => HostFunctions::BlockTimestamp,
-      x if x == HostFunctions::EpochHeight as usize => HostFunctions::EpochHeight,
       x if x == HostFunctions::StorageUsage as usize => HostFunctions::StorageUsage,
       x if x == HostFunctions::AccountBalance as usize => HostFunctions::AccountBalance,
       x if x == HostFunctions::AttachedDeposit as usize => HostFunctions::AttachedDeposit,
@@ -93,11 +88,8 @@ impl From<usize> for HostFunctions {
       x if x == HostFunctions::PromiseAnd as usize => HostFunctions::PromiseAnd,
       x if x == HostFunctions::PromiseBatchCreate as usize => HostFunctions::PromiseBatchCreate,
       x if x == HostFunctions::PromiseBatchThen as usize => HostFunctions::PromiseBatchThen,
-      x if x == HostFunctions::PromiseBatchActionCreateAccount as usize => HostFunctions::PromiseBatchActionCreateAccount,
       x if x == HostFunctions::PromiseBatchActionDeployContract as usize => HostFunctions::PromiseBatchActionDeployContract,
       x if x == HostFunctions::PromiseBatchActionFunctionCall as usize => HostFunctions::PromiseBatchActionFunctionCall,
-      x if x == HostFunctions::PromiseBatchActionTransfer as usize => HostFunctions::PromiseBatchActionTransfer,
-      x if x == HostFunctions::PromiseBatchActionDeleteAccount as usize => HostFunctions::PromiseBatchActionDeleteAccount,
       x if x == HostFunctions::PromiseResultsCount as usize => HostFunctions::PromiseResultsCount,
       x if x == HostFunctions::PromiseResult as usize => HostFunctions::PromiseResult,
       x if x == HostFunctions::PromiseReturn as usize => HostFunctions::PromiseReturn,
@@ -190,11 +182,6 @@ impl<'a> Externals for VMLogic<'a> {
 		},
 		HostFunctions::BlockTimestamp => {
 			self.block_timestamp()
-				.map(|ret| Some(ret.into()) )
-				.map_err(vmlogicerr_to_trap)
-		},
-		HostFunctions::EpochHeight => {
-			self.epoch_height()
 				.map(|ret| Some(ret.into()) )
 				.map_err(vmlogicerr_to_trap)
 		},
@@ -366,12 +353,6 @@ impl<'a> Externals for VMLogic<'a> {
 				.map(|ret| Some(ret.into()) )
 				.map_err(vmlogicerr_to_trap)
 		},
-		HostFunctions::PromiseBatchActionCreateAccount => {
-			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapCode::UnexpectedSignature)?;
-			self.promise_batch_action_create_account(promise_index)
-				.map(|_| None )
-				.map_err(vmlogicerr_to_trap)
-		},
 		HostFunctions::PromiseBatchActionDeployContract => {
 			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapCode::UnexpectedSignature)?;
 			let code_len: u64 = args.nth_checked(1).map_err(|_| TrapCode::UnexpectedSignature)?;
@@ -389,21 +370,6 @@ impl<'a> Externals for VMLogic<'a> {
 			let amount_ptr: u64 = args.nth_checked(5).map_err(|_| TrapCode::UnexpectedSignature)?;
 			let gas: u64 = args.nth_checked(6).map_err(|_| TrapCode::UnexpectedSignature)?;
 			self.promise_batch_action_function_call(promise_index, method_name_len, method_name_ptr, arguments_len, arguments_ptr, amount_ptr, gas)
-				.map(|_| None )
-				.map_err(vmlogicerr_to_trap)
-		},
-		HostFunctions::PromiseBatchActionTransfer => {
-			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapCode::UnexpectedSignature)?;
-			let amount_ptr: u64 = args.nth_checked(1).map_err(|_| TrapCode::UnexpectedSignature)?;
-			self.promise_batch_action_transfer(promise_index, amount_ptr)
-				.map(|_| None )
-				.map_err(vmlogicerr_to_trap)
-		},
-		HostFunctions::PromiseBatchActionDeleteAccount => {
-			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapCode::UnexpectedSignature)?;
-			let beneficiary_id_len: u64 = args.nth_checked(1).map_err(|_| TrapCode::UnexpectedSignature)?;
-			let beneficiary_id_ptr: u64 = args.nth_checked(2).map_err(|_| TrapCode::UnexpectedSignature)?;
-			self.promise_batch_action_delete_account(promise_index, beneficiary_id_len, beneficiary_id_ptr)
 				.map(|_| None )
 				.map_err(vmlogicerr_to_trap)
 		},
@@ -464,7 +430,6 @@ impl<'a> Externals for VMLogic<'a> {
 				.map(|_| None )
 				.map_err(vmlogicerr_to_trap)
 		},
-
 		_ => {
 			Err(Trap::Code(TrapCode::Unreachable))
 		}

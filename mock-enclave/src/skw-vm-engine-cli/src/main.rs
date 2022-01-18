@@ -2,8 +2,8 @@ mod script;
 
 use crate::script::Script;
 use clap::Clap;
-use skw_vm_host::VMOutcome;
-use skw_vm_host::{mocks::mock_external::Receipt};
+// use skw_vm_host::VMOutcome;
+// use skw_vm_host::{mocks::mock_external::Receipt};
 use serde::{
     de::{MapAccess, Visitor},
     ser::SerializeMap,
@@ -94,13 +94,13 @@ struct CliArgs {
     timings: bool,
 }
 
-#[derive(Debug, Clone)]
-struct StandaloneOutput {
-    pub outcome: Option<VMOutcome>,
-    pub err: Option<String>,
-    pub receipts: Vec<Receipt>,
-    pub state: State,
-}
+// #[derive(Debug, Clone)]
+// struct StandaloneOutput {
+//     pub outcome: Option<VMOutcome>,
+//     pub err: Option<String>,
+//     pub receipts: Vec<Receipt>,
+//     pub state: State,
+// }
 
 fn main() {
     let cli_args = CliArgs::parse();

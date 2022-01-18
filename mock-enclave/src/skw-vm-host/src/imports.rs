@@ -66,10 +66,6 @@ impl ModuleImportResolver for WasmiImportResolver {
 				Signature::new(&[][..], Some(ValueType::I64)),
 				HostFunctions::BlockTimestamp.into(),
 			)),
-			"epoch_height" => Ok(FuncInstance::alloc_host(
-				Signature::new(&[][..], Some(ValueType::I64)),
-				HostFunctions::EpochHeight.into(),
-			)),
 			"storage_usage" => Ok(FuncInstance::alloc_host(
 				Signature::new(&[][..], Some(ValueType::I64)),
 				HostFunctions::StorageUsage.into(),
@@ -158,10 +154,6 @@ impl ModuleImportResolver for WasmiImportResolver {
 				Signature::new(&[ValueType::I64, ValueType::I64, ValueType::I64][..], Some(ValueType::I64)),
 				HostFunctions::PromiseBatchThen.into(),
 			)),
-			"promise_batch_action_create_account" => Ok(FuncInstance::alloc_host(
-				Signature::new(&[ValueType::I64][..], None),
-				HostFunctions::PromiseBatchActionCreateAccount.into(),
-			)),
 			"promise_batch_action_deploy_contract" => Ok(FuncInstance::alloc_host(
 				Signature::new(&[ValueType::I64, ValueType::I64, ValueType::I64][..], None),
 				HostFunctions::PromiseBatchActionDeployContract.into(),
@@ -169,14 +161,6 @@ impl ModuleImportResolver for WasmiImportResolver {
 			"promise_batch_action_function_call" => Ok(FuncInstance::alloc_host(
 				Signature::new(&[ValueType::I64, ValueType::I64, ValueType::I64, ValueType::I64, ValueType::I64, ValueType::I64, ValueType::I64][..], None),
 				HostFunctions::PromiseBatchActionFunctionCall.into(),
-			)),
-			"promise_batch_action_transfer" => Ok(FuncInstance::alloc_host(
-				Signature::new(&[ValueType::I64, ValueType::I64][..], None),
-				HostFunctions::PromiseBatchActionTransfer.into(),
-			)),
-			"promise_batch_action_delete_account" => Ok(FuncInstance::alloc_host(
-				Signature::new(&[ValueType::I64, ValueType::I64, ValueType::I64][..], None),
-				HostFunctions::PromiseBatchActionDeleteAccount.into(),
 			)),
 			"promise_results_count" => Ok(FuncInstance::alloc_host(
 				Signature::new(&[][..], Some(ValueType::I64)),

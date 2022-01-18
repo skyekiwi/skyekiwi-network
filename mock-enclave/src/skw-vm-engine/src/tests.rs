@@ -28,7 +28,6 @@ fn create_context(input: Vec<u8>) -> VMContext {
         input,
         block_number: 10,
         block_timestamp: 42,
-        epoch_height: 1,
         account_balance: 2u128,
         storage_usage: 12,
         attached_deposit: 2u128,

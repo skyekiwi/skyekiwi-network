@@ -1,6 +1,6 @@
 use crate::types::PublicKey;
 
-use skw_vm_primitives::contract_runtime::{AccountId, Balance, BlockHeight, EpochHeight, Gas, StorageUsage};
+use skw_vm_primitives::contract_runtime::{AccountId, Balance, BlockHeight, Gas, StorageUsage};
 use skw_vm_primitives::config::ViewConfig;
 
 use serde::{Deserialize, Serialize};
@@ -32,8 +32,6 @@ pub struct VMContext {
     /// The current block timestamp (number of non-leap-nanoseconds since January 1, 1970 0:00:00 UTC).
     #[serde(with = "crate::serde_with::u64_dec_format")]
     pub block_timestamp: u64,
-    /// The current epoch height.
-    pub epoch_height: EpochHeight,
 
     /// The balance attached to the given account. Excludes the `attached_deposit` that was
     /// attached to the transaction.
