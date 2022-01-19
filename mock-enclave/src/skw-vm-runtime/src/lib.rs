@@ -77,19 +77,19 @@ mod verifier;
 const EXPECT_ACCOUNT_EXISTS: &str = "account exists, checked above";
 
 /// Contains information to update validators accounts at the first block of a new epoch.
-#[derive(Debug)]
-pub struct ValidatorAccountsUpdate {
-    /// Maximum stake across last 3 epochs.
-    pub stake_info: HashMap<AccountId, Balance>,
-    /// Rewards to distribute to validators.
-    pub validator_rewards: HashMap<AccountId, Balance>,
-    /// Stake proposals from the last chunk.
-    pub last_proposals: HashMap<AccountId, Balance>,
-    /// The ID of the protocol treasure account if it belongs to the current shard.
-    pub protocol_treasury_account_id: Option<AccountId>,
-    /// Accounts to slash and the slashed amount (None means everything)
-    pub slashing_info: HashMap<AccountId, Option<Balance>>,
-}
+// #[derive(Debug)]
+// pub struct ValidatorAccountsUpdate {
+//     /// Maximum stake across last 3 epochs.
+//     pub stake_info: HashMap<AccountId, Balance>,
+//     /// Rewards to distribute to validators.
+//     pub validator_rewards: HashMap<AccountId, Balance>,
+//     /// Stake proposals from the last chunk.
+//     pub last_proposals: HashMap<AccountId, Balance>,
+//     /// The ID of the protocol treasure account if it belongs to the current shard.
+//     pub protocol_treasury_account_id: Option<AccountId>,
+//     /// Accounts to slash and the slashed amount (None means everything)
+//     pub slashing_info: HashMap<AccountId, Option<Balance>>,
+// }
 
 #[derive(Debug)]
 pub struct VerificationResult {
@@ -116,7 +116,7 @@ pub struct ApplyStats {
 pub struct ApplyResult {
     pub state_root: StateRoot,
     pub trie_changes: TrieChanges,
-    pub validator_proposals: Vec<ValidatorStake>,
+    // pub validator_proposals: Vec<ValidatorStake>,
     pub outgoing_receipts: Vec<Receipt>,
     pub outcomes: Vec<ExecutionOutcomeWithId>,
     pub state_changes: Vec<RawStateChangesWithTrieKey>,
@@ -133,7 +133,7 @@ pub struct ActionResult {
     pub result: Result<ReturnData, ActionError>,
     pub logs: Vec<LogEntry>,
     pub new_receipts: Vec<Receipt>,
-    pub validator_proposals: Vec<ValidatorStake>,
+    // pub validator_proposals: Vec<ValidatorStake>,
     pub profile: ProfileData,
 }
 
@@ -161,10 +161,10 @@ impl ActionResult {
         }
         if self.result.is_ok() {
             self.new_receipts.append(&mut next_result.new_receipts);
-            self.validator_proposals.append(&mut next_result.validator_proposals);
+            // self.validator_proposals.append(&mut next_result.validator_proposals);
         } else {
             self.new_receipts.clear();
-            self.validator_proposals.clear();
+            // self.validator_proposals.clear();
         }
         Ok(())
     }
@@ -179,7 +179,7 @@ impl Default for ActionResult {
             result: Ok(ReturnData::None),
             logs: vec![],
             new_receipts: vec![],
-            validator_proposals: vec![],
+            // validator_proposals: vec![],
             profile: Default::default(),
         }
     }
@@ -242,6 +242,7 @@ impl Runtime {
                 });
                 let transaction = &signed_transaction.transaction;
                 let receipt_id = create_receipt_id_from_transaction(
+                    // TODO: remove protocol_version stuff
                     apply_state.current_protocol_version,
                     signed_transaction,
                     &apply_state.prev_block_hash,
@@ -273,7 +274,9 @@ impl Runtime {
                         executor_id: transaction.signer_id.clone(),
                         // TODO: profile data is only counted in apply_action, which only happened at process_receipt
                         // VerificationResult needs updates to incorporate profile data to support profile data of txns
-                        metadata: ExecutionMetadata::V1,
+                        // metadata: ExecutionMetadata::V1,
+                        // DIFF: added ProfileData in sync with skw-vm-primitives
+                        profile_data: ProfileData,
                     },
                 };
                 Ok((receipt, outcome))
@@ -314,36 +317,39 @@ impl Runtime {
         let account_id = &receipt.receiver_id;
         let is_the_only_action = actions.len() == 1;
         let is_refund = AccountId::is_system(&receipt.predecessor_id);
-        // Account validation
-        if let Err(e) = check_account_existence(
-            action,
-            account,
-            account_id,
-            apply_state.current_protocol_version,
-            is_the_only_action,
-            is_refund,
-        ) {
-            result.result = Err(e);
-            return Ok(result);
-        }
-        // Permission validation
-        if let Err(e) = check_actor_permissions(action, account, actor_id, account_id) {
-            result.result = Err(e);
-            return Ok(result);
-        }
+        
+        // TODO: correctly remove both account & permission validation
+        // // Account validation
+        // if let Err(e) = check_account_existence(
+        //     action,
+        //     account,
+        //     account_id,
+        //     apply_state.current_protocol_version,
+        //     is_the_only_action,
+        //     is_refund,
+        // ) {
+        //     result.result = Err(e);
+        //     return Ok(result);
+        // }
+        // // Permission validation
+        // if let Err(e) = check_actor_permissions(action, account, actor_id, account_id) {
+        //     result.result = Err(e);
+        //     return Ok(result);
+        // }
+
         match action {
-            Action::CreateAccount(_) => {
-                // metrics::ACTION_CREATE_ACCOUNT_TOTAL.inc();
-                action_create_account(
-                    &apply_state.config.transaction_costs,
-                    &apply_state.config.account_creation_config,
-                    account,
-                    actor_id,
-                    &receipt.receiver_id,
-                    &receipt.predecessor_id,
-                    &mut result,
-                );
-            }
+            // Action::CreateAccount(_) => {
+            //     // metrics::ACTION_CREATE_ACCOUNT_TOTAL.inc();
+            //     action_create_account(
+            //         &apply_state.config.transaction_costs,
+            //         &apply_state.config.account_creation_config,
+            //         account,
+            //         actor_id,
+            //         &receipt.receiver_id,
+            //         &receipt.predecessor_id,
+            //         &mut result,
+            //     );
+            // }
             Action::DeployContract(deploy_contract) => {
                 // metrics::ACTION_DEPLOY_CONTRACT_TOTAL.inc();
                 action_deploy_contract(
@@ -373,99 +379,99 @@ impl Runtime {
                     epoch_info_provider,
                 )?;
             }
-            Action::Transfer(transfer) => {
-                // metrics::ACTION_TRANSFER_TOTAL.inc();
-                if let Some(account) = account.as_mut() {
-                    action_transfer(account, transfer)?;
-                    // Check if this is a gas refund, then try to refund the access key allowance.
-                    if is_refund && action_receipt.signer_id == receipt.receiver_id {
-                        try_refund_allowance(
-                            state_update,
-                            &receipt.receiver_id,
-                            &action_receipt.signer_public_key,
-                            transfer,
-                        )?;
-                    }
-                } else {
-                    // Implicit account creation
-                    debug_assert!(is_implicit_account_creation_enabled(
-                        apply_state.current_protocol_version
-                    ));
-                    debug_assert!(!is_refund);
-                    action_implicit_account_creation_transfer(
-                        state_update,
-                        &apply_state.config.transaction_costs,
-                        account,
-                        actor_id,
-                        &receipt.receiver_id,
-                        transfer,
-                        apply_state.block_index,
-                        apply_state.current_protocol_version,
-                    );
-                }
-            }
-            Action::Stake(stake) => {
-                // metrics::ACTION_STAKE_TOTAL.inc();
-                action_stake(
-                    account.as_mut().expect(EXPECT_ACCOUNT_EXISTS),
-                    &mut result,
-                    account_id,
-                    stake,
-                    &apply_state.prev_block_hash,
-                    epoch_info_provider,
-                    #[cfg(feature = "protocol_feature_chunk_only_producers")]
-                    false,
-                )?;
-            }
-            Action::AddKey(add_key) => {
-                // metrics::ACTION_ADD_KEY_TOTAL.inc();
-                action_add_key(
-                    apply_state,
-                    state_update,
-                    account.as_mut().expect(EXPECT_ACCOUNT_EXISTS),
-                    &mut result,
-                    account_id,
-                    add_key,
-                )?;
-            }
-            Action::DeleteKey(delete_key) => {
-                // metrics::ACTION_DELETE_KEY_TOTAL.inc();
-                action_delete_key(
-                    &apply_state.config.transaction_costs,
-                    state_update,
-                    account.as_mut().expect(EXPECT_ACCOUNT_EXISTS),
-                    &mut result,
-                    account_id,
-                    delete_key,
-                    apply_state.current_protocol_version,
-                )?;
-            }
-            Action::DeleteAccount(delete_account) => {
-                // metrics::ACTION_DELETE_ACCOUNT_TOTAL.inc();
-                action_delete_account(
-                    state_update,
-                    account,
-                    actor_id,
-                    receipt,
-                    &mut result,
-                    account_id,
-                    delete_account,
-                    apply_state.current_protocol_version,
-                )?;
-            }
-            #[cfg(feature = "protocol_feature_chunk_only_producers")]
-            Action::StakeChunkOnly(stake) => {
-                // metrics::ACTION_STAKE_CHUNK_ONLY_TOTAL.inc();
-                action_stake(
-                    account.as_mut().expect(EXPECT_ACCOUNT_EXISTS),
-                    &mut result,
-                    account_id,
-                    stake,
-                    &apply_state.prev_block_hash,
-                    epoch_info_provider,
-                    true,
-                )?;
-            }
+            // Action::Transfer(transfer) => {
+            //     // metrics::ACTION_TRANSFER_TOTAL.inc();
+            //     if let Some(account) = account.as_mut() {
+            //         action_transfer(account, transfer)?;
+            //         // Check if this is a gas refund, then try to refund the access key allowance.
+            //         if is_refund && action_receipt.signer_id == receipt.receiver_id {
+            //             try_refund_allowance(
+            //                 state_update,
+            //                 &receipt.receiver_id,
+            //                 &action_receipt.signer_public_key,
+            //                 transfer,
+            //             )?;
+            //         }
+            //     } else {
+            //         // Implicit account creation
+            //         debug_assert!(is_implicit_account_creation_enabled(
+            //             apply_state.current_protocol_version
+            //         ));
+            //         debug_assert!(!is_refund);
+            //         action_implicit_account_creation_transfer(
+            //             state_update,
+            //             &apply_state.config.transaction_costs,
+            //             account,
+            //             actor_id,
+            //             &receipt.receiver_id,
+            //             transfer,
+            //             apply_state.block_index,
+            //             apply_state.current_protocol_version,
+            //         );
+            //     }
+            // }
+            // Action::Stake(stake) => {
+            //     // metrics::ACTION_STAKE_TOTAL.inc();
+            //     action_stake(
+            //         account.as_mut().expect(EXPECT_ACCOUNT_EXISTS),
+            //         &mut result,
+            //         account_id,
+            //         stake,
+            //         &apply_state.prev_block_hash,
+            //         epoch_info_provider,
+            //         #[cfg(feature = "protocol_feature_chunk_only_producers")]
+            //         false,
+            //     )?;
+            // }
+            // Action::AddKey(add_key) => {
+            //     // metrics::ACTION_ADD_KEY_TOTAL.inc();
+            //     action_add_key(
+            //         apply_state,
+            //         state_update,
+            //         account.as_mut().expect(EXPECT_ACCOUNT_EXISTS),
+            //         &mut result,
+            //         account_id,
+            //         add_key,
+            //     )?;
+            // }
+            // Action::DeleteKey(delete_key) => {
+            //     // metrics::ACTION_DELETE_KEY_TOTAL.inc();
+            //     action_delete_key(
+            //         &apply_state.config.transaction_costs,
+            //         state_update,
+            //         account.as_mut().expect(EXPECT_ACCOUNT_EXISTS),
+            //         &mut result,
+            //         account_id,
+            //         delete_key,
+            //         apply_state.current_protocol_version,
+            //     )?;
+            // }
+            // Action::DeleteAccount(delete_account) => {
+            //     // metrics::ACTION_DELETE_ACCOUNT_TOTAL.inc();
+            //     action_delete_account(
+            //         state_update,
+            //         account,
+            //         actor_id,
+            //         receipt,
+            //         &mut result,
+            //         account_id,
+            //         delete_account,
+            //         apply_state.current_protocol_version,
+            //     )?;
+            // }
+            // #[cfg(feature = "protocol_feature_chunk_only_producers")]
+            // Action::StakeChunkOnly(stake) => {
+            //     // metrics::ACTION_STAKE_CHUNK_ONLY_TOTAL.inc();
+            //     action_stake(
+            //         account.as_mut().expect(EXPECT_ACCOUNT_EXISTS),
+            //         &mut result,
+            //         account_id,
+            //         stake,
+            //         &apply_state.prev_block_hash,
+            //         epoch_info_provider,
+            //         true,
+            //     )?;
+            // }
         };
         Ok(result)
     }
@@ -1170,67 +1176,73 @@ impl Runtime {
         &self,
         trie: Trie,
         root: CryptoHash,
-        validator_accounts_update: &Option<ValidatorAccountsUpdate>,
+        // validator_accounts_update: &Option<ValidatorAccountsUpdate>,
         apply_state: &ApplyState,
         incoming_receipts: &[Receipt],
         transactions: &[SignedTransaction],
-        epoch_info_provider: &dyn EpochInfoProvider,
-        states_to_patch: Option<Vec<StateRecord>>,
+        // epoch_info_provider: &dyn EpochInfoProvider,
+        // states_to_patch: Option<Vec<StateRecord>>,
     ) -> Result<ApplyResult, RuntimeError> {
         let _span = tracing::debug_span!(target: "runtime", "Runtime::apply").entered();
 
-        if states_to_patch.is_some() && !cfg!(feature = "sandbox") {
-            panic!("Can only patch state in sandbox mode");
-        }
+        // if states_to_patch.is_some() && !cfg!(feature = "sandbox") {
+        //     panic!("Can only patch state in sandbox mode");
+        // }
 
         let trie = Rc::new(trie);
+
+        // TODO:: maybe we can use StoreUpdate instead of TrieUpdate
         let initial_state = TrieUpdate::new(trie.clone(), root);
         let mut state_update = TrieUpdate::new(trie.clone(), root);
 
         let mut stats = ApplyStats::default();
 
-        if let Some(validator_accounts_update) = validator_accounts_update {
-            self.update_validator_accounts(
-                &mut state_update,
-                validator_accounts_update,
-                &mut stats,
-            )?;
-        }
+        // TODO: remove 
+        // if let Some(validator_accounts_update) = validator_accounts_update {
+        //     self.update_validator_accounts(
+        //         &mut state_update,
+        //         validator_accounts_update,
+        //         &mut stats,
+        //     )?;
+        // }
 
-        let (gas_used_for_migrations, mut receipts_to_restore) = self
-            .apply_migrations(
-                &mut state_update,
-                &apply_state.migration_data,
-                &apply_state.migration_flags,
-                apply_state.current_protocol_version,
-            )
-            .map_err(RuntimeError::StorageError)?;
-        // If we have receipts that need to be restored, prepend them to the list of incoming receipts
-        let incoming_receipts = if receipts_to_restore.is_empty() {
-            incoming_receipts
-        } else {
-            receipts_to_restore.extend_from_slice(incoming_receipts);
-            receipts_to_restore.as_slice()
-        };
 
-        if !apply_state.is_new_chunk
-            && apply_state.current_protocol_version
-                >= ProtocolFeature::FixApplyChunks.protocol_version()
-        {
-            let (trie_changes, state_changes) = state_update.finalize()?;
-            let proof = trie.recorded_storage();
-            return Ok(ApplyResult {
-                state_root: trie_changes.new_root,
-                trie_changes,
-                validator_proposals: vec![],
-                outgoing_receipts: vec![],
-                outcomes: vec![],
-                state_changes,
-                stats,
-                processed_delayed_receipts: vec![],
-                proof,
-            });
-        }
+        // TODO: keep but not used for now - migration stuff
+        // let (gas_used_for_migrations, mut receipts_to_restore) = self
+        //     .apply_migrations(
+        //         &mut state_update,
+        //         &apply_state.migration_data,
+        //         &apply_state.migration_flags,
+        //         apply_state.current_protocol_version,
+        //     )
+        //     .map_err(RuntimeError::StorageError)?;
+        // // If we have receipts that need to be restored, prepend them to the list of incoming receipts
+        // let incoming_receipts = if receipts_to_restore.is_empty() {
+        //     incoming_receipts
+        // } else {
+        //     receipts_to_restore.extend_from_slice(incoming_receipts);
+        //     receipts_to_restore.as_slice()
+        // };
+
+        // NOTE: not sure what this is ... might have something to do w/ chain consensus
+        // if !apply_state.is_new_chunk
+        //     && apply_state.current_protocol_version
+        //         >= ProtocolFeature::FixApplyChunks.protocol_version()
+        // {
+        //     let (trie_changes, state_changes) = state_update.finalize()?;
+        //     let proof = trie.recorded_storage();
+        //     return Ok(ApplyResult {
+        //         state_root: trie_changes.new_root,
+        //         trie_changes,
+        //         validator_proposals: vec![],
+        //         outgoing_receipts: vec![],
+        //         outcomes: vec![],
+        //         state_changes,
+        //         stats,
+        //         processed_delayed_receipts: vec![],
+        //         proof,
+        //     });
+        // }
 
         let mut outgoing_receipts = Vec::new();
         let mut validator_proposals = vec![];

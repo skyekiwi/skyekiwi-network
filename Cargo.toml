@@ -24,6 +24,8 @@ exclude = [
     'mock-enclave/src/skw-vm-engine',
     'mock-enclave/src/skw-vm-engine-cli',
     'mock-enclave/src/near-test-contracts',
+    'mock-enclave/src/skw-vm-runtime',
+    'mock-enclave/src/skw-vm-store',
     'skw-contract-sdk/skw-contract-sdk',
     'skw-contract-sdk/skw-sdk-macros',
     'skw-contract-sdk/skw-sdk-sim',

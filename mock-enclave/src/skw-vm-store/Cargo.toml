@@ -1,25 +1,49 @@
 [package]
-name = "skw-vm-primitives"
-version = "0.1.0"
-authors = ["SkyeKiwi <hello@skye.kiwi>"]
-edition = "2021"
+name = "skw-vm-store"
+version = "0.0.0"
 license = "GPL-3.0"
-readme = "README.md"
-categories = ["wasm"]
-repository = "https://github.com/skyekiwi/skyekiwi-network"
-homepage = "https://github.com/skyekiwi/skyekiwi-network"
-description = """
-Primitives types for the SkyeKiwi Network Secret Contracts
-"""
+authors = ["SkyeKiwi <hello@skye.kiwi>", "Near Inc <hello@nearprotocol.com>"]
+publish = false
+edition = "2021"
 
 [dependencies]
-hashbrown = "0.12"
-skw-vm-primitives = { path = "../skw-vm-primitives" }
+byteorder = "1.2"
+bytesize = "1.1"
+derive_more = "0.99.3"
+elastic-array = "0.11"
+rocksdb = "0.16.0"
+serde_json = "1"
+num_cpus = "1.11"
+rand = "0.7"
+strum = { version = "0.20", features = ["derive"] }
+fs2 = "0.4"
+tracing = "0.1"
+borsh = "0.9"
+thiserror = "1"
+lru = "0.6.5"
+hashbrown = "0.12.0"
+
+near-crypto = { git = "https://github.com/near/nearcore" }
+near-primitives = { git = "https://github.com/near/nearcore" }
+
+[dev-dependencies]
+tempfile = "3"
+bencher = "0.1.5"
+rand = "0.7"
+
+[[bench]]
+name = "trie_bench"
+harness = false
+
+[[bench]]
+name = "store_bench"
+harness = false
 
 [features]
-default = ["std"]
-std = [
-  "sha2/std",
-  "num-rational/std",
-  "serde/std",
-]
+default = []
+no_cache = []
+single_thread_rocksdb = [] # Deactivate RocksDB IO background threads
+test_features = []
+protocol_feature_chunk_only_producers = []
+nightly_protocol = []
+nightly_protocol_features = ["nightly_protocol", "protocol_feature_chunk_only_producers"]

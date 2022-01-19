@@ -177,11 +177,6 @@ pub fn block_timestamp() -> u64 {
     unsafe { sys::block_timestamp() }
 }
 
-/// Current epoch height.
-pub fn epoch_height() -> u64 {
-    unsafe { sys::epoch_height() }
-}
-
 /// Current total storage usage of this smart contract that this account would be paying for.
 pub fn storage_usage() -> StorageUsage {
     unsafe { sys::storage_usage() }
@@ -412,10 +407,6 @@ pub fn promise_batch_then(promise_index: PromiseIndex, account_id: &AccountId) -
     }
 }
 
-pub fn promise_batch_action_create_account(promise_index: PromiseIndex) {
-    unsafe { sys::promise_batch_action_create_account(promise_index) }
-}
-
 pub fn promise_batch_action_deploy_contract(promise_index: u64, code: &[u8]) {
     unsafe {
         sys::promise_batch_action_deploy_contract(
@@ -442,24 +433,6 @@ pub fn promise_batch_action_function_call(
             arguments.as_ptr() as _,
             &amount as *const Balance as _,
             gas.0,
-        )
-    }
-}
-
-pub fn promise_batch_action_transfer(promise_index: PromiseIndex, amount: Balance) {
-    unsafe { sys::promise_batch_action_transfer(promise_index, &amount as *const Balance as _) }
-}
-
-pub fn promise_batch_action_delete_account(
-    promise_index: PromiseIndex,
-    beneficiary_id: &AccountId,
-) {
-    let beneficiary_id: &str = beneficiary_id.as_ref();
-    unsafe {
-        sys::promise_batch_action_delete_account(
-            promise_index,
-            beneficiary_id.len() as _,
-            beneficiary_id.as_ptr() as _,
         )
     }
 }

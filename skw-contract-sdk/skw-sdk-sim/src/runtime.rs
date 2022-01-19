@@ -5,6 +5,7 @@ use crate::cache::{cache_to_arc, create_cache, ContractCache};
 use crate::ViewResult;
 use near_crypto::{InMemorySigner, KeyType, PublicKey, Signer};
 use near_pool::{types::PoolIterator, TransactionPool};
+
 use near_primitives::account::{AccessKey, Account};
 use near_primitives::errors::RuntimeError;
 use near_primitives::hash::CryptoHash;
@@ -21,13 +22,13 @@ use near_primitives::types::{
 };
 use near_primitives::version::PROTOCOL_VERSION;
 use near_primitives::views::ViewApplyState;
+
 use near_runtime::{state_viewer::TrieViewer, ApplyState, Runtime};
 use near_sdk::{AccountId, Duration};
 use near_store::{
     get_access_key, get_account, set_account, test_utils::create_test_store, ShardTries, Store,
 };
 
-const DEFAULT_EPOCH_LENGTH: u64 = 3;
 const DEFAULT_BLOCK_PROD_TIME: Duration = 1_000_000_000;
 
 pub fn init_runtime(
@@ -47,7 +48,6 @@ pub struct GenesisConfig {
     pub gas_price: Balance,
     pub gas_limit: Gas,
     pub genesis_height: u64,
-    pub epoch_length: u64,
     pub block_prod_time: Duration,
     pub runtime_config: RuntimeConfig,
     pub state_records: Vec<StateRecord>,
@@ -67,7 +67,6 @@ impl Default for GenesisConfig {
             gas_price: 100_000_000,
             gas_limit: runtime_config.wasm_config.limit_config.max_total_prepaid_gas,
             genesis_height: 0,
-            epoch_length: DEFAULT_EPOCH_LENGTH,
             block_prod_time: DEFAULT_BLOCK_PROD_TIME,
             runtime_config,
             state_records: vec![],
@@ -98,7 +97,6 @@ impl GenesisConfig {
 pub struct Block {
     prev_block: Option<Arc<Block>>,
     state_root: CryptoHash,
-    pub epoch_height: EpochHeight,
     pub block_height: BlockHeight,
     pub block_timestamp: u64,
     pub gas_price: Balance,
@@ -122,7 +120,6 @@ impl Block {
             prev_block: None,
             state_root: CryptoHash::default(),
             block_height: genesis_config.genesis_height,
-            epoch_height: 0,
             block_timestamp: genesis_config.genesis_time,
             gas_price: genesis_config.gas_price,
             gas_limit: genesis_config.gas_limit,
@@ -132,7 +129,6 @@ impl Block {
     fn produce(
         &self,
         new_state_root: CryptoHash,
-        epoch_length: u64,
         block_prod_time: Duration,
     ) -> Block {
         Self {
@@ -142,56 +138,88 @@ impl Block {
             prev_block: Some(Arc::new(self.clone())),
             state_root: new_state_root,
             block_height: self.block_height + 1,
-            epoch_height: (self.block_height + 1) / epoch_length,
         }
     }
 }
 
 pub struct RuntimeStandalone {
     pub genesis: GenesisConfig,
+
+    // TODO: port this
     tx_pool: TransactionPool,
     transactions: HashMap<CryptoHash, SignedTransaction>,
     outcomes: HashMap<CryptoHash, ExecutionOutcome>,
     profile: HashMap<CryptoHash, ProfileData>,
     pub cur_block: Block,
+
+    // TODO: port this
     runtime: Runtime,
+    
+    // TODO: port this / simplify this/ sim this 
     tries: ShardTries,
+    
     pending_receipts: Vec<Receipt>,
-    epoch_info_provider: Box<dyn EpochInfoProvider>,
-    pub last_outcomes: Vec<CryptoHash>,
+
     cache: ContractCache,
 }
 
 impl RuntimeStandalone {
     pub fn new(genesis: GenesisConfig, store: Arc<Store>) -> Self {
         let mut genesis_block = Block::genesis(&genesis);
+
+        // STORE:: here store_update
         let mut store_update = store.store_update();
+
+        // RUNTIME: runtime::new()
         let runtime = Runtime::new();
+
+        // TRIES:: ShardTries::new
+        // TRIES:: initialize from the passed in store
         let tries = ShardTries::new(store, 1);
+
+
+        // RUNTIME:: apply_genesis_state
+        // pub fn apply_genesis_state(
+        //     &self,
+        //     tries: ShardTries,
+        //     shard_id: ShardId,
+        //     validators: &[(AccountId, PublicKey, Balance)],
+        //     genesis: &Genesis,
+        //     config: &RuntimeConfig,
+        //     shard_account_ids: HashSet<AccountId>,
+        // ) -> StateRoot {
+        //     GenesisStateApplier::apply(tries, shard_id, validators, config, genesis, shard_account_ids)
+        // }
+        // Q: shouldn't there just be a state_root??
         let (s_update, state_root) = runtime.apply_genesis_state(
-            tries.clone(),
-            0,
-            &[],
-            &genesis.state_records,
-            &genesis.runtime_config,
+            tries.clone(), // ShardTries
+            0, // can remove ShardId
+            &[], // remove Validators
+            &genesis.state_records, // Genesis
+            &genesis.runtime_config, // RuntimeConfig
         );
+
+        // Get rid of these
         store_update.merge(s_update);
         store_update.commit().unwrap();
+
         genesis_block.state_root = state_root;
+
+        // get rid of these as well ... 
         let validators = genesis.validators.clone();
+
         Self {
-            genesis,
-            tries,
+            genesis, // GenesisConfig
+            tries, // SharedTres
             runtime,
+
+            // Q: what does this do? Don't we have a txpool??
             transactions: HashMap::new(),
             outcomes: HashMap::new(),
             profile: HashMap::new(),
             cur_block: genesis_block,
             tx_pool: TransactionPool::new(),
             pending_receipts: vec![],
-            epoch_info_provider: Box::new(MockEpochInfoProvider::new(
-                validators.into_iter().map(|info| (info.account_id, info.amount)),
-            )),
             cache: create_cache(),
             last_outcomes: vec![],
         }
@@ -276,6 +304,17 @@ impl RuntimeStandalone {
             block_hash: Default::default(),
         };
 
+        // pub fn apply(
+        //     &self,
+        //     trie: Trie,
+        //     root: CryptoHash,
+        //     validator_accounts_update: &Option<ValidatorAccountsUpdate>,
+        //     apply_state: &ApplyState,
+        //     incoming_receipts: &[Receipt],
+        //     transactions: &[SignedTransaction],
+        // ) -> Result<ApplyResult, RuntimeError> {
+
+        // RUNTIME:: runtime.apply seems to be the critical method for importing states
         let apply_result = self.runtime.apply(
             self.tries.get_trie_for_shard(0),
             self.cur_block.state_root,
@@ -283,17 +322,18 @@ impl RuntimeStandalone {
             &apply_state,
             &self.pending_receipts,
             &Self::prepare_transactions(&mut self.tx_pool),
-            self.epoch_info_provider.as_ref(),
         )?;
-        self.pending_receipts = apply_result.outgoing_receipts;
+
         apply_result.outcomes.iter().for_each(|outcome| {
             self.last_outcomes.push(outcome.id);
             self.outcomes.insert(outcome.id, outcome.outcome.clone());
             self.profile.insert(outcome.id, profile_data.clone());
         });
+        
         let (update, _) =
             self.tries.apply_all(&apply_result.trie_changes, 0).expect("Unexpected Storage error");
         update.commit().expect("Unexpected io error");
+        
         self.cur_block = self.cur_block.produce(
             apply_result.state_root,
             self.genesis.epoch_length,
@@ -321,16 +361,16 @@ impl RuntimeStandalone {
         Ok(())
     }
 
-    /// Force alter account and change state_root.
-    pub fn force_account_update(&mut self, account_id: AccountId, account: &Account) {
-        let mut trie_update = self.tries.new_trie_update(0, self.cur_block.state_root);
-        set_account(&mut trie_update, String::from(account_id), account);
-        trie_update.commit(StateChangeCause::ValidatorAccountsUpdate);
-        let (trie_changes, _) = trie_update.finalize().expect("Unexpected Storage error");
-        let (store_update, new_root) = self.tries.apply_all(&trie_changes, 0).unwrap();
-        store_update.commit().expect("No io errors expected");
-        self.cur_block.state_root = new_root;
-    }
+    // /// Force alter account and change state_root.
+    // pub fn force_account_update(&mut self, account_id: AccountId, account: &Account) {
+    //     let mut trie_update = self.tries.new_trie_update(0, self.cur_block.state_root);
+    //     set_account(&mut trie_update, String::from(account_id), account);
+    //     trie_update.commit(StateChangeCause::ValidatorAccountsUpdate);
+    //     let (trie_changes, _) = trie_update.finalize().expect("Unexpected Storage error");
+    //     let (store_update, new_root) = self.tries.apply_all(&trie_changes, 0).unwrap();
+    //     store_update.commit().expect("No io errors expected");
+    //     self.cur_block.state_root = new_root;
+    // }
 
     pub fn view_account(&self, account_id: &str) -> Option<Account> {
         let trie_update = self.tries.new_trie_update(0, self.cur_block.state_root);
@@ -370,9 +410,6 @@ impl RuntimeStandalone {
             function_name,
             args,
             &mut logs,
-            self.epoch_info_provider.as_ref(),
-        );
-        ViewResult::new(result, logs)
     }
 
     /// Returns a reference to the current block.
@@ -533,14 +570,14 @@ mod tests {
         assert_eq!("\"caller status is ok!\"", caller_status);
     }
 
-    #[test]
-    fn test_force_update_account() {
-        let (mut runtime, _, _) = init_runtime(None);
-        let mut bob_account = runtime.view_account("root").unwrap();
-        bob_account.locked = 10000;
-        runtime.force_account_update("root".parse().unwrap(), &bob_account);
-        assert_eq!(runtime.view_account("root").unwrap().locked, 10000);
-    }
+    // #[test]
+    // fn test_force_update_account() {
+    //     let (mut runtime, _, _) = init_runtime(None);
+    //     let mut bob_account = runtime.view_account("root").unwrap();
+    //     bob_account.locked = 10000;
+    //     runtime.force_account_update("root".parse().unwrap(), &bob_account);
+    //     assert_eq!(runtime.view_account("root").unwrap().locked, 10000);
+    // }
 
     #[test]
     fn can_produce_many_blocks_without_stack_overflow() {

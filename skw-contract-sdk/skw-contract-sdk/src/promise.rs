@@ -7,7 +7,6 @@ use std::rc::Rc;
 use crate::{AccountId, Balance, Gas, PromiseIndex};
 
 enum PromiseAction {
-    CreateAccount,
     DeployContract {
         code: Vec<u8>,
     },
@@ -17,19 +16,12 @@ enum PromiseAction {
         amount: Balance,
         gas: Gas,
     },
-    Transfer {
-        amount: Balance,
-    },
-    DeleteAccount {
-        beneficiary_id: AccountId,
-    },
 }
 
 impl PromiseAction {
     pub fn add(&self, promise_index: PromiseIndex) {
         use PromiseAction::*;
         match self {
-            CreateAccount => crate::env::promise_batch_action_create_account(promise_index),
             DeployContract { code } => {
                 crate::env::promise_batch_action_deploy_contract(promise_index, code)
             }
@@ -41,12 +33,6 @@ impl PromiseAction {
                     *amount,
                     *gas,
                 )
-            }
-            Transfer { amount } => {
-                crate::env::promise_batch_action_transfer(promise_index, *amount)
-            }
-            DeleteAccount { beneficiary_id } => {
-                crate::env::promise_batch_action_delete_account(promise_index, beneficiary_id)
             }
         }
     }
@@ -133,14 +119,6 @@ impl PromiseJoint {
 /// * When they need to create a transaction with one or many actions, e.g. the following code
 ///   schedules a transaction that creates an account, transfers tokens:
 ///
-/// ```no_run
-/// # use skw_contract_sdk::{Promise, env, test_utils::VMContextBuilder, testing_env};
-/// # testing_env!(VMContextBuilder::new().signer_account_id("bob.sk".parse().unwrap())
-/// #               .account_balance(1000).prepaid_gas(1_000_000.into()).build());
-/// Promise::new("bob.sk".parse().unwrap())
-///   .create_account()
-///   .transfer(1000);
-/// ```
 #[derive(Clone)]
 pub struct Promise {
     subtype: PromiseSubtype,
@@ -190,11 +168,6 @@ impl Promise {
         self
     }
 
-    /// Create account on which this promise acts.
-    pub fn create_account(self) -> Self {
-        self.add_action(PromiseAction::CreateAccount)
-    }
-
     /// Deploy a smart contract to the account on which this promise acts.
     pub fn deploy_contract(self, code: Vec<u8>) -> Self {
         self.add_action(PromiseAction::DeployContract { code })
@@ -211,29 +184,12 @@ impl Promise {
         self.add_action(PromiseAction::FunctionCall { function_name, arguments, amount, gas })
     }
 
-    /// Transfer tokens to the account that this promise acts on.
-    pub fn transfer(self, amount: Balance) -> Self {
-        self.add_action(PromiseAction::Transfer { amount })
-    }
-
-    /// Delete the given account.
-    pub fn delete_account(self, beneficiary_id: AccountId) -> Self {
-        self.add_action(PromiseAction::DeleteAccount { beneficiary_id })
-    }
-
     /// Merge this promise with another promise, so that we can schedule execution of another
     /// smart contract right after all merged promises finish.
     ///
     /// Note, once the promises are merged it is not possible to add actions to them, e.g. the
     /// following code will panic during the execution of the smart contract:
     ///
-    /// ```no_run
-    /// # use skw_contract_sdk::{Promise, testing_env};
-    /// let p1 = Promise::new("bob.sk".parse().unwrap()).create_account();
-    /// let p2 = Promise::new("carol.sk".parse().unwrap()).create_account();
-    /// let p3 = p1.and(p2);
-    /// // p3.create_account();
-    /// ```
     pub fn and(self, other: Promise) -> Promise {
         Promise {
             subtype: PromiseSubtype::Joint(Rc::new(PromiseJoint {
@@ -250,14 +206,6 @@ impl Promise {
     /// In the following code `bob_near` and `dave_near` will be created concurrently. `carol_near`
     /// creation will wait for `bob_near` to be created, and `eva_near` will wait for both `carol_near`
     /// and `dave_near` to be created first.
-    /// ```no_run
-    /// # use skw_contract_sdk::{Promise, VMContext, testing_env};
-    /// let p1 = Promise::new("bob_near".parse().unwrap()).create_account();
-    /// let p2 = Promise::new("carol_near".parse().unwrap()).create_account();
-    /// let p3 = Promise::new("dave_near".parse().unwrap()).create_account();
-    /// let p4 = Promise::new("eva_near".parse().unwrap()).create_account();
-    /// p1.then(p2).and(p3).then(p4);
-    /// ```
     pub fn then(self, mut other: Promise) -> Promise {
         match &mut other.subtype {
             PromiseSubtype::Single(x) => *x.after.borrow_mut() = Some(self),

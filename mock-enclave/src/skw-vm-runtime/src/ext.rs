@@ -240,10 +240,10 @@ impl<'a> External for RuntimeExt<'a> {
         Ok(new_receipt_index)
     }
 
-    fn append_action_create_account(&mut self, receipt_index: u64) -> ExtResult<()> {
-        self.append_action(receipt_index, Action::CreateAccount(CreateAccountAction {}));
-        Ok(())
-    }
+    // fn append_action_create_account(&mut self, receipt_index: u64) -> ExtResult<()> {
+    //     self.append_action(receipt_index, Action::CreateAccount(CreateAccountAction {}));
+    //     Ok(())
+    // }
 
     fn append_action_deploy_contract(
         &mut self,
@@ -275,118 +275,118 @@ impl<'a> External for RuntimeExt<'a> {
         Ok(())
     }
 
-    fn append_action_transfer(&mut self, receipt_index: u64, deposit: u128) -> ExtResult<()> {
-        self.append_action(receipt_index, Action::Transfer(TransferAction { deposit }));
-        Ok(())
-    }
+    // fn append_action_transfer(&mut self, receipt_index: u64, deposit: u128) -> ExtResult<()> {
+    //     self.append_action(receipt_index, Action::Transfer(TransferAction { deposit }));
+    //     Ok(())
+    // }
 
-    fn append_action_stake(
-        &mut self,
-        receipt_index: u64,
-        stake: u128,
-        public_key: Vec<u8>,
-    ) -> ExtResult<()> {
-        self.append_action(
-            receipt_index,
-            Action::Stake(StakeAction {
-                stake,
-                public_key: PublicKey::try_from_slice(&public_key)
-                    .map_err(|_| HostError::InvalidPublicKey)?,
-            }),
-        );
-        Ok(())
-    }
+    // fn append_action_stake(
+    //     &mut self,
+    //     receipt_index: u64,
+    //     stake: u128,
+    //     public_key: Vec<u8>,
+    // ) -> ExtResult<()> {
+    //     self.append_action(
+    //         receipt_index,
+    //         Action::Stake(StakeAction {
+    //             stake,
+    //             public_key: PublicKey::try_from_slice(&public_key)
+    //                 .map_err(|_| HostError::InvalidPublicKey)?,
+    //         }),
+    //     );
+    //     Ok(())
+    // }
 
-    fn append_action_add_key_with_full_access(
-        &mut self,
-        receipt_index: u64,
-        public_key: Vec<u8>,
-        nonce: u64,
-    ) -> ExtResult<()> {
-        self.append_action(
-            receipt_index,
-            Action::AddKey(AddKeyAction {
-                public_key: PublicKey::try_from_slice(&public_key)
-                    .map_err(|_| HostError::InvalidPublicKey)?,
-                access_key: AccessKey { nonce, permission: AccessKeyPermission::FullAccess },
-            }),
-        );
-        Ok(())
-    }
+    // fn append_action_add_key_with_full_access(
+    //     &mut self,
+    //     receipt_index: u64,
+    //     public_key: Vec<u8>,
+    //     nonce: u64,
+    // ) -> ExtResult<()> {
+    //     self.append_action(
+    //         receipt_index,
+    //         Action::AddKey(AddKeyAction {
+    //             public_key: PublicKey::try_from_slice(&public_key)
+    //                 .map_err(|_| HostError::InvalidPublicKey)?,
+    //             access_key: AccessKey { nonce, permission: AccessKeyPermission::FullAccess },
+    //         }),
+    //     );
+    //     Ok(())
+    // }
 
-    fn append_action_add_key_with_function_call(
-        &mut self,
-        receipt_index: u64,
-        public_key: Vec<u8>,
-        nonce: u64,
-        allowance: Option<u128>,
-        receiver_id: AccountId,
-        method_names: Vec<Vec<u8>>,
-    ) -> ExtResult<()> {
-        self.append_action(
-            receipt_index,
-            Action::AddKey(AddKeyAction {
-                public_key: PublicKey::try_from_slice(&public_key)
-                    .map_err(|_| HostError::InvalidPublicKey)?,
-                access_key: AccessKey {
-                    nonce,
-                    permission: AccessKeyPermission::FunctionCall(FunctionCallPermission {
-                        allowance,
-                        receiver_id: receiver_id.into(),
-                        method_names: method_names
-                            .into_iter()
-                            .map(|method_name| {
-                                String::from_utf8(method_name)
-                                    .map_err(|_| HostError::InvalidMethodName)
-                            })
-                            .collect::<std::result::Result<Vec<_>, _>>()?,
-                    }),
-                },
-            }),
-        );
-        Ok(())
-    }
+    // fn append_action_add_key_with_function_call(
+    //     &mut self,
+    //     receipt_index: u64,
+    //     public_key: Vec<u8>,
+    //     nonce: u64,
+    //     allowance: Option<u128>,
+    //     receiver_id: AccountId,
+    //     method_names: Vec<Vec<u8>>,
+    // ) -> ExtResult<()> {
+    //     self.append_action(
+    //         receipt_index,
+    //         Action::AddKey(AddKeyAction {
+    //             public_key: PublicKey::try_from_slice(&public_key)
+    //                 .map_err(|_| HostError::InvalidPublicKey)?,
+    //             access_key: AccessKey {
+    //                 nonce,
+    //                 permission: AccessKeyPermission::FunctionCall(FunctionCallPermission {
+    //                     allowance,
+    //                     receiver_id: receiver_id.into(),
+    //                     method_names: method_names
+    //                         .into_iter()
+    //                         .map(|method_name| {
+    //                             String::from_utf8(method_name)
+    //                                 .map_err(|_| HostError::InvalidMethodName)
+    //                         })
+    //                         .collect::<std::result::Result<Vec<_>, _>>()?,
+    //                 }),
+    //             },
+    //         }),
+    //     );
+    //     Ok(())
+    // }
 
-    fn append_action_delete_key(
-        &mut self,
-        receipt_index: u64,
-        public_key: Vec<u8>,
-    ) -> ExtResult<()> {
-        self.append_action(
-            receipt_index,
-            Action::DeleteKey(DeleteKeyAction {
-                public_key: PublicKey::try_from_slice(&public_key)
-                    .map_err(|_| HostError::InvalidPublicKey)?,
-            }),
-        );
-        Ok(())
-    }
+    // fn append_action_delete_key(
+    //     &mut self,
+    //     receipt_index: u64,
+    //     public_key: Vec<u8>,
+    // ) -> ExtResult<()> {
+    //     self.append_action(
+    //         receipt_index,
+    //         Action::DeleteKey(DeleteKeyAction {
+    //             public_key: PublicKey::try_from_slice(&public_key)
+    //                 .map_err(|_| HostError::InvalidPublicKey)?,
+    //         }),
+    //     );
+    //     Ok(())
+    // }
 
-    fn append_action_delete_account(
-        &mut self,
-        receipt_index: u64,
-        beneficiary_id: AccountId,
-    ) -> ExtResult<()> {
-        self.append_action(
-            receipt_index,
-            Action::DeleteAccount(DeleteAccountAction { beneficiary_id }),
-        );
-        Ok(())
-    }
+    // fn append_action_delete_account(
+    //     &mut self,
+    //     receipt_index: u64,
+    //     beneficiary_id: AccountId,
+    // ) -> ExtResult<()> {
+    //     self.append_action(
+    //         receipt_index,
+    //         Action::DeleteAccount(DeleteAccountAction { beneficiary_id }),
+    //     );
+    //     Ok(())
+    // }
 
     fn get_touched_nodes_count(&self) -> u64 {
         self.trie_update.trie.counter.get()
     }
 
-    fn validator_stake(&self, account_id: &AccountId) -> ExtResult<Option<Balance>> {
-        self.epoch_info_provider
-            .validator_stake(self.epoch_id, self.prev_block_hash, account_id)
-            .map_err(|e| ExternalError::ValidatorError(e).into())
-    }
+    // fn validator_stake(&self, account_id: &AccountId) -> ExtResult<Option<Balance>> {
+    //     self.epoch_info_provider
+    //         .validator_stake(self.epoch_id, self.prev_block_hash, account_id)
+    //         .map_err(|e| ExternalError::ValidatorError(e).into())
+    // }
 
-    fn validator_total_stake(&self) -> ExtResult<Balance> {
-        self.epoch_info_provider
-            .validator_total_stake(self.epoch_id, self.prev_block_hash)
-            .map_err(|e| ExternalError::ValidatorError(e).into())
-    }
+    // fn validator_total_stake(&self) -> ExtResult<Balance> {
+    //     self.epoch_info_provider
+    //         .validator_total_stake(self.epoch_id, self.prev_block_hash)
+    //         .map_err(|e| ExternalError::ValidatorError(e).into())
+    // }
 }

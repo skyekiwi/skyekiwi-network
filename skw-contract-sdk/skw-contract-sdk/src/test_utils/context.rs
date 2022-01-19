@@ -2,7 +2,7 @@ use crate::mock::MockedBlockchain;
 use crate::test_utils::test_env::*;
 use crate::AccountId;
 use crate::{
-    Balance, BlockNumber, EpochHeight, Gas, PromiseResult, PublicKey, StorageUsage, VMContext,
+    Balance, BlockNumber, Gas, PromiseResult, PublicKey, StorageUsage, VMContext,
 };
 use skw_vm_primitives::fees::RuntimeFeesConfig;
 use skw_vm_host::{VMConfig, ViewConfig};
@@ -39,7 +39,6 @@ impl VMContextBuilder {
                 input: vec![],
                 block_number: 0,
                 block_timestamp: 0,
-                epoch_height: 0,
                 account_balance: 10u128.pow(26),
                 storage_usage: 1024 * 300,
                 attached_deposit: 0,
@@ -78,11 +77,6 @@ impl VMContextBuilder {
 
     pub fn block_timestamp(&mut self, block_timestamp: u64) -> &mut Self {
         self.context.block_timestamp = block_timestamp;
-        self
-    }
-
-    pub fn epoch_height(&mut self, epoch_height: EpochHeight) -> &mut Self {
-        self.context.epoch_height = epoch_height;
         self
     }
 

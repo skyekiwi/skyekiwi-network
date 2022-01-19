@@ -9,6 +9,8 @@ use skw_contract_sdk::PendingContractTx;
 
 use crate::runtime::init_runtime;
 pub use crate::to_yocto;
+
+// TODO: these are primitives imports
 use crate::{
     account::{AccessKey, Account},
     hash::CryptoHash,
@@ -62,12 +64,6 @@ impl UserTransaction {
         outcome_into_result(res, &self.runtime)
     }
 
-    /// Create account for the receiver of the transaction.
-    pub fn create_account(mut self) -> Self {
-        self.transaction = self.transaction.create_account();
-        self
-    }
-
     /// Deploy Wasm binary
     pub fn deploy_contract(mut self, code: Vec<u8>) -> Self {
         self.transaction = self.transaction.deploy_contract(code);
@@ -83,36 +79,6 @@ impl UserTransaction {
         deposit: Balance,
     ) -> Self {
         self.transaction = self.transaction.function_call(function_name, args, gas, deposit);
-        self
-    }
-
-    /// Transfer deposit to receiver
-    pub fn transfer(mut self, deposit: Balance) -> Self {
-        self.transaction = self.transaction.transfer(deposit);
-        self
-    }
-
-    /// Express interest in becoming a validator
-    pub fn stake(mut self, stake: Balance, public_key: PublicKey) -> Self {
-        self.transaction = self.transaction.stake(stake, public_key);
-        self
-    }
-
-    /// Add access key, either FunctionCall or FullAccess
-    pub fn add_key(mut self, public_key: PublicKey, access_key: AccessKey) -> Self {
-        self.transaction = self.transaction.add_key(public_key, access_key);
-        self
-    }
-
-    /// Delete an access key
-    pub fn delete_key(mut self, public_key: PublicKey) -> Self {
-        self.transaction = self.transaction.delete_key(public_key);
-        self
-    }
-
-    /// Delete an account and send remaining balance to `beneficiary_id`
-    pub fn delete_account(mut self, beneficiary_id: AccountId) -> Self {
-        self.transaction = self.transaction.delete_account(String::from(beneficiary_id));
         self
     }
 }
@@ -149,10 +115,11 @@ impl UserAccount {
     pub fn account(&self) -> Option<Account> {
         (*self.runtime).borrow().view_account(self.account_id.as_str())
     }
-    /// Transfer yoctoNear to another account
-    pub fn transfer(&self, to: AccountId, deposit: Balance) -> ExecutionResult {
-        self.submit_transaction(self.transaction(to).transfer(deposit))
-    }
+
+    // /// Transfer yoctoNear to another account
+    // pub fn transfer(&self, to: AccountId, deposit: Balance) -> ExecutionResult {
+    //     self.submit_transaction(self.transaction(to).transfer(deposit))
+    // }
 
     /// Make a contract call.  `pending_tx` includes the receiver, the method to call as well as its arguments.
     /// Note: You will most likely not be using this method directly but rather the [`call!`](./macro.call.html) macro.
@@ -378,7 +345,7 @@ pub fn init_simulator(genesis_config: Option<GenesisConfig>) -> UserAccount {
 /// use skw_sdk_sim::*;
 /// use fungible_token::ContractContract;
 /// use std::convert::TryInto;
-/// use near_sdk::AccountId;
+/// use skw_contract_sdk::AccountId;
 /// let master_account = skw_sdk_sim::init_simulator(None);
 /// let master_account_id: AccountId = master_account.account_id().try_into().unwrap();
 /// let initial_balance = skw_sdk_sim::to_yocto("35");

@@ -40,6 +40,12 @@ checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
 name = "base64"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b41b7ea54a0c9d92199de89e20e58d49f02f8e699814ef3fdf266f6f748d15c7"
+
+[[package]]
+name = "base64"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
@@ -798,7 +804,7 @@ checksum = "02658e48d89f2bec991f9a78e69cfa4c316f8d6a6c4ec12fae1aeb263d486788"
 name = "skw-contract-sdk"
 version = "0.1.0"
 dependencies = [
- "base64",
+ "base64 0.13.0",
  "borsh",
  "bs58",
  "serde",
@@ -828,7 +834,7 @@ version = "0.1.0"
 name = "skw-vm-host"
 version = "0.0.0"
 dependencies = [
- "base64",
+ "base64 0.13.0",
  "bs58",
  "byteorder",
  "near-crypto",
@@ -844,10 +850,26 @@ dependencies = [
 name = "skw-vm-primitives"
 version = "0.1.0"
 dependencies = [
+ "base64 0.11.0",
+ "borsh",
+ "bs58",
+ "near-crypto",
  "num-rational 0.3.2",
  "serde",
  "sha2",
+ "smart-default",
  "wasmi",
+]
+
+[[package]]
+name = "smart-default"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "133659a15339456eeeb07572eb02a91c91e9815e9cbc89566944d2c8d3efdbf6"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

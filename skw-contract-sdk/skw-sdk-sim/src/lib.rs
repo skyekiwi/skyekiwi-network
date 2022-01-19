@@ -1,6 +1,6 @@
-//! # near_sdk_sim
+//! # skw_sdk_sim
 //!
-//! This crate provides an interface for simulating transactions on NEAR's Blockchain.
+//! This crate provides an interface for simulating transactions on SkyeKiwi Offchain VM - NEAR's Blockchain.
 //! The simulator uses a standalone runtime that can handle any of the [actions](https://nomicon.io/RuntimeSpec/Actions.html) provided by the
 //! real runtime, including: creating accounts, deploying contracts, making contract calls and
 //! calling view methods.
@@ -14,7 +14,7 @@ pub mod units;
 pub mod user;
 pub use near_crypto;
 #[doc(hidden)]
-pub use near_primitives::*;
+pub use skw_vm_primitives::*;
 #[doc(inline)]
 pub use units::*;
 #[doc(inline)]

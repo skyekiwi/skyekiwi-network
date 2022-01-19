@@ -17,7 +17,6 @@ extern "C" {
     pub fn input(register_id: u64);
     pub fn block_number() -> u64;
     pub fn block_timestamp() -> u64;
-    pub fn epoch_height() -> u64;
     pub fn storage_usage() -> u64;
     // #################
     // # Economics API #
@@ -83,7 +82,6 @@ extern "C" {
     // #######################
     // # Promise API actions #
     // #######################
-    pub fn promise_batch_action_create_account(promise_index: u64);
     pub fn promise_batch_action_deploy_contract(promise_index: u64, code_len: u64, code_ptr: u64);
     pub fn promise_batch_action_function_call(
         promise_index: u64,
@@ -93,12 +91,6 @@ extern "C" {
         arguments_ptr: u64,
         amount_ptr: u64,
         gas: u64,
-    );
-    pub fn promise_batch_action_transfer(promise_index: u64, amount_ptr: u64);
-    pub fn promise_batch_action_delete_account(
-        promise_index: u64,
-        beneficiary_id_len: u64,
-        beneficiary_id_ptr: u64,
     );
     // #######################
     // # Promise API results #

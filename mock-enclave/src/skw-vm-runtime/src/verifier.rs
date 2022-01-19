@@ -32,7 +32,7 @@ pub fn validate_transaction(
     gas_price: Balance,
     signed_transaction: &SignedTransaction,
     verify_signature: bool,
-    current_protocol_version: ProtocolVersion,
+    // current_protocol_version: ProtocolVersion,
 ) -> Result<TransactionCost, RuntimeError> {
     let transaction = &signed_transaction.transaction;
     let signer_id = &transaction.signer_id;

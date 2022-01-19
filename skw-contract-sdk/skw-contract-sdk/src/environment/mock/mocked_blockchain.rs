@@ -146,10 +146,6 @@ mod mock_chain {
         with_mock_interface(|b| b.block_timestamp())
     }
     #[no_mangle]
-    extern "C" fn epoch_height() -> u64 {
-        with_mock_interface(|b| b.epoch_height())
-    }
-    #[no_mangle]
     extern "C" fn storage_usage() -> u64 {
         with_mock_interface(|b| b.storage_usage())
     }
@@ -292,10 +288,6 @@ mod mock_chain {
         with_mock_interface(|b| b.promise_batch_then(promise_index, account_id_len, account_id_ptr))
     }
     #[no_mangle]
-    extern "C" fn promise_batch_action_create_account(promise_index: u64) {
-        with_mock_interface(|b| b.promise_batch_action_create_account(promise_index))
-    }
-    #[no_mangle]
     extern "C" fn promise_batch_action_deploy_contract(
         promise_index: u64,
         code_len: u64,
@@ -324,24 +316,6 @@ mod mock_chain {
                 arguments_ptr,
                 amount_ptr,
                 gas,
-            )
-        })
-    }
-    #[no_mangle]
-    extern "C" fn promise_batch_action_transfer(promise_index: u64, amount_ptr: u64) {
-        with_mock_interface(|b| b.promise_batch_action_transfer(promise_index, amount_ptr))
-    }
-    #[no_mangle]
-    extern "C" fn promise_batch_action_delete_account(
-        promise_index: u64,
-        beneficiary_id_len: u64,
-        beneficiary_id_ptr: u64,
-    ) {
-        with_mock_interface(|b| {
-            b.promise_batch_action_delete_account(
-                promise_index,
-                beneficiary_id_len,
-                beneficiary_id_ptr,
             )
         })
     }

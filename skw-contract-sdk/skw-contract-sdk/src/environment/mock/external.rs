@@ -79,15 +79,6 @@ impl External for SdkExternal {
         Ok(res)
     }
 
-    fn append_action_create_account(&mut self, receipt_index: u64) -> Result<()> {
-        self.receipts
-            .get_mut(receipt_index as usize)
-            .unwrap()
-            .actions
-            .push(VmAction::CreateAccount);
-        Ok(())
-    }
-
     fn append_action_deploy_contract(&mut self, receipt_index: u64, code: Vec<u8>) -> Result<()> {
         self.receipts
             .get_mut(receipt_index as usize)
@@ -117,93 +108,7 @@ impl External for SdkExternal {
         );
         Ok(())
     }
-
-    fn append_action_transfer(&mut self, receipt_index: u64, amount: u128) -> Result<()> {
-        self.receipts
-            .get_mut(receipt_index as usize)
-            .unwrap()
-            .actions
-            .push(VmAction::Transfer { deposit: amount });
-        Ok(())
-    }
-
-    // fn append_action_stake(
-    //     &mut self,
-    //     receipt_index: u64,
-    //     stake: u128,
-    //     public_key: Vec<u8>,
-    // ) -> Result<()> {
-    //     let public_key = PublicKey::try_from(public_key).unwrap();
-    //     self.receipts
-    //         .get_mut(receipt_index as usize)
-    //         .unwrap()
-    //         .actions
-    //         .push(VmAction::Stake { stake, public_key });
-    //     Ok(())
-    // }
-
-    // fn append_action_add_key_with_full_access(
-    //     &mut self,
-    //     receipt_index: u64,
-    //     public_key: Vec<u8>,
-    //     nonce: u64,
-    // ) -> Result<()> {
-    //     let public_key = PublicKey::try_from(public_key).unwrap();
-    //     self.receipts
-    //         .get_mut(receipt_index as usize)
-    //         .unwrap()
-    //         .actions
-    //         .push(VmAction::AddKeyWithFullAccess { public_key, nonce });
-    //     Ok(())
-    // }
-
-    // fn append_action_add_key_with_function_call(
-    //     &mut self,
-    //     receipt_index: u64,
-    //     public_key: Vec<u8>,
-    //     nonce: u64,
-    //     allowance: Option<u128>,
-    //     receiver_id: VmAccountId,
-    //     function_names: Vec<Vec<u8>>,
-    // ) -> Result<()> {
-    //     let public_key = PublicKey::try_from(public_key).unwrap();
-    //     let function_names =
-    //         function_names.into_iter().map(|s| String::from_utf8(s).unwrap()).collect();
-    //     self.receipts.get_mut(receipt_index as usize).unwrap().actions.push(
-    //         VmAction::AddKeyWithFunctionCall {
-    //             public_key,
-    //             nonce,
-    //             allowance,
-    //             receiver_id: receiver_id.into(),
-    //             function_names,
-    //         },
-    //     );
-    //     Ok(())
-    // }
-
-    // fn append_action_delete_key(&mut self, receipt_index: u64, public_key: Vec<u8>) -> Result<()> {
-    //     let public_key = PublicKey::try_from(public_key).unwrap();
-    //     self.receipts
-    //         .get_mut(receipt_index as usize)
-    //         .unwrap()
-    //         .actions
-    //         .push(VmAction::DeleteKey { public_key });
-    //     Ok(())
-    // }
-
-    fn append_action_delete_account(
-        &mut self,
-        receipt_index: u64,
-        beneficiary_id: VmAccountId,
-    ) -> Result<()> {
-        self.receipts
-            .get_mut(receipt_index as usize)
-            .ok_or(HostError::InvalidReceiptIndex { receipt_index })?
-            .actions
-            .push(VmAction::DeleteAccount { beneficiary_id: beneficiary_id.into() });
-        Ok(())
-    }
-
+    
     fn get_touched_nodes_count(&self) -> u64 {
         0
     }

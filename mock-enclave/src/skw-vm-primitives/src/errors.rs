@@ -476,6 +476,30 @@ pub enum InvalidAccessKeyError {
     DepositWithFunctionCall,
 }
 
+
+/// Internal
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StorageError {
+    /// Key-value db internal failure
+    StorageInternalError,
+    /// Storage is PartialStorage and requested a missing trie node
+    TrieNodeMissing,
+    /// Either invalid state or key-value db is corrupted.
+    /// For PartialStorage it cannot be corrupted.
+    /// Error message is unreliable and for debugging purposes only. It's also probably ok to
+    /// panic in every place that produces this error.
+    /// We can check if db is corrupted by verifying everything in the state trie.
+    StorageInconsistentState(String),
+}
+
+impl std::fmt::Display for StorageError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        f.write_str(&format!("{:?}", self))
+    }
+}
+
+impl std::error::Error for StorageError {}
+
 impl Display for InvalidAccessKeyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
