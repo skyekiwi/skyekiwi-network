@@ -1,4 +1,10 @@
-use std::fmt::{self, Error, Formatter, Write};
+use std::fmt::{self, Error, Formatter, Debug, Display};
+use serde::{Serialize, Deserialize};
+use near_crypto::PublicKey;
+use borsh::{BorshDeserialize, BorshSerialize};
+
+use crate::contract_runtime::{Balance, Nonce, Gas};
+use crate::serialize::u128_dec_format;
 use crate::account_id::AccountId;
 
 #[derive(Debug, PartialEq)]
@@ -12,7 +18,7 @@ pub trait IntoVMError {
     fn into_vm_error(self) -> VMError;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum VMError {
     FunctionCallError(FunctionCallError),
     /// Serialized external error from External trait implementation.
@@ -24,7 +30,7 @@ pub enum VMError {
     CacheError(CacheError),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum FunctionCallError {
     /// Wasm compilation error
     CompilationError(CompilationError),
@@ -47,31 +53,7 @@ pub enum FunctionCallError {
     Nondeterministic(String),
 }
 
-/// Serializable version of `FunctionCallError`. Must never reorder/remove elements, can only
-/// add new variants at the end (but do that very carefully). This type must be never used
-/// directly, and must be converted to `ContractCallError` instead using `into()` converter.
-/// It describes stable serialization format, and only used by serialization logic.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FunctionCallErrorSer {
-    /// Wasm compilation error
-    CompilationError(CompilationError),
-    /// Wasm binary env link error
-    LinkError {
-        msg: String,
-    },
-    /// Import/export resolve error
-    MethodResolveError(MethodResolveError),
-    /// A trap happened during execution of a binary
-    WasmTrap(WasmTrap),
-    WasmUnknownError,
-    HostError(HostError),
-    // Unused, can be reused by a future error but must be exactly one error to keep ExecutionError
-    // error borsh serialized at correct index
-    _EVMError,
-    ExecutionError(String),
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum CacheError {
     ReadError,
     WriteError,
@@ -80,7 +62,10 @@ pub enum CacheError {
 }
 
 /// A kind of a trap happened during execution of a binary
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
+)]
 pub enum WasmTrap {
     /// An `unreachable` opcode was executed.
     Unreachable,
@@ -102,14 +87,20 @@ pub enum WasmTrap {
     GenericTrap,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
+)]
 pub enum MethodResolveError {
     MethodEmptyName,
     MethodNotFound,
     MethodInvalidSignature,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
+)]
 pub enum CompilationError {
     CodeDoesNotExist { account_id: AccountId },
     PrepareError(PrepareError),
@@ -119,8 +110,10 @@ pub enum CompilationError {
     UnsupportedCompiler { msg: String },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-/// Error that can occur while preparing or executing Wasm smart-contract.
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
+)]
 pub enum PrepareError {
     /// Error happened while serializing the module.
     Serialization,
@@ -147,7 +140,10 @@ pub enum PrepareError {
     TooManyFunctions,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
+)]
 pub enum HostError {
     /// String encoding is bad UTF-16 sequence
     BadUTF16,
@@ -221,7 +217,7 @@ pub enum HostError {
 // impl wasmi::HostError for VMLogicError {}
 impl wasmi::HostError for HostError {}
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum VMLogicError {
     /// Errors coming from native Wasm VM.
     HostError(HostError),
@@ -231,51 +227,531 @@ pub enum VMLogicError {
     InconsistentStateError(InconsistentStateError),
 }
 
-
-/// An error which can be returned when parsing a NEAR Account ID.
-#[derive(Eq, Clone, Debug, PartialEq)]
-pub struct ParseAccountError {
-    pub(crate) kind: ParseErrorKind,
-    pub(crate) char: Option<(usize, char)>,
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ContractCallError {
+    MethodResolveError(MethodResolveError),
+    CompilationError(CompilationError),
+    ExecutionError { msg: String },
 }
 
-impl ParseAccountError {
-    /// Returns the specific cause why parsing the Account ID failed.
-    pub fn kind(&self) -> &ParseErrorKind {
-        &self.kind
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+pub enum FunctionCallErrorSer {
+    /// Wasm compilation error
+    CompilationError(CompilationError),
+    /// Wasm binary env link error
+    LinkError {
+        msg: String,
+    },
+    /// Import/export resolve error
+    MethodResolveError(MethodResolveError),
+    /// A trap happened during execution of a binary
+    WasmTrap(WasmTrap),
+    WasmUnknownError,
+    HostError(HostError),
+    // Unused, can be reused by a future error but must be exactly one error to keep ExecutionError
+    // error borsh serialized at correct index
+    _EVMError,
+    ExecutionError(String),
+}
+
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
+)]
+pub enum ActionErrorKind {
+    /// Happens when CreateAccount action tries to create an account with account_id which is already exists in the storage
+    AccountAlreadyExists { account_id: AccountId },
+    /// Happens when TX receiver_id doesn't exist (but action is not Action::CreateAccount)
+    AccountDoesNotExist { account_id: AccountId },
+    /// A top-level account ID can only be created by registrar.
+    CreateAccountOnlyByRegistrar {
+        account_id: AccountId,
+        registrar_account_id: AccountId,
+        predecessor_id: AccountId,
+    },
+    /// A newly created account must be under a namespace of the creator account
+    CreateAccountNotAllowed { account_id: AccountId, predecessor_id: AccountId },
+    /// Administrative actions like `DeployContract`, `Stake`, `AddKey`, `DeleteKey`. can be proceed only if sender=receiver
+    /// or the first TX action is a `CreateAccount` action
+    ActorNoPermission { account_id: AccountId, actor_id: AccountId },
+    /// Account tries to remove an access key that doesn't exist
+    DeleteKeyDoesNotExist { account_id: AccountId, public_key: PublicKey },
+    /// The public key is already used for an existing access key
+    AddKeyAlreadyExists { account_id: AccountId, public_key: PublicKey },
+    /// Account is staking and can not be deleted
+    DeleteAccountStaking { account_id: AccountId },
+    /// ActionReceipt can't be completed, because the remaining balance will not be enough to cover storage.
+    LackBalanceForState {
+        /// An account which needs balance
+        account_id: AccountId,
+        /// Balance required to complete an action.
+        #[serde(with = "u128_dec_format")]
+        amount: Balance,
+    },
+    /// Account is not yet staked, but tries to unstake
+    TriesToUnstake { account_id: AccountId },
+    /// The account doesn't have enough balance to increase the stake.
+    TriesToStake {
+        account_id: AccountId,
+        #[serde(with = "u128_dec_format")]
+        stake: Balance,
+        #[serde(with = "u128_dec_format")]
+        locked: Balance,
+        #[serde(with = "u128_dec_format")]
+        balance: Balance,
+    },
+    InsufficientStake {
+        account_id: AccountId,
+        #[serde(with = "u128_dec_format")]
+        stake: Balance,
+        #[serde(with = "u128_dec_format")]
+        minimum_stake: Balance,
+    },
+    /// An error occurred during a `FunctionCall` Action, parameter is debug message.
+    FunctionCallError(FunctionCallErrorSer),
+    /// Error occurs when a new `ActionReceipt` created by the `FunctionCall` action fails
+    /// receipt validation.
+    NewReceiptValidationError(ReceiptValidationError),
+    /// Error occurs when a `CreateAccount` action is called on hex-characters
+    /// account of length 64.  See implicit account creation NEP:
+    /// <https://github.com/nearprotocol/NEPs/pull/71>.
+    OnlyImplicitAccountCreationAllowed { account_id: AccountId },
+    /// Delete account whose state is large is temporarily banned.
+    DeleteAccountWithLargeState { account_id: AccountId },
+}
+
+/// An error happened during Acton execution
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
+)]
+pub struct ActionError {
+    /// Index of the failed action in the transaction.
+    /// Action index is not defined if ActionError.kind is `ActionErrorKind::LackBalanceForState`
+    pub index: Option<u64>,
+    /// The kind of ActionError happened
+    pub kind: ActionErrorKind,
+}
+
+
+/// Error returned in the ExecutionOutcome in case of failure
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
+)]
+pub enum TxExecutionError {
+    /// An error happened during Acton execution
+    ActionError(ActionError),
+    /// An error happened during Transaction execution
+    InvalidTxError(InvalidTxError),
+}
+
+/// Describes the error for validating a receipt.
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
+)]
+pub enum ReceiptValidationError {
+    /// The `predecessor_id` of a Receipt is not valid.
+    InvalidPredecessorId { account_id: String },
+    /// The `receiver_id` of a Receipt is not valid.
+    InvalidReceiverId { account_id: String },
+    /// The `signer_id` of an ActionReceipt is not valid.
+    InvalidSignerId { account_id: String },
+    /// The `receiver_id` of a DataReceiver within an ActionReceipt is not valid.
+    InvalidDataReceiverId { account_id: String },
+    /// The length of the returned data exceeded the limit in a DataReceipt.
+    ReturnedValueLengthExceeded { length: u64, limit: u64 },
+    /// The number of input data dependencies exceeds the limit in an ActionReceipt.
+    NumberInputDataDependenciesExceeded { number_of_input_data_dependencies: u64, limit: u64 },
+    /// An error occurred while validating actions of an ActionReceipt.
+    ActionsValidation(ActionsValidationError),
+}
+
+/// An error happened during TX execution
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
+)]
+pub enum InvalidTxError {
+    /// Happens if a wrong AccessKey used or AccessKey has not enough permissions
+    InvalidAccessKeyError(InvalidAccessKeyError),
+    /// TX signer_id is not a valid [`AccountId`]
+    InvalidSignerId { signer_id: String },
+    /// TX signer_id is not found in a storage
+    SignerDoesNotExist { signer_id: AccountId },
+    /// Transaction nonce must be `account[access_key].nonce + 1`.
+    InvalidNonce { tx_nonce: Nonce, ak_nonce: Nonce },
+    /// Transaction nonce is larger than the upper bound given by the block height
+    NonceTooLarge { tx_nonce: Nonce, upper_bound: Nonce },
+    /// TX receiver_id is not a valid AccountId
+    InvalidReceiverId { receiver_id: String },
+    /// TX signature is not valid
+    InvalidSignature,
+    /// Account does not have enough balance to cover TX cost
+    NotEnoughBalance {
+        signer_id: AccountId,
+        #[serde(with = "u128_dec_format")]
+        balance: Balance,
+        #[serde(with = "u128_dec_format")]
+        cost: Balance,
+    },
+    /// Signer account doesn't have enough balance after transaction.
+    LackBalanceForState {
+        /// An account which doesn't have enough balance to cover storage.
+        signer_id: AccountId,
+        /// Required balance to cover the state.
+        #[serde(with = "u128_dec_format")]
+        amount: Balance,
+    },
+    /// An integer overflow occurred during transaction cost estimation.
+    CostOverflow,
+    /// Transaction parent block hash doesn't belong to the current chain
+    InvalidChain,
+    /// Transaction has expired
+    Expired,
+    /// An error occurred while validating actions of a Transaction.
+    ActionsValidation(ActionsValidationError),
+    /// The size of serialized transaction exceeded the limit.
+    TransactionSizeExceeded { size: u64, limit: u64 },
+}
+
+/// Describes the error for validating a list of actions.
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
+)]
+pub enum ActionsValidationError {
+    /// The delete action must be a final aciton in transaction
+    DeleteActionMustBeFinal,
+    /// The total prepaid gas (for all given actions) exceeded the limit.
+    TotalPrepaidGasExceeded { total_prepaid_gas: Gas, limit: Gas },
+    /// The number of actions exceeded the given limit.
+    TotalNumberOfActionsExceeded { total_number_of_actions: u64, limit: u64 },
+    /// The total number of bytes of the method names exceeded the limit in a Add Key action.
+    AddKeyMethodNamesNumberOfBytesExceeded { total_number_of_bytes: u64, limit: u64 },
+    /// The length of some method name exceeded the limit in a Add Key action.
+    AddKeyMethodNameLengthExceeded { length: u64, limit: u64 },
+    /// Integer overflow during a compute.
+    IntegerOverflow,
+    /// Invalid account ID.
+    InvalidAccountId { account_id: AccountId },
+    /// The size of the contract code exceeded the limit in a DeployContract action.
+    ContractSizeExceeded { size: u64, limit: u64 },
+    /// The length of the method name exceeded the limit in a Function Call action.
+    FunctionCallMethodNameLengthExceeded { length: u64, limit: u64 },
+    /// The length of the arguments exceeded the limit in a Function Call action.
+    FunctionCallArgumentsLengthExceeded { length: u64, limit: u64 },
+    /// An attempt to stake with a public key that is not convertible to ristretto.
+    UnsuitableStakingKey { public_key: PublicKey },
+    /// The attached amount of gas in a FunctionCall action has to be a positive number.
+    FunctionCallZeroAttachedGas,
+}
+
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
+)]
+pub enum InvalidAccessKeyError {
+    /// The access key identified by the `public_key` doesn't exist for the account
+    AccessKeyNotFound { account_id: AccountId, public_key: PublicKey },
+    /// Transaction `receiver_id` doesn't match the access key receiver_id
+    ReceiverMismatch { tx_receiver: AccountId, ak_receiver: String },
+    /// Transaction method name isn't allowed by the access key
+    MethodNameMismatch { method_name: String },
+    /// Transaction requires a full permission access key.
+    RequiresFullAccess,
+    /// Access Key does not have enough allowance to cover transaction cost
+    NotEnoughAllowance {
+        account_id: AccountId,
+        public_key: PublicKey,
+        #[serde(with = "u128_dec_format")]
+        allowance: Balance,
+        #[serde(with = "u128_dec_format")]
+        cost: Balance,
+    },
+    /// Having a deposit with a function call action is not allowed with a function call access key.
+    DepositWithFunctionCall,
+}
+
+
+/// Internal
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StorageError {
+    /// Key-value db internal failure
+    StorageInternalError,
+    /// Storage is PartialStorage and requested a missing trie node
+    TrieNodeMissing,
+    /// Either invalid state or key-value db is corrupted.
+    /// For PartialStorage it cannot be corrupted.
+    /// Error message is unreliable and for debugging purposes only. It's also probably ok to
+    /// panic in every place that produces this error.
+    /// We can check if db is corrupted by verifying everything in the state trie.
+    StorageInconsistentState(String),
+}
+
+impl std::fmt::Display for StorageError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        f.write_str(&format!("{:?}", self))
     }
 }
 
+impl std::error::Error for StorageError {}
 
-#[non_exhaustive]
-#[derive(Eq, Clone, Debug, PartialEq)]
-pub enum ParseErrorKind {
-    TooLong,
-    TooShort,
-    RedundantSeparator,
-    InvalidChar,
-}
-
-impl fmt::Display for ParseErrorKind {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for InvalidAccessKeyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            ParseErrorKind::TooLong => "the Account ID is too long".fmt(f),
-            ParseErrorKind::TooShort => "the Account ID is too short".fmt(f),
-            ParseErrorKind::RedundantSeparator => "the Account ID has a redundant separator".fmt(f),
-            ParseErrorKind::InvalidChar => "the Account ID contains an invalid character".fmt(f),
+            InvalidAccessKeyError::AccessKeyNotFound { account_id, public_key } => write!(
+                f,
+                "Signer {:?} doesn't have access key with the given public_key {}",
+                account_id, public_key
+            ),
+            InvalidAccessKeyError::ReceiverMismatch { tx_receiver, ak_receiver } => write!(
+                f,
+                "Transaction receiver_id {:?} doesn't match the access key receiver_id {:?}",
+                tx_receiver, ak_receiver
+            ),
+            InvalidAccessKeyError::MethodNameMismatch { method_name } => write!(
+                f,
+                "Transaction method name {:?} isn't allowed by the access key",
+                method_name
+            ),
+            InvalidAccessKeyError::RequiresFullAccess => {
+                write!(f, "Invalid access key type. Full-access keys are required for transactions that have multiple or non-function-call actions")
+            }
+            InvalidAccessKeyError::NotEnoughAllowance {
+                account_id,
+                public_key,
+                allowance,
+                cost,
+            } => write!(
+                f,
+                "Access Key {:?}:{} does not have enough balance {} for transaction costing {}",
+                account_id, public_key, allowance, cost
+            ),
+            InvalidAccessKeyError::DepositWithFunctionCall => {
+                write!(f, "Having a deposit with a function call action is not allowed with a function call access key.")
+            }
         }
     }
 }
 
-
-impl std::error::Error for ParseAccountError {}
-impl fmt::Display for ParseAccountError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut buf = self.kind.to_string();
-        if let Some((idx, char)) = self.char {
-            write!(buf, " {:?} at index {}", char, idx)?
+impl Display for TxExecutionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            TxExecutionError::ActionError(e) => write!(f, "{:?}", e),
+            TxExecutionError::InvalidTxError(e) => write!(f, "{:?}", e),
         }
-        buf.fmt(f)
+    }
+}
+
+impl From<ActionError> for TxExecutionError {
+    fn from(error: ActionError) -> Self {
+        TxExecutionError::ActionError(error)
+    }
+}
+
+impl From<InvalidTxError> for TxExecutionError {
+    fn from(error: InvalidTxError) -> Self {
+        TxExecutionError::InvalidTxError(error)
+    }
+}
+
+impl From<ActionErrorKind> for ActionError {
+    fn from(e: ActionErrorKind) -> ActionError {
+        ActionError { index: None, kind: e }
+    }
+}
+
+impl Display for ReceiptValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            ReceiptValidationError::InvalidPredecessorId { account_id } => {
+                write!(f, "The predecessor_id `{}` of a Receipt is not valid.", account_id)
+            }
+            ReceiptValidationError::InvalidReceiverId { account_id } => {
+                write!(f, "The receiver_id `{}` of a Receipt is not valid.", account_id)
+            }
+            ReceiptValidationError::InvalidSignerId { account_id } => {
+                write!(f, "The signer_id `{}` of an ActionReceipt is not valid.", account_id)
+            }
+            ReceiptValidationError::InvalidDataReceiverId { account_id } => write!(
+                f,
+                "The receiver_id `{}` of a DataReceiver within an ActionReceipt is not valid.",
+                account_id
+            ),
+            ReceiptValidationError::ReturnedValueLengthExceeded { length, limit } => write!(
+                f,
+                "The length of the returned data {} exceeded the limit {} in a DataReceipt",
+                length, limit
+            ),
+            ReceiptValidationError::NumberInputDataDependenciesExceeded { number_of_input_data_dependencies, limit } => write!(
+                f,
+                "The number of input data dependencies {} exceeded the limit {} in an ActionReceipt",
+                number_of_input_data_dependencies, limit
+            ),
+            ReceiptValidationError::ActionsValidation(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+impl Display for ActionsValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            ActionsValidationError::DeleteActionMustBeFinal => {
+                write!(f, "The delete action must be the last action in transaction")
+            }
+            ActionsValidationError::TotalPrepaidGasExceeded { total_prepaid_gas, limit } => {
+                write!(f, "The total prepaid gas {} exceeds the limit {}", total_prepaid_gas, limit)
+            }
+            ActionsValidationError::TotalNumberOfActionsExceeded {total_number_of_actions, limit } => {
+                write!(
+                    f,
+                    "The total number of actions {} exceeds the limit {}",
+                    total_number_of_actions, limit
+                )
+            }
+            ActionsValidationError::AddKeyMethodNamesNumberOfBytesExceeded { total_number_of_bytes, limit } => write!(
+                f,
+                "The total number of bytes in allowed method names {} exceeds the maximum allowed number {} in a AddKey action",
+                total_number_of_bytes, limit
+            ),
+            ActionsValidationError::AddKeyMethodNameLengthExceeded { length, limit } => write!(
+                f,
+                "The length of some method name {} exceeds the maximum allowed length {} in a AddKey action",
+                length, limit
+            ),
+            ActionsValidationError::IntegerOverflow => write!(
+                f,
+                "Integer overflow during a compute",
+            ),
+            ActionsValidationError::InvalidAccountId { account_id } => write!(
+                f,
+                "Invalid account ID `{}`",
+                account_id
+            ),
+            ActionsValidationError::ContractSizeExceeded { size, limit } => write!(
+                f,
+                "The length of the contract size {} exceeds the maximum allowed size {} in a DeployContract action",
+                size, limit
+            ),
+            ActionsValidationError::FunctionCallMethodNameLengthExceeded { length, limit } => write!(
+                f,
+                "The length of the method name {} exceeds the maximum allowed length {} in a FunctionCall action",
+                length, limit
+            ),
+            ActionsValidationError::FunctionCallArgumentsLengthExceeded { length, limit } => write!(
+                f,
+                "The length of the arguments {} exceeds the maximum allowed length {} in a FunctionCall action",
+                length, limit
+            ),
+            ActionsValidationError::UnsuitableStakingKey { public_key } => write!(
+                f,
+                "The staking key must be ristretto compatible ED25519 key. {} is provided instead.",
+                public_key,
+            ),
+            ActionsValidationError::FunctionCallZeroAttachedGas => write!(
+                f,
+                "The attached amount of gas in a FunctionCall action has to be a positive number",
+            ),
+        }
+    }
+}
+
+impl Display for InvalidTxError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            InvalidTxError::InvalidSignerId { signer_id } => {
+                write!(f, "Invalid signer account ID {:?} according to requirements", signer_id)
+            }
+            InvalidTxError::SignerDoesNotExist { signer_id } => {
+                write!(f, "Signer {:?} does not exist", signer_id)
+            }
+            InvalidTxError::InvalidAccessKeyError(access_key_error) => {
+                Display::fmt(&access_key_error, f)
+            }
+            InvalidTxError::InvalidNonce { tx_nonce, ak_nonce } => write!(
+                f,
+                "Transaction nonce {} must be larger than nonce of the used access key {}",
+                tx_nonce, ak_nonce
+            ),
+            InvalidTxError::InvalidReceiverId { receiver_id } => {
+                write!(f, "Invalid receiver account ID {:?} according to requirements", receiver_id)
+            }
+            InvalidTxError::InvalidSignature => {
+                write!(f, "Transaction is not signed with the given public key")
+            }
+            InvalidTxError::NotEnoughBalance { signer_id, balance, cost } => write!(
+                f,
+                "Sender {:?} does not have enough balance {} for operation costing {}",
+                signer_id, balance, cost
+            ),
+            InvalidTxError::LackBalanceForState { signer_id, amount } => {
+                write!(f, "Failed to execute, because the account {:?} wouldn't have enough balance to cover storage, required to have {} yoctoNEAR more", signer_id, amount)
+            }
+            InvalidTxError::CostOverflow => {
+                write!(f, "Transaction gas or balance cost is too high")
+            }
+            InvalidTxError::InvalidChain => {
+                write!(f, "Transaction parent block hash doesn't belong to the current chain")
+            }
+            InvalidTxError::Expired => {
+                write!(f, "Transaction has expired")
+            }
+            InvalidTxError::ActionsValidation(error) => {
+                write!(f, "Transaction actions validation error: {}", error)
+            }
+            InvalidTxError::NonceTooLarge { tx_nonce, upper_bound } => {
+                write!(
+                    f,
+                    "Transaction nonce {} must be smaller than the access key nonce upper bound {}",
+                    tx_nonce, upper_bound
+                )
+            }
+            InvalidTxError::TransactionSizeExceeded { size, limit } => {
+                write!(f, "Size of serialized transaction {} exceeded the limit {}", size, limit)
+            }
+        }
+    }
+}
+
+impl From<InvalidAccessKeyError> for InvalidTxError {
+    fn from(error: InvalidAccessKeyError) -> Self {
+        InvalidTxError::InvalidAccessKeyError(error)
+    }
+}
+
+
+impl From<ContractCallError> for FunctionCallErrorSer {
+    fn from(e: ContractCallError) -> Self {
+        match e {
+            ContractCallError::CompilationError(e) => FunctionCallErrorSer::CompilationError(e),
+            ContractCallError::MethodResolveError(e) => FunctionCallErrorSer::MethodResolveError(e),
+            ContractCallError::ExecutionError { msg } => FunctionCallErrorSer::ExecutionError(msg),
+        }
+    }
+}
+
+impl From<FunctionCallErrorSer> for ContractCallError {
+    fn from(e: FunctionCallErrorSer) -> Self {
+        match e {
+            FunctionCallErrorSer::CompilationError(e) => ContractCallError::CompilationError(e),
+            FunctionCallErrorSer::MethodResolveError(e) => ContractCallError::MethodResolveError(e),
+            FunctionCallErrorSer::ExecutionError(msg) => ContractCallError::ExecutionError { msg },
+            FunctionCallErrorSer::LinkError { msg } => ContractCallError::ExecutionError { msg },
+            FunctionCallErrorSer::WasmUnknownError => {
+                ContractCallError::ExecutionError { msg: "unknown error".to_string() }
+            }
+            FunctionCallErrorSer::_EVMError => unreachable!(),
+            FunctionCallErrorSer::WasmTrap(e) => {
+                ContractCallError::ExecutionError { msg: format!("WASM: {:?}", e) }
+            }
+            FunctionCallErrorSer::HostError(e) => {
+                ContractCallError::ExecutionError { msg: format!("Host: {:?}", e) }
+            }
+        }
     }
 }
 
@@ -283,7 +759,7 @@ impl std::error::Error for VMLogicError {}
 
 /// An error that is caused by an operation on an inconsistent state.
 /// E.g. a deserialization error or an integer overflow.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(BorshSerialize, BorshDeserialize,Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum InconsistentStateError {
     StorageError(String),
     /// Math operation with a value from the state resulted in a integer overflow.
@@ -349,9 +825,9 @@ impl fmt::Display for PrepareError {
 impl fmt::Display for FunctionCallError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
-            FunctionCallError::CompilationError(e) => e.fmt(f),
-            FunctionCallError::MethodResolveError(e) => e.fmt(f),
-            FunctionCallError::HostError(e) => e.fmt(f),
+            FunctionCallError::CompilationError(e) => std::fmt::Display::fmt(&e, f),
+            FunctionCallError::MethodResolveError(e) => std::fmt::Display::fmt(&e, f),
+            FunctionCallError::HostError(e) => std::fmt::Display::fmt(&e, f),
             FunctionCallError::LinkError { msg } => write!(f, "{}", msg),
             FunctionCallError::WasmTrap(trap) => write!(f, "WebAssembly trap: {}", trap),
             FunctionCallError::WasmUnknownError { debug_message } => {
@@ -477,7 +953,7 @@ impl std::fmt::Display for HostError {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CompilationError, FunctionCallError, MethodResolveError, PrepareError, VMError};
+    use super::{CompilationError, FunctionCallError, MethodResolveError, PrepareError, VMError};
 
     #[test]
     fn test_display() {

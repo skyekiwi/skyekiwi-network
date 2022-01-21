@@ -186,28 +186,6 @@ pub trait RuntimeExternal {
         receiver_id: AccountId,
     ) -> Result<ReceiptIndex>;
 
-    /// Attach the [`CreateAccountAction`] action to an existing receipt.
-    ///
-    /// # Arguments
-    ///
-    /// * `receipt_index` - an index of Receipt to append an action
-    ///
-    /// # Example
-    /// ```
-    /// # use skw_vm_host::mocks::mock_external::MockedExternal;
-    /// # use skw_vm_host::RuntimeExternal;
-    ///
-    /// # let mut external = MockedExternal::new();
-    /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
-    /// external.append_action_create_account(receipt_index).unwrap();
-    ///
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `receipt_index` does not refer to a known receipt.
-    fn append_action_create_account(&mut self, receipt_index: ReceiptIndex) -> Result<()>;
-
     /// Attach the [`DeployContractAction`] action to an existing receipt.
     ///
     /// # Arguments
@@ -272,66 +250,6 @@ pub trait RuntimeExternal {
         arguments: Vec<u8>,
         attached_deposit: Balance,
         prepaid_gas: Gas,
-    ) -> Result<()>;
-
-    /// Attach the [`TransferAction`] action to an existing receipt.
-    ///
-    /// # Arguments
-    ///
-    /// * `receipt_index` - an index of Receipt to append an action
-    /// * `amount` - amount of tokens to transfer
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use skw_vm_host::mocks::mock_external::MockedExternal;
-    /// # use skw_vm_host::RuntimeExternal;
-    ///
-    /// # let mut external = MockedExternal::new();
-    /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
-    /// external.append_action_transfer(
-    ///     receipt_index,
-    ///     100000u128,
-    /// ).unwrap();
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `receipt_index` does not refer to a known receipt.
-    fn append_action_transfer(
-        &mut self,
-        receipt_index: ReceiptIndex,
-        amount: Balance,
-    ) -> Result<()>;
-
-    /// Attach the [`DeleteAccountAction`] action to an existing receipt
-    ///
-    /// # Arguments
-    ///
-    /// * `receipt_index` - an index of Receipt to append an action
-    /// * `beneficiary_id` - an account id to which the rest of the funds of the removed account will be transferred
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use skw_vm_host::mocks::mock_external::MockedExternal;
-    /// # use skw_vm_host::RuntimeExternal;
-    ///
-    /// # let mut external = MockedExternal::new();
-    /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
-    /// external.append_action_delete_account(
-    ///     receipt_index,
-    ///     "sam".parse().unwrap()
-    /// ).unwrap();
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// Panics if the `receipt_index` does not refer to a known receipt.
-    fn append_action_delete_account(
-        &mut self,
-        receipt_index: ReceiptIndex,
-        beneficiary_id: AccountId,
     ) -> Result<()>;
 
     /// Returns amount of touched trie nodes by storage operations

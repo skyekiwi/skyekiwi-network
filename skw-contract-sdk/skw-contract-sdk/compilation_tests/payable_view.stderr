@@ -1,0 +1,5 @@
+error: Payable method must be mutable (not view)
+  --> compilation_tests/payable_view.rs:12:5
+   |
+12 |     #[payable]
+   |     ^^^^^^^^^^

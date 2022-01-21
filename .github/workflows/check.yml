@@ -34,14 +34,14 @@ jobs:
         run: |
           yarn blockchain:ci
 
-      - name: Check Smart Contract Compile
-        run: |
-          yarn contract:compile
-      
       - name: Check Enclave Compile
         run: |
           yarn enclave:ci
-      
-      - name: Check Mock-Enclave VM Compile
-        run: |
-          yarn mock-enclave:test
+
+      # - name: Check Mock-Enclave VM Compile
+      #   run: |
+      #     yarn mock-enclave:test
+
+      # - name: Check Contract SDK Compile
+      #   run: |
+      #     yarn contract-sdk:test

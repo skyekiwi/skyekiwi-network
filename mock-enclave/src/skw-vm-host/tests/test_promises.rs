@@ -65,47 +65,47 @@ fn test_promise_batch_action_function_call() {
     );
 }
 
-#[test]
-fn test_promise_batch_action_create_account() {
-    let mut logic_builder = VMLogicBuilder::default();
-    let mut logic = logic_builder.build(get_context(vec![], false));
-    let index = promise_create(&mut logic, b"rick.test", 0, 0).expect("should create a promise");
+// #[test]
+// fn test_promise_batch_action_create_account() {
+//     let mut logic_builder = VMLogicBuilder::default();
+//     let mut logic = logic_builder.build(get_context(vec![], false));
+//     let index = promise_create(&mut logic, b"rick.test", 0, 0).expect("should create a promise");
 
-    logic
-        .promise_batch_action_create_account(123)
-        .expect_err("shouldn't accept not existent promise index");
-    let non_receipt = logic
-        .promise_and(index.to_le_bytes().as_ptr() as _, 1u64)
-        .expect("should create a non-receipt promise");
-    logic
-        .promise_batch_action_create_account(non_receipt)
-        .expect_err("shouldn't accept non-receipt promise index");
-    logic
-        .promise_batch_action_create_account(index)
-        .expect("should add an action to create account");
-    assert_eq!(logic.used_gas().unwrap(), 5077478438564);
-    let expected = serde_json::json!([
-        {
-            "receipt_indices": [],
-            "receiver_id": "rick.test",
-            "actions": [
-            {
-                "FunctionCall": {
-                "method_name": "promise_create",
-                "args": "args",
-                "gas": 0,
-                "deposit": 0
-                }
-            },
-            "CreateAccount"
-            ]
-        }
-    ]);
-    assert_eq!(
-        &serde_json::to_string(logic_builder.ext.get_receipt_create_calls()).unwrap(),
-        &expected.to_string()
-    );
-}
+//     logic
+//         .promise_batch_action_create_account(123)
+//         .expect_err("shouldn't accept not existent promise index");
+//     let non_receipt = logic
+//         .promise_and(index.to_le_bytes().as_ptr() as _, 1u64)
+//         .expect("should create a non-receipt promise");
+//     logic
+//         .promise_batch_action_create_account(non_receipt)
+//         .expect_err("shouldn't accept non-receipt promise index");
+//     logic
+//         .promise_batch_action_create_account(index)
+//         .expect("should add an action to create account");
+//     assert_eq!(logic.used_gas().unwrap(), 5077478438564);
+//     let expected = serde_json::json!([
+//         {
+//             "receipt_indices": [],
+//             "receiver_id": "rick.test",
+//             "actions": [
+//             {
+//                 "FunctionCall": {
+//                 "method_name": "promise_create",
+//                 "args": "args",
+//                 "gas": 0,
+//                 "deposit": 0
+//                 }
+//             },
+//             "CreateAccount"
+//             ]
+//         }
+//     ]);
+//     assert_eq!(
+//         &serde_json::to_string(logic_builder.ext.get_receipt_create_calls()).unwrap(),
+//         &expected.to_string()
+//     );
+// }
 
 #[test]
 fn test_promise_batch_action_deploy_contract() {
@@ -158,59 +158,59 @@ fn test_promise_batch_action_deploy_contract() {
     );
 }
 
-#[test]
-fn test_promise_batch_action_transfer() {
-    let mut context = get_context(vec![], false);
-    context.account_balance = 100;
-    context.attached_deposit = 10;
-    let mut logic_builder = VMLogicBuilder::default();
-    let mut logic = logic_builder.build(context);
-    let index = promise_create(&mut logic, b"rick.test", 0, 0).expect("should create a promise");
+// #[test]
+// fn test_promise_batch_action_transfer() {
+//     let mut context = get_context(vec![], false);
+//     context.account_balance = 100;
+//     context.attached_deposit = 10;
+//     let mut logic_builder = VMLogicBuilder::default();
+//     let mut logic = logic_builder.build(context);
+//     let index = promise_create(&mut logic, b"rick.test", 0, 0).expect("should create a promise");
 
-    logic
-        .promise_batch_action_transfer(123, 110u128.to_le_bytes().as_ptr() as _)
-        .expect_err("shouldn't accept not existent promise index");
-    let non_receipt = logic
-        .promise_and(index.to_le_bytes().as_ptr() as _, 1u64)
-        .expect("should create a non-receipt promise");
-    logic
-        .promise_batch_action_transfer(non_receipt, 110u128.to_le_bytes().as_ptr() as _)
-        .expect_err("shouldn't accept non-receipt promise index");
+//     logic
+//         .promise_batch_action_transfer(123, 110u128.to_le_bytes().as_ptr() as _)
+//         .expect_err("shouldn't accept not existent promise index");
+//     let non_receipt = logic
+//         .promise_and(index.to_le_bytes().as_ptr() as _, 1u64)
+//         .expect("should create a non-receipt promise");
+//     logic
+//         .promise_batch_action_transfer(non_receipt, 110u128.to_le_bytes().as_ptr() as _)
+//         .expect_err("shouldn't accept non-receipt promise index");
 
-    logic
-        .promise_batch_action_transfer(index, 110u128.to_le_bytes().as_ptr() as _)
-        .expect("should add an action to transfer money");
-    logic
-        .promise_batch_action_transfer(index, 1u128.to_le_bytes().as_ptr() as _)
-        .expect_err("not enough money");
-    assert_eq!(logic.used_gas().unwrap(), 5349703444787);
-    let expected = serde_json::json!(
-    [
-        {
-            "receipt_indices": [],
-            "receiver_id": "rick.test",
-            "actions": [
-            {
-                "FunctionCall": {
-                "method_name": "promise_create",
-                "args": "args",
-                "gas": 0,
-                "deposit": 0
-                }
-            },
-            {
-                "Transfer": {
-                "deposit": 110
-                }
-            }
-            ]
-        }
-    ]);
-    assert_eq!(
-        &serde_json::to_string(logic_builder.ext.get_receipt_create_calls()).unwrap(),
-        &expected.to_string()
-    );
-}
+//     logic
+//         .promise_batch_action_transfer(index, 110u128.to_le_bytes().as_ptr() as _)
+//         .expect("should add an action to transfer money");
+//     logic
+//         .promise_batch_action_transfer(index, 1u128.to_le_bytes().as_ptr() as _)
+//         .expect_err("not enough money");
+//     assert_eq!(logic.used_gas().unwrap(), 5349703444787);
+//     let expected = serde_json::json!(
+//     [
+//         {
+//             "receipt_indices": [],
+//             "receiver_id": "rick.test",
+//             "actions": [
+//             {
+//                 "FunctionCall": {
+//                 "method_name": "promise_create",
+//                 "args": "args",
+//                 "gas": 0,
+//                 "deposit": 0
+//                 }
+//             },
+//             {
+//                 "Transfer": {
+//                 "deposit": 110
+//                 }
+//             }
+//             ]
+//         }
+//     ]);
+//     assert_eq!(
+//         &serde_json::to_string(logic_builder.ext.get_receipt_create_calls()).unwrap(),
+//         &expected.to_string()
+//     );
+// }
 
 #[test]
 fn test_promise_batch_then() {
