@@ -1,0 +1,33 @@
+[package]
+name = "skw-vm-engine-cli"
+version = "0.0.0"
+authors = ["SkyeKiwi <hello@skye.kiwi>", "Near Inc <hello@nearprotocol.com>"]
+publish = false
+edition = "2021"
+license = "GPL-3.0"
+readme = "README.md"
+categories = ["wasm"]
+repository = "https://github.com/skyekiwi/skyekiwi-network"
+homepage = "https://github.com/skyekiwi/skyekiwi-network"
+description = """A command line wrapper around `skw-vm-engine.`"""
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = "=3.0.0-beta.2"
+clap_derive = "=3.0.0-beta.2"
+base64 = "0.13"
+strum = "0.20"
+num-rational = "0.3"
+tracing-span-tree = "0.1"
+
+skw-vm-host = { path = "../skw-vm-host", features = ["costs_counting"]}
+skw-vm-engine = { path = "../skw-vm-engine" }
+skw-vm-primitives = { path = "../skw-vm-primitives" }
+
+[dev-dependencies]
+hex = "0.4"
+near-test-contracts = { path = "../near-test-contracts" }
+
+[features]
+default = []

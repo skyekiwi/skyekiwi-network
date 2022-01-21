@@ -11,7 +11,7 @@ console.log('$ yarn vm', process.argv.slice(2).join(' '));
 
 function compile() {
   // compile the runner
-  execute('cd src/skw-vm-engine-cli && cargo build --release')
+  execute('cd .. && cargo build --release')
 }
 
 
@@ -47,7 +47,7 @@ function runVM({
   wasmFile = "./wasm/status_message.wasm",
   profiling = false
 }) {
-  const runnerPath = "./src/skw-vm-engine-cli/target/release/skw-vm-engine-cli";
+  const runnerPath = "../target/release/skw-vm-engine-cli";
   execute(`${runnerPath} \
     --context '${injectOrigin(origin)}' \
     --wasm-file ${wasmFile} \
@@ -88,7 +88,7 @@ function runVM({
   return stateB64;
 }
 
-compile()
+// compile()
 
 let state = {}
 

@@ -4,22 +4,20 @@
   "main": "index.js",
   "license": "GPL-3.0-or-later",
   "scripts": {
-    "enclave:build": "node ./scripts/enclave-build.cjs",
-    "enclave:run": "node ./scripts/enclave-run.cjs",
+    "enclave:build": "node ./skw-tools-scripts/enclave-build.cjs",
+    "enclave:run": "node ./skw-tools-scripts/enclave-run.cjs",
     "enclave:start": "yarn enclave:build && yarn enclave:run",
-    "enclave:sim": "node ./scripts/enclave-sim.cjs",
-    "enclave:ci": "node ./scripts/enclave-ci.cjs",
+    "enclave:sim": "node ./skw-tools-scripts/enclave-sim.cjs",
+    "enclave:ci": "node ./skw-tools-scripts/enclave-ci.cjs",
 
-    "blockchain:build": "node ./scripts/blockchain-build.cjs",
-    "blockchain:ci": "node ./scripts/blockchain-ci.cjs",
-    "blockchain:test": "node ./scripts/blockchain-test.cjs",
+    "setup-rust": "node ./skw-tools-scripts/setup-rust.cjs",
+    "main:build": "node ./skw-tools-scripts/main-build.cjs",
+    "main:ci": "node ./skw-tools-scripts/main-ci.cjs",
+    "main:test": "node ./skw-tools-scripts/main-test.cjs",
 
-    "contract-sdk:test": "node ./scripts/contract-sdk-test.cjs",
-
-    "contract:compile": "node ./scripts/contract-compile.cjs",
-    "mock-enclave:start": "yarn contract:compile && npx ts-node mock-enclave/host/index.ts",
-    "mock-enclave:vm": "cd mock-enclave && yarn start",
-    "mock-enclave:test": "cd mock-enclave && yarn test",
+    "mock-enclave:start": "cd mock-enclave && yarn start",
+    "mock-enclave:vm": "cd mock-enclave && yarn vm",
+    "mock-enclave:serve": "cd mock-enclave && yarn serve",
 
     "chaos:party": "cd chaos && yarn party"
   }

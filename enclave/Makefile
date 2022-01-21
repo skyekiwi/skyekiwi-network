@@ -64,18 +64,18 @@ CUSTOM_COMMON_PATH := ../teaclave-sgx-sdk/common
 
 ######## EDL Settings ########
 
-Enclave_EDL_Files := enclave/Enclave_t.c enclave/Enclave_t.h app/Enclave_u.c app/Enclave_u.h
+Enclave_EDL_Files := skw-sgx-enclave/Enclave_t.c skw-sgx-enclave/Enclave_t.h skw-sgx-host/Enclave_u.c skw-sgx-host/Enclave_u.h
 
 ######## APP Settings ########
 
 App_Rust_Flags := --release
-App_SRC_Files := $(shell find app/ -type f -name '*.rs') $(shell find app/ -type f -name 'Cargo.toml')
-App_Include_Paths := -I ./app -I./include -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH)
+App_SRC_Files := $(shell find skw-sgx-host/ -type f -name '*.rs') $(shell find skw-sgx-host/ -type f -name 'Cargo.toml')
+App_Include_Paths := -I ./skw-sgx-host -I./include -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH)
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
-App_Rust_Path := ./app/target/release
-App_Enclave_u_Object :=app/libEnclave_u.a
-App_Name := bin/app
+App_Rust_Path := ./skw-sgx-host/target/release
+App_Enclave_u_Object :=skw-sgx-host/libEnclave_u.a
+App_Name := bin/skw_sgx_host
 
 ######## Enclave Settings ########
 
@@ -90,7 +90,7 @@ Crypto_Library_Name := sgx_tcrypto
 KeyExchange_Library_Name := sgx_tkey_exchange
 ProtectedFs_Library_Name := sgx_tprotected_fs
 
-RustEnclave_C_Files := $(wildcard ./enclave/*.c)
+RustEnclave_C_Files := $(wildcard ./skw-sgx-enclave/*.c)
 RustEnclave_C_Objects := $(RustEnclave_C_Files:.c=.o)
 RustEnclave_Include_Paths := -I$(CUSTOM_COMMON_PATH)/inc -I$(CUSTOM_EDL_PATH) -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/stlport -I$(SGX_SDK)/include/epid -I ./enclave -I./include
 
@@ -99,10 +99,10 @@ RustEnclave_Compile_Flags := $(SGX_COMMON_CFLAGS) $(ENCLAVE_CFLAGS) $(RustEnclav
 RustEnclave_Link_Flags := -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
 	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
 	-Wl,--start-group -lsgx_tstdc -l$(Service_Library_Name) -l$(Crypto_Library_Name) $(RustEnclave_Link_Libs) -Wl,--end-group \
-	-Wl,--version-script=enclave/Enclave.lds \
+	-Wl,--version-script=skw-sgx-enclave/Enclave.lds \
 	$(ENCLAVE_LDFLAGS)
 
-RustEnclave_Name := enclave/enclave.so
+RustEnclave_Name := skw-sgx-enclave/enclave.so
 Signed_RustEnclave_Name := bin/enclave.signed.so
 
 .PHONY: all
@@ -110,49 +110,49 @@ all: $(App_Name) $(Signed_RustEnclave_Name)
 
 ######## EDL Objects ########
 
-$(Enclave_EDL_Files): $(SGX_EDGER8R) enclave/Enclave.edl
-	$(SGX_EDGER8R) --trusted enclave/Enclave.edl --search-path $(SGX_SDK)/include --search-path $(CUSTOM_EDL_PATH) --trusted-dir enclave
-	$(SGX_EDGER8R) --untrusted enclave/Enclave.edl --search-path $(SGX_SDK)/include --search-path $(CUSTOM_EDL_PATH) --untrusted-dir app
+$(Enclave_EDL_Files): $(SGX_EDGER8R) skw-sgx-enclave/Enclave.edl
+	$(SGX_EDGER8R) --trusted skw-sgx-enclave/Enclave.edl --search-path $(SGX_SDK)/include --search-path $(CUSTOM_EDL_PATH) --trusted-dir skw-sgx-enclave
+	$(SGX_EDGER8R) --untrusted skw-sgx-enclave/Enclave.edl --search-path $(SGX_SDK)/include --search-path $(CUSTOM_EDL_PATH) --untrusted-dir skw-sgx-host
 	@echo "GEN  =>  $(Enclave_EDL_Files)"
 
 ######## App Objects ########
 
-app/Enclave_u.o: $(Enclave_EDL_Files)
-	@$(CC) $(App_C_Flags) -c app/Enclave_u.c -o $@
+skw-sgx-host/Enclave_u.o: $(Enclave_EDL_Files)
+	@$(CC) $(App_C_Flags) -c skw-sgx-host/Enclave_u.c -o $@
 	@echo "CC   <=  $<"
 
-$(App_Enclave_u_Object): app/Enclave_u.o
+$(App_Enclave_u_Object): skw-sgx-host/Enclave_u.o
 	$(AR) rcsD $@ $^
 	cp $(App_Enclave_u_Object) ./lib
 
 $(App_Name): $(App_Enclave_u_Object) $(App_SRC_Files)
-	@cd app && SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
+	@cd skw-sgx-host && SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
 	@echo "Cargo  =>  $@"
 	mkdir -p bin
-	cp $(App_Rust_Path)/app ./bin
+	cp $(App_Rust_Path)/skw_sgx_host ./bin
 
 ######## Enclave Objects ########
 
-enclave/Enclave_t.o: $(Enclave_EDL_Files)
-	@$(CC) $(RustEnclave_Compile_Flags) -c enclave/Enclave_t.c -o $@
+skw-sgx-enclave/Enclave_t.o: $(Enclave_EDL_Files)
+	@$(CC) $(RustEnclave_Compile_Flags) -c skw-sgx-enclave/Enclave_t.c -o $@
 	@echo "CC   <=  $<"
 
-$(RustEnclave_Name): enclave enclave/Enclave_t.o
-	@$(CXX) enclave/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
+$(RustEnclave_Name): skw-sgx-enclave skw-sgx-enclave/Enclave_t.o
+	@$(CXX) skw-sgx-enclave/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
 	@echo "LINK =>  $@"
 
 $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 	mkdir -p bin
-	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/Enclave_private.pem -enclave $(RustEnclave_Name) -out $@ -config enclave/Enclave.config.xml
+	@$(SGX_ENCLAVE_SIGNER) sign -key skw-sgx-enclave/Enclave_private.pem -enclave $(RustEnclave_Name) -out $@ -config skw-sgx-enclave/Enclave.config.xml
 	@echo "SIGN =>  $@"
 
-.PHONY: enclave
-enclave:
-	$(MAKE) -C ./enclave/
+.PHONY: skw-sgx-enclave
+skw-sgx-enclave:
+	$(MAKE) -C ./skw-sgx-enclave/
 
 
 .PHONY: clean
 clean:
-	@rm -f $(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a
-	@cd enclave && cargo clean && rm -f Cargo.lock
-	@cd app && cargo clean && rm -f Cargo.lock
+	@rm -f $(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) skw-sgx-enclave/*_t.* skw-sgx-host/*_u.* lib/*.a
+	@cd skw-sgx-enclave && cargo clean && rm -f Cargo.lock
+	@cd skw-sgx-host && cargo clean && rm -f Cargo.lock

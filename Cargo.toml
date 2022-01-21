@@ -1,37 +1,45 @@
 [workspace]
 members = [
-    'skw-node',
-    'skw-pallets/naming',
-    'skw-pallets/secrets',
-    'skw-pallets/s-contract',
-    'skw-pallets/registry',
-    'skw-runtime',
+    # blockchain 
+    'crates/skw-blockchain-node',
+    'crates/skw-blockchain-pallets/pallet-naming',
+    'crates/skw-blockchain-pallets/pallet-secrets',
+    'crates/skw-blockchain-pallets/pallet-s-contract',
+    'crates/skw-blockchain-pallets/pallet-registry',
+    'crates/skw-blockchain-runtime',
+
+    # SkyeKiwi VM based on NEAR VM
+    'crates/skw-vm-primitives',
+    'crates/skw-vm-host',
+    'crates/skw-vm-engine',
+    'crates/skw-vm-engine-cli',
+    'crates/near-test-contracts',
+
+    # SkyeKiwi VM contract sdk based on near-sdk-rs
+    'crates/skw-contract-sdk',
+    'crates/skw-contract-macros',
+    'crates/skw-contract-sys',
+
+    # sgx enclave host
+    'crates/skw-sgx-ipfs',
 ]
 
 exclude = [
-    'enclave/app',
-    'enclave/enclave',
-    'enclave/crates/skw-crypto',
-    'enclave/crates/skw-driver',
-    'enclave/crates/skw-file',
-    'enclave/crates/skw-ipfs',
-    'enclave/crates/skw-metadata',
-    'enclave/crates/skw-types',
-    'enclave/crates/skw-unit-test',
-    'enclave/crates/skw-utils',
-    'mock-enclave/src/skw-vm-primitives',
-    'mock-enclave/src/skw-vm-host',
-    'mock-enclave/src/skw-vm-engine',
-    'mock-enclave/src/skw-vm-engine-cli',
-    'mock-enclave/src/near-test-contracts',
-    'mock-enclave/src/skw-vm-runtime',
-    'mock-enclave/src/skw-vm-store',
-    'skw-contract-sdk/skw-contract-sdk',
-    'skw-contract-sdk/skw-sdk-macros',
-    'skw-contract-sdk/skw-sdk-sim',
-    'skw-contract-sdk/near-contract-standards',
-    'skw-contract-sdk/sys',
     'skw-contract-sdk/examples/',
+    'teaclave-sgx-sdk',
+
+    # unfinished crates
+    'crates/skw-vm-runtime',
+    'crates/skw-vm-store',
+    'crates/skw-contract-sim',
+    'crates/near-contract-standards',
+
+    # SkyeKiwi Protocol in Intel SGX enclave
+    'crates/skw-sgx-protocol',
+    'enclave/skw-sgx-host',
+    'enclave/skw-sgx-enclave',
+
+    "teaclave-sgx-sdk/"
 ]
 [profile.release]
 panic = 'unwind'
