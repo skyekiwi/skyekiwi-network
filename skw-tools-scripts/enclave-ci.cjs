@@ -9,7 +9,7 @@ function enclaveCI() {
 
   const pathName = path.join(__dirname, "..");
   execSync(`sudo docker run -v ${pathName}:/root/sgx \
-    baiduxlab/sgx-rust:1804-1.1.4 \
+    baiduxlab/sgx-rust \
     bash -c " \
       source /opt/sgxsdk/environment \
       && source /root/.cargo/env \

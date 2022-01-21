@@ -30,10 +30,10 @@ jobs:
           rustup update stable
           rustup target add wasm32-unknown-unknown --toolchain nightly
 
-      - name: Check Build
-        run: |
-          yarn main:ci
-
       - name: Check Enclave Compile
         run: |
           yarn enclave:ci
+
+      - name: Check Build
+        run: |
+          yarn main:ci
