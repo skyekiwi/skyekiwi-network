@@ -9,7 +9,7 @@ function enclaveSIM() {
 
   const pathName = path.join(__dirname, "..");
   execSync(`sudo docker run -v ${pathName}:/root/sgx \
-    -it baiduxlab/sgx-rust:1804-1.1.4 \
+    -it baiduxlab/sgx-rust \
     bash -c "\
       cd /root/sgx/enclave \
       && export SGX_MODE=SW \
