@@ -16,13 +16,14 @@ crate-type = ["staticlib"]
 default = []
 
 [dependencies]
-sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_rand = { path = "../../teaclave-sgx-sdk/sgx_rand" }
+sgx_tstd = { path = "../../teaclave-sgx-sdk/sgx_tstd" }
+sgx_types = { path = "../../teaclave-sgx-sdk/sgx_types" }
+
 log = { git = "https://github.com/mesalock-linux/log-sgx" }
 env_logger = { git = "https://github.com/mesalock-linux/env_logger-sgx" }
-skw_crypto = { path = "../crates/skw-crypto" }
-skw_unit_test = { path = "../crates/skw-unit-test" }
+skw_crypto = { path = "../../crates/skw-sgx-crypto" }
+skw_unit_test = { path = "../../crates/skw-sgx-unit-test" }
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_rand = { path = "../../teaclave-sgx-sdk/sgx_rand" }

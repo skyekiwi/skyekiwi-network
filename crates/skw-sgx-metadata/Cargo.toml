@@ -1,0 +1,16 @@
+[package]
+name = "skw_metadata"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+skw_types =  { path = "../skw-sgx-types" }
+skw_crypto =  { path = "../skw-sgx-crypto" }
+skw_utils =  { path = "../skw-sgx-utils" }
+sgx_tstd = { path = "../../teaclave-sgx-sdk/sgx_tstd" }
+
+[dev-dependencies]
+
+
+[features]
+default = []

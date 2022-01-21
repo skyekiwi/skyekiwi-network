@@ -1,0 +1,18 @@
+[package]
+name = "skw_driver"
+authors = ['SkyeKiwi <hello@skye.kiwi>']
+version = "0.1.0"
+edition = "2018"
+license = 'GPL-3.0'
+
+[dependencies]
+skw_types =  { path = "../skw-sgx-types" }
+rand = { version="0.8.4", default-features=false }
+sgx_rand = { path = "../../teaclave-sgx-sdk/sgx_rand" }
+sgx_tstd = { path = "../../teaclave-sgx-sdk/sgx_tstd" }
+
+[dev-dependencies]
+
+
+[features]
+default = []

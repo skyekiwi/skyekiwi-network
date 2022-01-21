@@ -1,0 +1,38 @@
+[package]
+name = "skw-vm-engine"
+version = "0.0.0"
+authors = ["SkyeKiwi <hello@skye.kiwi>","Near Inc <hello@nearprotocol.com>"]
+publish = false
+edition = "2021"
+license = "GPL-3.0"
+readme = "README.md"
+categories = ["wasm"]
+repository = "https://github.com/skyekiwi/skyekiwi-network"
+homepage = "https://github.com/skyekiwi/skyekiwi-network"
+description = """
+This crate implements the specification of the interface that SkyeKiwi Network secret contract runtime.
+"""
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+wasmparser = "0.78"
+pwasm-utils = "0.18.2"
+parity-wasm = "0.42.2"
+lru = "0.7.2"
+
+wasmi = { version = "0.11.0", default-features = false }
+
+skw-vm-host = { path = "../skw-vm-host", default-features = false, features = [] }
+skw-vm-primitives = { path = "../skw-vm-primitives" }
+lazy_static = "1.4.0"
+
+tracing = { version = "0.1", default-features = false }
+
+[dev-dependencies]
+near-test-contracts = { path = "../near-test-contracts" }
+assert_matches = "1.3"
+wat = "1.0.40"
+
+[features]
+default = []
+

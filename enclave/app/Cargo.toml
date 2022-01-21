@@ -5,6 +5,6 @@ authors = ["SkyeKiwi <hello@skye.kiwi>"]
 build = "build.rs"
 
 [dependencies]
-skw_ipfs = { path = "../crates/skw-ipfs" }
+skw_ipfs = { path = "../../crates/skw-sgx-ipfs" }
 sgx_types = { path = "../../teaclave-sgx-sdk/sgx_types" }
 sgx_urts = { path = "../../teaclave-sgx-sdk/sgx_urts" }

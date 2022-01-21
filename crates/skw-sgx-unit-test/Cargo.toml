@@ -1,0 +1,17 @@
+[package]
+name = "skw_unit_test"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+skw_file =  { path = "../skw-sgx-file" }
+skw_crypto =  { path = "../skw-sgx-crypto" }
+skw_metadata =  { path = "../skw-sgx-metadata" }
+skw_utils = { path = "../skw-sgx-utils" }
+skw_types = { path = "../skw-sgx-types" }
+sgx_tstd = { path = "../../teaclave-sgx-sdk/sgx_tstd" }
+sgx_tunittest = { path = "../../teaclave-sgx-sdk/sgx_tunittest" }
+sgx_rand = { path = "../../teaclave-sgx-sdk/sgx_rand" }
+
+[features]
+default = []
