@@ -5,8 +5,9 @@ edition = "2018"
 
 [dependencies]
 skw_types =  { path = "../skw-sgx-types" }
-sgx_tstd = { path = "../../teaclave-sgx-sdk/sgx_tstd" }
 hmac-sha256 = { version = "1.1.1", default-features = false }
+
+sgx_tstd = { git = "https://github.com/apache/incubator-teaclave-sgx-sdk" }
 libflate = { git = "https://github.com/mesalock-linux/libflate-sgx" }
 
 [dev-dependencies]

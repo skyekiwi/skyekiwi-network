@@ -1,3 +1,0 @@
-[submodule "teaclave-sgx-sdk"]
-	path = teaclave-sgx-sdk
-	url = git@github.com:apache/incubator-teaclave-sgx-sdk.git

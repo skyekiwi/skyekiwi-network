@@ -7,7 +7,7 @@ edition = "2018"
 skw_types =  { path = "../skw-sgx-types" }
 skw_crypto =  { path = "../skw-sgx-crypto" }
 skw_utils =  { path = "../skw-sgx-utils" }
-sgx_tstd = { path = "../../teaclave-sgx-sdk/sgx_tstd" }
+sgx_tstd = { git = "https://github.com/apache/incubator-teaclave-sgx-sdk" }
 
 [dev-dependencies]
 

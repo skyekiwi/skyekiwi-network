@@ -9,9 +9,11 @@ skw_crypto =  { path = "../skw-sgx-crypto" }
 skw_metadata =  { path = "../skw-sgx-metadata" }
 skw_utils = { path = "../skw-sgx-utils" }
 skw_types = { path = "../skw-sgx-types" }
-sgx_tstd = { path = "../../teaclave-sgx-sdk/sgx_tstd" }
-sgx_tunittest = { path = "../../teaclave-sgx-sdk/sgx_tunittest" }
-sgx_rand = { path = "../../teaclave-sgx-sdk/sgx_rand" }
+
+
+sgx_tstd = { git = "https://github.com/apache/incubator-teaclave-sgx-sdk" }
+sgx_tunittest = { git = "https://github.com/apache/incubator-teaclave-sgx-sdk" }
+sgx_rand = { git = "https://github.com/apache/incubator-teaclave-sgx-sdk" }
 
 [features]
 default = []

@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-sgx_tstd = { path = "../../teaclave-sgx-sdk/sgx_tstd" }
+
+sgx_tstd = { git = "https://github.com/apache/incubator-teaclave-sgx-sdk" }
 
 [features]
 default = ["std"]
