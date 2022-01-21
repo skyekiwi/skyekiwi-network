@@ -1,7 +1,7 @@
 // Copyright 2021 @skyekiwi authors & contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use skw_crypto::*;
+use crate::crypto::*;
 use skw_crypto::nacl::*;
 
 pub fn box_encrypt_decrypt() {

@@ -8,20 +8,13 @@
 
 #![feature(rustc_private)]
 
-extern crate sgx_tstd as std;
-extern crate sgx_types;
-extern crate skw_unit_test;
-
 use sgx_types::*;
-
-// #[macro_use] extern crate log;
-// #[macro_use] extern crate skw_crypto;
 
 #[no_mangle]
 pub extern "C" fn say_something() -> sgx_status_t {
 
     env_logger::init();
-    skw_unit_test::skw_unit_test();
+    skw_sgx_driver::test::skw_unit_test();
 
     // let msg = random_bytes!(100);
     // let seed1 = random_bytes!(32);

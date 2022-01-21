@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use near_primitives::contract::ContractCode;
 use near_primitives::hash::CryptoHash;
-use near_store::StorageError;
+use skw_vm_store::StorageError;
 
 pub(crate) fn get_code(
     code_hash: CryptoHash,

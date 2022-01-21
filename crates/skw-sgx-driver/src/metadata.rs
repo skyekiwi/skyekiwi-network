@@ -3,7 +3,7 @@
 
 #![no_std]
 use sgx_tstd::{vec::Vec, convert::TryInto};
-use skw_types::{
+use crate::types::{
 	metadata::*,
 	crypto::{BoxKeyPair, BoxCipher, CryptoError}
 };

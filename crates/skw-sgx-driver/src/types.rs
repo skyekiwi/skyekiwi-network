@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #![no_std]
-extern crate sgx_tstd as std;
 
 /* Types/Consts for SKW-CRYPTO */
 pub mod crypto {

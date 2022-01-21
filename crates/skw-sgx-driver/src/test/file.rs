@@ -1,7 +1,7 @@
 // Copyright 2021 @skyekiwi authors & contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use skw_file::FileHandle;
+use crate::file::FileHandle;
 
 pub fn inflate_deflat() {
   

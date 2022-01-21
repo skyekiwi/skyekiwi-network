@@ -1,8 +1,8 @@
 // Copyright 2021 @skyekiwi authors & contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use skw_metadata::*;
-use skw_types::metadata::*;
+use crate::metadata::*;
+use crate::types::metadata::*;
 use sgx_tstd::{convert::TryInto, vec::Vec};
 
 const AUTHOR_PRIVATE: &str = "1234567890123456789012345678904512345678901234567890123456789045";

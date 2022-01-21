@@ -14,7 +14,7 @@ use near_primitives::{
     trie_key::TrieKey,
     types::{AccountId, Balance, MerkleHash, ShardId, StateChangeCause, StateRoot},
 };
-use near_store::{
+use skw_vm_store::{
     get_account, get_received_data, set, set_access_key, set_account, set_code,
     set_postponed_receipt, set_received_data, ShardTries, TrieUpdate,
 };

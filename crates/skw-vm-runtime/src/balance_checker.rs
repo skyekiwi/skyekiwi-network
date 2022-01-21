@@ -14,7 +14,7 @@ use near_primitives::transaction::SignedTransaction;
 use near_primitives::trie_key::TrieKey;
 use near_primitives::types::{AccountId, Balance};
 use near_primitives::version::ProtocolVersion;
-use near_store::{get, get_account, get_postponed_receipt, TrieUpdate};
+use skw_vm_store::{get, get_account, get_postponed_receipt, TrieUpdate};
 use std::collections::HashSet;
 
 pub(crate) fn check_balance(
@@ -229,8 +229,8 @@ mod tests {
     use near_primitives::test_utils::account_new;
     use near_primitives::transaction::{Action, TransferAction};
     use near_primitives::types::{MerkleHash, StateChangeCause};
-    use near_store::set_account;
-    use near_store::test_utils::create_tries;
+    use skw_vm_store::set_account;
+    use skw_vm_store::test_utils::create_tries;
     use testlib::runtime_utils::{alice_account, bob_account};
 
     use crate::near_primitives::shard_layout::ShardUId;

@@ -15,7 +15,7 @@ use near_primitives::{
     types::{AccountId, Balance},
     version::ProtocolVersion,
 };
-use near_store::{
+use skw_vm_store::{
     get_access_key, get_account, set_access_key, set_account, StorageError, TrieUpdate,
 };
 
@@ -432,7 +432,7 @@ mod tests {
     };
     use near_primitives::types::{AccountId, Balance, MerkleHash, StateChangeCause};
     use near_primitives::version::PROTOCOL_VERSION;
-    use near_store::test_utils::create_tries;
+    use skw_vm_store::test_utils::create_tries;
     use testlib::runtime_utils::{alice_account, bob_account, eve_dot_alice_account};
 
     use super::*;

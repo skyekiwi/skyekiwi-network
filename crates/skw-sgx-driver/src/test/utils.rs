@@ -1,8 +1,7 @@
 // Copyright 2021 @skyekiwi authors & contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use skw_utils::{encode_hex, decode_hex};
-use skw_crypto::*;
+use crate::utils::{encode_hex, decode_hex};
 
 const TEST: &str = "010203040a0b";
 const ANSWER: &[u8] = &[1, 2, 3, 4, 10, 11];

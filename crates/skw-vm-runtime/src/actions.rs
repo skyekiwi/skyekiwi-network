@@ -20,7 +20,7 @@ use near_primitives::version::{
     is_implicit_account_creation_enabled, ProtocolFeature, ProtocolVersion,
     DELETE_KEY_STORAGE_USAGE_PROTOCOL_VERSION,
 };
-use near_store::{
+use skw_vm_store::{
     get_access_key, get_code, remove_access_key, remove_account, set_access_key, set_code,
     StorageError, TrieUpdate,
 };

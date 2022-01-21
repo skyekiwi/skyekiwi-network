@@ -1,7 +1,7 @@
 // Copyright 2021 @skyekiwi authors & contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use skw_types::crypto::*;
+use crate::types::crypto::*;
 
 use x25519_dalek::{StaticSecret, PublicKey};
 use xsalsa20poly1305::{
@@ -12,6 +12,17 @@ use std::vec::Vec;
 
 pub struct NaClBox();
 pub struct NaClSecretBox();
+
+#[macro_export]
+macro_rules! random_bytes{
+	($len:expr) => ({
+		let mut bytes = [0_u8; $len];
+		for byte in bytes.iter_mut() {
+			*byte = sgx_rand::random::<u8>();
+		}
+		bytes
+	})
+}
 
 impl NaClBox {
 

@@ -88,7 +88,7 @@ function runVM({
   return stateB64;
 }
 
-compile()
+// compile()
 
 let state = {}
 

@@ -42,13 +42,13 @@ use near_primitives::{
         create_action_hash, create_receipt_id_from_receipt, create_receipt_id_from_transaction,
     },
 };
-use near_store::{
+use skw_vm_store::{
     get, get_account, get_postponed_receipt, get_received_data, remove_postponed_receipt, set,
     set_account, set_postponed_receipt, set_received_data, PartialStorage, ShardTries,
     StorageError, Trie, TrieChanges, TrieUpdate,
 };
 #[cfg(feature = "sandbox")]
-use near_store::{set_access_key, set_code};
+use skw_vm_store::{set_access_key, set_code};
 use near_vm_logic::types::PromiseResult;
 use near_vm_logic::ReturnData;
 pub use near_vm_runner::with_ext_cost_counter;
@@ -1501,9 +1501,9 @@ mod tests {
     };
     use near_primitives::types::MerkleHash;
     use near_primitives::version::PROTOCOL_VERSION;
-    use near_store::set_access_key;
-    use near_store::test_utils::create_tries;
-    use near_store::StoreCompiledContractCache;
+    use skw_vm_store::set_access_key;
+    use skw_vm_store::test_utils::create_tries;
+    use skw_vm_store::StoreCompiledContractCache;
     use near_vm_runner::get_contract_cache_key;
     use near_vm_runner::internal::VMKind;
     use testlib::runtime_utils::{alice_account, bob_account};

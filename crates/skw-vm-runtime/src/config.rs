@@ -1,4 +1,6 @@
-//! Settings of the parameters of the runtime.
+/*!
+Settings of the parameters of the runtime.
+*/
 
 use num_bigint::BigUint;
 use num_traits::cast::ToPrimitive;
