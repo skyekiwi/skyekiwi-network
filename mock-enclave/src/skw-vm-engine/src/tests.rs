@@ -78,7 +78,6 @@ fn gas_and_error_match(
 ) {
     match expected_gas {
         Some(gas) => {
-            println!("outcome_and_error {:?}",outcome_and_error.0);
             let outcome = outcome_and_error.0.unwrap();
             assert_eq!(outcome.used_gas, gas, "used gas differs");
             assert_eq!(outcome.burnt_gas, gas, "burnt gas differs");

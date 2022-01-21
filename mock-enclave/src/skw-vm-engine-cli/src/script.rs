@@ -93,7 +93,6 @@ impl Script {
         }
 
         let mut outcomes = Vec::new();
-        // let runtime = &WasmiVM as &'static dyn VM;
         for step in &self.steps {
             for _ in 0..step.repeat {
                 let res = WasmiVM::run(
@@ -108,6 +107,10 @@ impl Script {
                 outcomes.push(res);
             }
         }
+        // println!("const fakeTrie = '{:?}'", external.fake_trie);
+        // println!("{:?}", external.receipts);
+        // println!("{:?}", external.validators);
+
         ScriptResults { outcomes, state: external }
     }
 }
