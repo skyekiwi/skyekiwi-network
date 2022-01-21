@@ -19,11 +19,12 @@ members = [
     'crates/skw-contract-sdk',
     'crates/skw-contract-macros',
     'crates/skw-contract-sys',
+
+    # sgx enclave host
+    'crates/skw-sgx-ipfs',
 ]
 
 exclude = [
-    'enclave/app',
-    'enclave/enclave',
     'skw-contract-sdk/examples/',
     'teaclave-sgx-sdk',
 
@@ -33,15 +34,10 @@ exclude = [
     'crates/skw-contract-sim',
     'crates/near-contract-standards',
 
-    # SkyeKiwi Protocol in Intel SGX enclave  
-    'crates/skw-sgx-crypto',
-    'crates/skw-sgx-driver',
-    'crates/skw-sgx-file',
-    'crates/skw-sgx-ipfs',
-    'crates/skw-sgx-metadata',
-    'crates/skw-sgx-types',
-    'crates/skw-sgx-unit-test',
-    'crates/skw-sgx-utils',
+    # SkyeKiwi Protocol in Intel SGX enclave
+    'crates/skw-sgx-protocol',
+    'enclave/skw-sgx-host',
+    'enclave/skw-sgx-enclave',
 
     "teaclave-sgx-sdk/"
 ]

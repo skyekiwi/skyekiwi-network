@@ -17,7 +17,7 @@ function enclaveCI() {
       && export SGX_MODE=SW \
       && make \
       && cd bin \
-      && ./app \
+      && ./skw_sgx_host \
       && exit"`
   );
 }
