@@ -12,7 +12,7 @@
 
     "setup-rust": "node ./skw-tools-scripts/setup-rust.cjs",
     "main:build": "node ./skw-tools-scripts/main-build.cjs",
-    "main:ci": "yarn setup-rust && node ./skw-tools-scripts/main-ci.cjs",
+    "main:ci": "node ./skw-tools-scripts/main-ci.cjs",
     "main:test": "node ./skw-tools-scripts/main-test.cjs",
 
     "mock-enclave:start": "cd mock-enclave && yarn start",

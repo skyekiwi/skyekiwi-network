@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 const execSync = require('./execSync.cjs');
-console.log('$ yarn blockchain:test', process.argv.slice(2).join(' '));
+console.log('$ yarn main:test', process.argv.slice(2).join(' '));
 
 function blockchainCi() {
   const module = process.argv[2] ? `-p ${process.argv[2]}` : "";
