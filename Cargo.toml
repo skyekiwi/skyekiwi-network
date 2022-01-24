@@ -13,12 +13,14 @@ members = [
     'crates/skw-vm-host',
     'crates/skw-vm-engine',
     'crates/skw-vm-engine-cli',
+    'crates/skw-vm-runtime',
+    'crates/skw-vm-genesis-configs',
     'crates/near-test-contracts',
 
     # SkyeKiwi VM contract sdk based on near-sdk-rs
-    'crates/skw-contract-sdk',
-    'crates/skw-contract-macros',
-    'crates/skw-contract-sys',
+    # 'crates/skw-contract-sdk',
+    # 'crates/skw-contract-macros',
+    # 'crates/skw-contract-sys',
 
     # sgx enclave host
     'crates/skw-sgx-ipfs',
@@ -29,7 +31,6 @@ exclude = [
     'teaclave-sgx-sdk',
 
     # unfinished crates
-    'crates/skw-vm-runtime',
     'crates/skw-vm-store',
     'crates/skw-contract-sim',
     'crates/near-contract-standards',

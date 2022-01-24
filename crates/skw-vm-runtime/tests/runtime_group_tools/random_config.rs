@@ -1,7 +1,7 @@
-use near_primitives::num_rational::Rational;
-use near_primitives::runtime::config::RuntimeConfig;
-use near_primitives::runtime::fees::{
-    AccessKeyCreationConfig, ActionCreationConfig, DataReceiptCreationConfig, Fee,
+use skw_vm_primitives::num_rational::Rational;
+use skw_vm_primitives::config::RuntimeConfig;
+use skw_vm_primitives::fees::{
+    ActionCreationConfig, DataReceiptCreationConfig, Fee,
     RuntimeFeesConfig, StorageUsageConfig,
 };
 use rand::{thread_rng, RngCore};
@@ -27,13 +27,6 @@ pub fn random_config() -> RuntimeConfig {
                 function_call_cost: random_fee(),
                 function_call_cost_per_byte: random_fee(),
                 transfer_cost: random_fee(),
-                stake_cost: random_fee(),
-                add_key_cost: AccessKeyCreationConfig {
-                    full_access_cost: random_fee(),
-                    function_call_cost: random_fee(),
-                    function_call_cost_per_byte: random_fee(),
-                },
-                delete_key_cost: random_fee(),
                 delete_account_cost: random_fee(),
             },
             storage_usage_config: StorageUsageConfig {

@@ -9,16 +9,13 @@ use skw_contract_sdk::PendingContractTx;
 
 use crate::runtime::init_runtime;
 pub use crate::to_yocto;
+use crate::runtime::{GenesisConfig, RuntimeStandalone};
+use crate::outcome::{outcome_into_result, ExecutionResult, ViewResult};
 
-// TODO: these are primitives imports
-use crate::{
-    account::{AccessKey, Account},
-    hash::CryptoHash,
-    outcome_into_result,
-    runtime::{GenesisConfig, RuntimeStandalone},
+use skw_vm_primitives::{
+    account::{Account},
+    contract_runtime::{CryptoHash, Balance, Gas},
     transaction::Transaction,
-    types::{Balance, Gas},
-    ExecutionResult, ViewResult,
 };
 
 pub const DEFAULT_GAS: u64 = 300_000_000_000_000;

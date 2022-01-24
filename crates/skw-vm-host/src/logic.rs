@@ -5,7 +5,7 @@ use crate::types::{PromiseIndex, PromiseResult, ReceiptIndex, ReturnData};
 use crate::ValuePtr;
 use byteorder::ByteOrder;
 
-use near_crypto::Secp256K1Signature;
+use skw_vm_primitives::crypto::Secp256K1Signature;
 
 use skw_vm_primitives::config::ExtCosts::*;
 use skw_vm_primitives::config::{ActionCosts, ExtCosts, VMConfig, ViewConfig};

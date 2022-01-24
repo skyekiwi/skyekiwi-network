@@ -1,8 +1,8 @@
 [package]
-name = "node-runtime"
+name = "skw-vm-runtime"
 version = "0.0.0"
-license = "MIT OR Apache-2.0"
-authors = ["Near Inc <hello@nearprotocol.com>"]
+license = "GPL-3.0"
+authors = ["SkyeKiwi <hello@skye.kiwi>", "Near Inc <hello@nearprotocol.com>"]
 publish = false
 edition = "2021"
 
@@ -23,10 +23,12 @@ thiserror = "1.0"
 
 borsh = "0.9"
 
-near-crypto = { git = "https://github.com/near/nearcore" }
+# near-crypto = { git = "https://github.com/near/nearcore" }
+
 near-primitives = { git = "https://github.com/near/nearcore" }
 # near-store = { git = "https://github.com/near/nearcore" }
-
+# near-chain-configs = { git = "https://github.com/near/nearcore" }
+skw-vm-genesis-configs = { path = "../skw-vm-genesis-configs" }
 skw-vm-store = { path = "../skw-vm-store" }
 skw-vm-host = { path = "../skw-vm-host" }
 skw-vm-engine = { path = "../skw-vm-engine" }

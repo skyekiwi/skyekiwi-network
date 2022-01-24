@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use near_primitives::challenge::PartialState;
-use near_primitives::hash::CryptoHash;
-use near_primitives::types::StateRoot;
+use skw_vm_primitives::challenge::PartialState;
+use skw_vm_primitives::contract_runtime::{CryptoHash, StateRoot, ContractCode};
+use skw_vm_primitives::state_record::is_contract_code_key;
 use tracing::error;
 
 use crate::trie::iterator::TrieTraversalItem;
@@ -10,9 +10,8 @@ use crate::trie::nibble_slice::NibbleSlice;
 use crate::trie::{
     ApplyStatePartResult, NodeHandle, RawTrieNodeWithSize, TrieNode, TrieNodeWithSize,
 };
+
 use crate::{PartialStorage, StorageError, Trie, TrieChanges, TrieIterator};
-use near_primitives::contract::ContractCode;
-use near_primitives::state_record::is_contract_code_key;
 
 impl Trie {
     /// Computes the set of trie nodes for a state part.
@@ -60,7 +59,7 @@ impl Trie {
 
         // Extra nodes for compatibility with the previous version of computing state parts
         if part_id + 1 != num_parts {
-            let mut iterator = TrieIterator::new(self, root_hash)?;
+            let mut iterator = TrieIterator::new(self, * root_hash)?;
             let path_end_encoded = NibbleSlice::encode_nibbles(&path_end, false);
             iterator.seek_nibble_slice(NibbleSlice::from_encoded(&path_end_encoded[..]).0)?;
             if let Some(item) = iterator.next() {
@@ -213,7 +212,7 @@ impl Trie {
         let trie = Trie::from_recorded_storage(PartialStorage { nodes: PartialState(part) });
         let path_begin = trie.find_path_for_part_boundary(state_root, part_id, num_parts)?;
         let path_end = trie.find_path_for_part_boundary(state_root, part_id + 1, num_parts)?;
-        let mut iterator = TrieIterator::new(&trie, state_root)?;
+        let mut iterator = TrieIterator::new(&trie, * state_root)?;
         let trie_traversal_items = iterator.visit_nodes_interval(&path_begin, &path_end)?;
         let mut map = HashMap::new();
         let mut contract_codes = Vec::new();
@@ -222,7 +221,7 @@ impl Trie {
             map.entry(hash).or_insert_with(|| (value.clone(), 0)).1 += 1;
             if let Some(trie_key) = key {
                 if is_contract_code_key(&trie_key) {
-                    contract_codes.push(ContractCode::new(value, None));
+                    contract_codes.push(ContractCode::new(&value));
                 }
             }
         }
@@ -267,7 +266,7 @@ mod tests {
     use rand::prelude::ThreadRng;
     use rand::Rng;
 
-    use near_primitives::hash::{hash, CryptoHash};
+    use skw_vm_primitives::contract_runtime::{hash_bytes, CryptoHash};
 
     use crate::test_utils::{create_tries, gen_changes, test_populate_trie};
     use crate::trie::iterator::CrumbStatus;
@@ -419,7 +418,7 @@ mod tests {
             let path_begin = self.find_path(&root_node, size_start)?;
             let path_end = self.find_path(&root_node, size_end)?;
 
-            let mut iterator = TrieIterator::new(self, root_hash)?;
+            let mut iterator = TrieIterator::new(self, * root_hash)?;
             let path_begin_encoded = NibbleSlice::encode_nibbles(&path_begin, false);
             iterator.seek_nibble_slice(NibbleSlice::from_encoded(&path_begin_encoded[..]).0)?;
             loop {
@@ -549,9 +548,9 @@ mod tests {
         let trie_changes = gen_trie_changes(&mut rng, max_key_length, big_value_length);
         println!("Number of nodes: {}", trie_changes.len());
         let tries = create_tries();
-        let trie = tries.get_trie_for_shard(ShardUId::single_shard());
+        let trie = tries.get_trie();
         let state_root =
-            test_populate_trie(&tries, &Trie::empty_root(), ShardUId::single_shard(), trie_changes);
+            test_populate_trie(&tries, &Trie::empty_root(), trie_changes);
         let memory_size = trie.retrieve_root_node(&state_root).unwrap().memory_usage;
         println!("Total memory size: {}", memory_size);
         for num_parts in [2, 3, 5, 10, 50].iter().cloned() {
@@ -616,12 +615,11 @@ mod tests {
         let mut rng = rand::thread_rng();
         for _ in 0..2000 {
             let tries = create_tries();
-            let trie = tries.get_trie_for_shard(ShardUId::single_shard());
+            let trie = tries.get_trie();
             let trie_changes = gen_changes(&mut rng, 20);
             let state_root = test_populate_trie(
                 &tries,
                 &Trie::empty_root(),
-                ShardUId::single_shard(),
                 trie_changes.clone(),
             );
             let root_memory_usage = trie.retrieve_root_node(&state_root).unwrap().memory_usage;
@@ -645,7 +643,7 @@ mod tests {
 
                 for part in parts {
                     for node in part {
-                        nodes.insert(hash(&node), node);
+                        nodes.insert(hash_bytes(&node), node);
                     }
                 }
                 let all_nodes = nodes.into_iter().map(|(_hash, node)| node).collect::<Vec<_>>();
@@ -700,13 +698,12 @@ mod tests {
         let mut rng = rand::thread_rng();
         for _ in 0..20 {
             let tries = create_tries();
-            let trie = tries.get_trie_for_shard(ShardUId::single_shard());
+            let trie = tries.get_trie();
             let trie_changes = gen_changes(&mut rng, 10);
 
             let state_root = test_populate_trie(
                 &tries,
                 &Trie::empty_root(),
-                ShardUId::single_shard(),
                 trie_changes.clone(),
             );
             for _ in 0..10 {

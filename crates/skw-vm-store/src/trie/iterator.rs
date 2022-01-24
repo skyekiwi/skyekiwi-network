@@ -1,4 +1,4 @@
-use near_primitives::hash::CryptoHash;
+use skw_vm_primitives::contract_runtime::CryptoHash;
 
 use crate::trie::nibble_slice::NibbleSlice;
 use crate::trie::{TrieNode, TrieNodeWithSize, ValueHandle};
@@ -52,14 +52,14 @@ pub struct TrieTraversalItem {
 impl<'a> TrieIterator<'a> {
     #![allow(clippy::new_ret_no_self)]
     /// Create a new iterator.
-    pub fn new(trie: &'a Trie, root: &CryptoHash) -> Result<Self, StorageError> {
+    pub fn new(trie: &'a Trie, root: CryptoHash) -> Result<Self, StorageError> {
         let mut r = TrieIterator {
             trie,
             trail: Vec::with_capacity(8),
             key_nibbles: Vec::with_capacity(64),
-            root: *root,
+            root: root,
         };
-        let node = trie.retrieve_node(root)?;
+        let node = trie.retrieve_node(&root)?;
         r.descend_into_node(node);
         Ok(r)
     }
@@ -78,7 +78,7 @@ impl<'a> TrieIterator<'a> {
         self.key_nibbles.clear();
         let mut hash = self.root;
         loop {
-            let node = self.trie.retrieve_node(&hash)?;
+            let node = self.trie.retrieve_node(&hash.into())?;
             self.trail.push(Crumb { status: CrumbStatus::Entering, node });
             let Crumb { status, node } = self.trail.last_mut().unwrap();
             match &node.node {
@@ -99,7 +99,7 @@ impl<'a> TrieIterator<'a> {
                         self.key_nibbles.push(key.at(0));
                         *status = CrumbStatus::AtChild(idx as usize);
                         if let Some(child) = &children[idx] {
-                            hash = *child.unwrap_hash();
+                            hash = child.unwrap_hash();
                             key = key.mid(1);
                         } else {
                             break;
@@ -110,7 +110,7 @@ impl<'a> TrieIterator<'a> {
                     let existing_key = NibbleSlice::from_encoded(ext_key).0;
                     if key.starts_with(&existing_key) {
                         key = key.mid(existing_key.len());
-                        hash = *child.unwrap_hash();
+                        hash = child.unwrap_hash();
                         *status = CrumbStatus::At;
                         self.key_nibbles.extend(existing_key.iter());
                     } else {
@@ -185,7 +185,7 @@ impl<'a> TrieIterator<'a> {
                 Some(IterStep::Value(hash))
             }
             (CrumbStatus::At, TrieNode::Extension(key, child)) => {
-                let hash = *child.unwrap_hash();
+                let hash = child.unwrap_hash();
                 let key = NibbleSlice::from_encoded(key).0;
                 self.key_nibbles.extend(key.iter());
                 Some(IterStep::Descend(hash))
@@ -195,7 +195,7 @@ impl<'a> TrieIterator<'a> {
                     0 => self.key_nibbles.push(0),
                     i => *self.key_nibbles.last_mut().expect("Pushed child value before") = i as u8,
                 }
-                let hash = *children[i].as_ref().unwrap().unwrap_hash();
+                let hash = children[i].as_ref().unwrap().unwrap_hash();
                 Some(IterStep::Descend(hash))
             }
             (CrumbStatus::AtChild(i), TrieNode::Branch(_, _)) => {
@@ -336,23 +336,21 @@ mod tests {
     use rand::seq::SliceRandom;
     use rand::Rng;
 
-    use near_primitives::hash::CryptoHash;
+    use skw_vm_primitives::contract_runtime::CryptoHash;
 
     use crate::test_utils::{
-        create_tries, create_tries_complex, gen_changes, simplify_changes, test_populate_trie,
+        create_tries, gen_changes, simplify_changes, test_populate_trie,
     };
     use crate::trie::iterator::IterStep;
     use crate::trie::nibble_slice::NibbleSlice;
     use crate::Trie;
-    use near_primitives::shard_layout::ShardUId;
 
     #[test]
     fn test_iterator() {
         let mut rng = rand::thread_rng();
         for _ in 0..100 {
-            let tries = create_tries_complex(1, 2);
-            let shard_uid = ShardUId { version: 1, shard_id: 0 };
-            let trie = tries.get_trie_for_shard(shard_uid);
+            let tries = create_tries();
+            let trie = tries.get_trie();
             let trie_changes = gen_changes(&mut rng, 10);
             let trie_changes = simplify_changes(&trie_changes);
 
@@ -363,7 +361,7 @@ mod tests {
                 }
             }
             let state_root =
-                test_populate_trie(&tries, &Trie::empty_root(), shard_uid, trie_changes.clone());
+                test_populate_trie(&tries, &Trie::empty_root(), trie_changes.clone());
 
             {
                 let result1: Vec<_> = trie.iter(&state_root).unwrap().map(Result::unwrap).collect();
@@ -445,13 +443,12 @@ mod tests {
         let mut rng = rand::thread_rng();
         for _ in 0..100 {
             let tries = create_tries();
-            let trie = tries.get_trie_for_shard(ShardUId::single_shard());
+            let trie = tries.get_trie();
             let trie_changes = gen_changes(&mut rng, 10);
             let trie_changes = simplify_changes(&trie_changes);
             let state_root = test_populate_trie(
                 &tries,
                 &Trie::empty_root(),
-                ShardUId::single_shard(),
                 trie_changes.clone(),
             );
             let mut iterator = trie.iter(&state_root).unwrap();

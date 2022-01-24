@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Nibble-orientated view onto byte-slice, allowing nibble-precision offsets.
 
 use elastic_array::ElasticArray36;
 use std::cmp::*;

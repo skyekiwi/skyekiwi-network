@@ -83,10 +83,10 @@ impl RuntimeExternal for MockedExternal {
         Ok(res)
     }
 
-    // fn append_action_create_account(&mut self, receipt_index: u64) -> Result<()> {
-    //     self.receipts.get_mut(receipt_index as usize).unwrap().actions.push(Action::CreateAccount);
-    //     Ok(())
-    // }
+    fn append_action_create_account(&mut self, receipt_index: u64) -> Result<()> {
+        self.receipts.get_mut(receipt_index as usize).unwrap().actions.push(Action::CreateAccount);
+        Ok(())
+    }
 
     fn append_action_deploy_contract(&mut self, receipt_index: u64, code: Vec<u8>) -> Result<()> {
         self.receipts
@@ -116,12 +116,36 @@ impl RuntimeExternal for MockedExternal {
         Ok(())
     }
 
+    fn append_action_transfer(&mut self, receipt_index: u64, amount: u128) -> Result<()> {
+        self.receipts
+            .get_mut(receipt_index as usize)
+            .unwrap()
+            .actions
+            .push(Action::Transfer(TransferAction { deposit: amount }));
+        Ok(())
+    }
+
+    fn append_action_delete_account(
+        &mut self,
+        receipt_index: u64,
+        beneficiary_id: AccountId,
+    ) -> Result<()> {
+        self.receipts
+            .get_mut(receipt_index as usize)
+            .unwrap()
+            .actions
+            .push(Action::DeleteAccount(DeleteAccountAction { beneficiary_id }));
+        Ok(())
+    }
+
     fn get_touched_nodes_count(&self) -> u64 {
         0
     }
 
     fn reset_touched_nodes_counter(&mut self) {}
 }
+
+
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Receipt {
@@ -132,8 +156,11 @@ pub struct Receipt {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Action {
+    CreateAccount,
     DeployContract(DeployContractAction),
     FunctionCall(FunctionCallAction),
+    Transfer(TransferAction),
+    DeleteAccount(DeleteAccountAction),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -153,4 +180,14 @@ pub struct FunctionCallAction {
     args: Vec<u8>,
     gas: Gas,
     deposit: Balance,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TransferAction {
+    deposit: Balance,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct DeleteAccountAction {
+    beneficiary_id: AccountId,
 }

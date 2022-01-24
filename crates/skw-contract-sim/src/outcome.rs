@@ -1,14 +1,15 @@
-use crate::hash::CryptoHash;
 use crate::runtime::{init_runtime, RuntimeStandalone};
-use crate::transaction::{ExecutionOutcome, ExecutionStatus};
 use core::fmt;
-use near_primitives::profile::ProfileData;
-use near_primitives::transaction::ExecutionStatus::{SuccessReceiptId, SuccessValue};
-use near_primitives::types::AccountId;
-use near_sdk::borsh::BorshDeserialize;
-use near_sdk::serde::de::DeserializeOwned;
-use near_sdk::serde_json::Value;
-use near_sdk::Gas;
+
+use skw_vm_primitives::profile::ProfileData;
+use skw_vm_primitives::transaction::ExecutionStatus::{SuccessReceiptId, SuccessValue, ExecutionOutcome, ExecutionStatus};
+use skw_vm_primitives::contract_runtime::{AccountId, CryptoHash};
+
+use skw_contract_sdk::borsh::BorshDeserialize;
+use skw_contract_sdk::serde::de::DeserializeOwned;
+use skw_contract_sdk::serde_json::Value;
+use skw_contract_sdk::Gas;
+
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::fmt::Debug;

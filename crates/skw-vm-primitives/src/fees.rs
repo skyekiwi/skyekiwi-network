@@ -1,11 +1,12 @@
 use num_rational::Rational;
-use crate::contract_runtime::Gas;
 
+use crate::contract_runtime::Gas;
+use serde::{Serialize, Deserialize, };
 /// Costs associated with an object that can only be sent over the network (and executed
 /// by the receiver).
 /// NOTE: `send_sir` or `send_not_sir` fees are usually burned when the item is being created.
 /// And `execution` fee is burned when the item is being executed.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct Fee {
     /// Fee for sending an object from the sender to itself, guaranteeing that it does not leave
     /// the shard.
@@ -37,7 +38,7 @@ impl Fee {
 }
 
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct RuntimeFeesConfig {
     /// Describes the cost of creating an action receipt, `ActionReceipt`, excluding the actual cost
     /// of actions.
@@ -61,7 +62,7 @@ pub struct RuntimeFeesConfig {
 
 
 /// Describes the cost of creating a data receipt, `DataReceipt`.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq)]
 pub struct DataReceiptCreationConfig {
     /// Base cost of creating a data receipt.
     /// Both `send` and `exec` costs are burned when a new receipt has input dependencies. The gas
@@ -79,7 +80,7 @@ pub struct DataReceiptCreationConfig {
 }
 
 /// Describes the cost of creating a specific action, `Action`. Includes all variants.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ActionCreationConfig {
     /// Base cost of creating an account.
     pub create_account_cost: Fee,
@@ -102,7 +103,7 @@ pub struct ActionCreationConfig {
 }
 
 /// Describes cost of storage per block
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash, PartialEq, Eq)]
 pub struct StorageUsageConfig {
     /// Number of bytes for an account record, including rounding up for account id.
     pub num_bytes_account: u64,
@@ -219,24 +220,13 @@ impl RuntimeFeesConfig {
 /// In case of implicit account creation they always include extra fees for the CreateAccount and
 /// AddFullAccessKey actions that are implicit.
 /// We can assume that no overflow will happen here.
-pub fn transfer_exec_fee(cfg: &ActionCreationConfig, is_receiver_implicit: bool) -> Gas {
-    if is_receiver_implicit {
-        cfg.create_account_cost.exec_fee()
-            + cfg.transfer_cost.exec_fee()
-    } else {
-        cfg.transfer_cost.exec_fee()
-    }
+pub fn transfer_exec_fee(cfg: &ActionCreationConfig) -> Gas {
+    cfg.transfer_cost.exec_fee()
 }
 
 pub fn transfer_send_fee(
     cfg: &ActionCreationConfig,
     sender_is_receiver: bool,
-    is_receiver_implicit: bool,
 ) -> Gas {
-    if is_receiver_implicit {
-        cfg.create_account_cost.send_fee(sender_is_receiver)
-            + cfg.transfer_cost.send_fee(sender_is_receiver)
-    } else {
-        cfg.transfer_cost.send_fee(sender_is_receiver)
-    }
+    cfg.transfer_cost.send_fee(sender_is_receiver)
 }

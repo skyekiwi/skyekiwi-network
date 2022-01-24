@@ -8,11 +8,8 @@ use std::sync::Arc;
 use borsh::{BorshDeserialize, BorshSerialize};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use near_primitives::challenge::PartialState;
-use near_primitives::contract::ContractCode;
-use near_primitives::hash::{hash, CryptoHash};
-pub use near_primitives::shard_layout::ShardUId;
-use near_primitives::types::{StateRoot, StateRootNode};
+use skw_vm_primitives::challenge::PartialState;
+use skw_vm_primitives::contract_runtime::{hash_bytes as hash, CryptoHash, ContractCode, StateRoot, StateRootNode};
 
 use crate::trie::insert_delete::NodesStorage;
 use crate::trie::iterator::TrieIterator;
@@ -28,7 +25,6 @@ mod insert_delete;
 pub mod iterator;
 mod nibble_slice;
 mod shard_tries;
-pub mod split_state;
 mod state_parts;
 mod trie_storage;
 pub mod update;
@@ -65,9 +61,9 @@ enum NodeHandle {
 }
 
 impl NodeHandle {
-    fn unwrap_hash(&self) -> &CryptoHash {
+    fn unwrap_hash(&self) -> CryptoHash {
         match self {
-            Self::Hash(hash) => hash,
+            Self::Hash(hash) => * hash,
             Self::InMemory(_) => unreachable!(),
         }
     }
@@ -166,7 +162,7 @@ impl TrieNode {
                     write!(f, "{}{:01x}->", spaces, idx)?;
                     match child {
                         NodeHandle::Hash(hash) => {
-                            write!(f, "{}", hash)?;
+                            write!(f, "{:?}", hash)?;
                         }
                         NodeHandle::InMemory(handle) => {
                             let child = &memory.node_ref(*handle).node;
@@ -184,7 +180,7 @@ impl TrieNode {
                 spaces.push(' ');
                 match child {
                     NodeHandle::Hash(hash) => {
-                        write!(f, "{}{}", spaces, hash)?;
+                        write!(f, "{}{:?}", spaces, hash)?;
                     }
                     NodeHandle::InMemory(handle) => {
                         let child = &memory.node_ref(*handle).node;
@@ -353,8 +349,7 @@ impl RawTrieNode {
                 let value_length = cursor.read_u32::<LittleEndian>()?;
                 let mut arr = [0; 32];
                 cursor.read_exact(&mut arr)?;
-                let value_hash = CryptoHash(arr);
-                Ok(RawTrieNode::Leaf(key, value_length, value_hash))
+                Ok(RawTrieNode::Leaf(key, value_length, arr))
             }
             BRANCH_NODE_NO_VALUE => {
                 let children = decode_children(&mut cursor)?;
@@ -364,9 +359,9 @@ impl RawTrieNode {
                 let value_length = cursor.read_u32::<LittleEndian>()?;
                 let mut arr = [0; 32];
                 cursor.read_exact(&mut arr)?;
-                let value_hash = CryptoHash(arr);
+                // let value_hash = arr;
                 let children = decode_children(&mut cursor)?;
-                Ok(RawTrieNode::Branch(children, Some((value_length, value_hash))))
+                Ok(RawTrieNode::Branch(children, Some((value_length, arr))))
             }
             EXTENSION_NODE => {
                 let key_length = cursor.read_u32::<LittleEndian>()?;
@@ -374,7 +369,7 @@ impl RawTrieNode {
                 cursor.read_exact(&mut key)?;
                 let mut child = [0; 32];
                 cursor.read_exact(&mut child)?;
-                Ok(RawTrieNode::Extension(key, CryptoHash(child)))
+                Ok(RawTrieNode::Extension(key, child))
             }
             _ => Err(std::io::Error::new(std::io::ErrorKind::Other, "Wrong type")),
         }
@@ -471,7 +466,7 @@ pub struct ApplyStatePartResult {
 }
 
 impl Trie {
-    pub fn new(store: Box<dyn TrieStorage>, _shard_uid: ShardUId) -> Self {
+    pub fn new(store: Box<dyn TrieStorage>) -> Self {
         Trie { storage: store, counter: TouchedNodesCounter::default() }
     }
 
@@ -480,7 +475,6 @@ impl Trie {
             self.storage.as_caching_storage().expect("Storage should be TrieCachingStorage");
         let storage = TrieRecordingStorage {
             store: Arc::clone(&storage.store),
-            shard_uid: storage.shard_uid,
             recorded: RefCell::new(Default::default()),
         };
         Trie { storage: Box::new(storage), counter: TouchedNodesCounter::default() }
@@ -591,7 +585,7 @@ impl Trie {
                     Ok(result)
                 }
                 Err(_) => Err(StorageError::StorageInconsistentState(format!(
-                    "Failed to decode node {}",
+                    "Failed to decode node {:?}",
                     hash
                 ))),
             }
@@ -606,7 +600,7 @@ impl Trie {
         match RawTrieNodeWithSize::decode(&bytes) {
             Ok(value) => Ok(TrieNodeWithSize::from_raw(value)),
             Err(_) => Err(StorageError::StorageInconsistentState(format!(
-                "Failed to decode node {}",
+                "Failed to decode node {:?}",
                 hash
             ))),
         }
@@ -628,7 +622,7 @@ impl Trie {
                 Ok(StateRootNode { data, memory_usage })
             }
             Err(_) => Err(StorageError::StorageInconsistentState(format!(
-                "Failed to decode node {}",
+                "Failed to decode node {:?}",
                 root
             ))),
         }
@@ -757,7 +751,7 @@ impl Trie {
     }
 
     pub fn iter<'a>(&'a self, root: &CryptoHash) -> Result<TrieIterator<'a>, StorageError> {
-        TrieIterator::new(self, root)
+        TrieIterator::new(self, * root)
     }
 }
 
@@ -767,7 +761,7 @@ mod tests {
 
     use crate::db::DBCol::ColState;
     use crate::test_utils::{
-        create_test_store, create_tries, create_tries_complex, gen_changes, simplify_changes,
+        create_test_store, create_tries, gen_changes, simplify_changes,
         test_populate_trie,
     };
 
@@ -779,15 +773,14 @@ mod tests {
     fn test_clear_trie(
         tries: &ShardTries,
         root: &CryptoHash,
-        shard_uid: ShardUId,
         changes: TrieChanges,
     ) -> CryptoHash {
-        let trie = tries.get_trie_for_shard(shard_uid);
+        let trie = tries.get_trie();
         let delete_changes: TrieChanges =
             changes.iter().map(|(key, _)| (key.clone(), None)).collect();
         let mut other_delete_changes = delete_changes.clone();
         let trie_changes = trie.update(root, other_delete_changes.drain(..)).unwrap();
-        let (store_update, root) = tries.apply_all(&trie_changes, shard_uid).unwrap();
+        let (store_update, root) = tries.apply_all(&trie_changes).unwrap();
         store_update.commit().unwrap();
         for (key, _) in delete_changes {
             assert_eq!(trie.get(&root, &key), Ok(None));
@@ -821,9 +814,8 @@ mod tests {
     #[test]
     fn test_basic_trie() {
         // test trie version > 0
-        let tries = create_tries_complex(SHARD_VERSION, 2);
-        let shard_uid = ShardUId { version: SHARD_VERSION, shard_id: 0 };
-        let trie = tries.get_trie_for_shard(shard_uid);
+        let tries = create_tries();
+        let trie = tries.get_trie();
         let empty_root = Trie::empty_root();
         assert_eq!(trie.get(&empty_root, &[122]), Ok(None));
         let changes = vec![
@@ -834,24 +826,23 @@ mod tests {
             (b"dog".to_vec(), Some(b"puppy".to_vec())),
             (b"h".to_vec(), Some(b"value".to_vec())),
         ];
-        let root = test_populate_trie(&tries, &empty_root, shard_uid, changes.clone());
-        let new_root = test_clear_trie(&tries, &root, shard_uid, changes);
+        let root = test_populate_trie(&tries, &empty_root, changes.clone());
+        let new_root = test_clear_trie(&tries, &root, changes);
         assert_eq!(new_root, empty_root);
         assert_eq!(trie.iter(&new_root).unwrap().fold(0, |acc, _| acc + 1), 0);
     }
 
     #[test]
     fn test_trie_iter() {
-        let tries = create_tries_complex(SHARD_VERSION, 2);
-        let shard_uid = ShardUId { version: SHARD_VERSION, shard_id: 0 };
-        let trie = tries.get_trie_for_shard(shard_uid);
+        let tries = create_tries();
+        let trie = tries.get_trie();
         let pairs = vec![
             (b"a".to_vec(), Some(b"111".to_vec())),
             (b"b".to_vec(), Some(b"222".to_vec())),
             (b"x".to_vec(), Some(b"333".to_vec())),
             (b"y".to_vec(), Some(b"444".to_vec())),
         ];
-        let root = test_populate_trie(&tries, &Trie::empty_root(), shard_uid, pairs.clone());
+        let root = test_populate_trie(&tries, &Trie::empty_root(), pairs.clone());
         let mut iter_pairs = vec![];
         for pair in trie.iter(&root).unwrap() {
             let (key, value) = pair.unwrap();
@@ -866,14 +857,13 @@ mod tests {
 
     #[test]
     fn test_trie_leaf_into_branch() {
-        let tries = create_tries_complex(SHARD_VERSION, 2);
-        let shard_uid = ShardUId { version: SHARD_VERSION, shard_id: 0 };
+        let tries = create_tries();
         let changes = vec![
             (b"dog".to_vec(), Some(b"puppy".to_vec())),
             (b"dog2".to_vec(), Some(b"puppy".to_vec())),
             (b"xxx".to_vec(), Some(b"puppy".to_vec())),
         ];
-        test_populate_trie(&tries, &Trie::empty_root(), shard_uid, changes);
+        test_populate_trie(&tries, &Trie::empty_root(), changes);
     }
 
     #[test]
@@ -886,13 +876,13 @@ mod tests {
             (b"catbb".to_vec(), Some(b"puppy".to_vec())),
             (b"dogax".to_vec(), Some(b"puppy".to_vec())),
         ];
-        test_populate_trie(&tries, &Trie::empty_root(), ShardUId::single_shard(), changes);
+        test_populate_trie(&tries, &Trie::empty_root(), changes);
     }
 
     #[test]
     fn test_trie_iter_seek_stop_at_extension() {
         let tries = create_tries();
-        let trie = tries.get_trie_for_shard(ShardUId::single_shard());
+        let trie = tries.get_trie();
         let changes = vec![
             (vec![0, 116, 101, 115, 116], Some(vec![0])),
             (vec![2, 116, 101, 115, 116], Some(vec![0])),
@@ -912,7 +902,7 @@ mod tests {
             ),
         ];
         let root =
-            test_populate_trie(&tries, &Trie::empty_root(), ShardUId::single_shard(), changes);
+            test_populate_trie(&tries, &Trie::empty_root(), changes);
         let mut iter = trie.iter(&root).unwrap();
         iter.seek(&vec![0, 116, 101, 115, 116, 44]).unwrap();
         let mut pairs = vec![];
@@ -937,20 +927,20 @@ mod tests {
     #[test]
     fn test_trie_remove_non_existent_key() {
         let tries = create_tries();
-        let trie = tries.get_trie_for_shard(ShardUId::single_shard());
+        let trie = tries.get_trie();
         let initial = vec![
             (vec![99, 44, 100, 58, 58, 49], Some(vec![1])),
             (vec![99, 44, 100, 58, 58, 50], Some(vec![1])),
             (vec![99, 44, 100, 58, 58, 50, 51], Some(vec![1])),
         ];
         let root =
-            test_populate_trie(&tries, &Trie::empty_root(), ShardUId::single_shard(), initial);
+            test_populate_trie(&tries, &Trie::empty_root(), initial);
 
         let changes = vec![
             (vec![99, 44, 100, 58, 58, 45, 49], None),
             (vec![99, 44, 100, 58, 58, 50, 52], None),
         ];
-        let root = test_populate_trie(&tries, &root, ShardUId::single_shard(), changes);
+        let root = test_populate_trie(&tries, &root, changes);
         for r in trie.iter(&root).unwrap() {
             r.unwrap();
         }
@@ -959,20 +949,20 @@ mod tests {
     #[test]
     fn test_equal_leafs() {
         let tries = create_tries();
-        let trie = tries.get_trie_for_shard(ShardUId::single_shard());
+        let trie = tries.get_trie();
         let initial = vec![
             (vec![1, 2, 3], Some(vec![1])),
             (vec![2, 2, 3], Some(vec![1])),
             (vec![3, 2, 3], Some(vec![1])),
         ];
         let root =
-            test_populate_trie(&tries, &Trie::empty_root(), ShardUId::single_shard(), initial);
+            test_populate_trie(&tries, &Trie::empty_root(), initial);
         for r in trie.iter(&root).unwrap() {
             r.unwrap();
         }
 
         let changes = vec![(vec![1, 2, 3], None)];
-        let root = test_populate_trie(&tries, &root, ShardUId::single_shard(), changes);
+        let root = test_populate_trie(&tries, &root, changes);
         for r in trie.iter(&root).unwrap() {
             r.unwrap();
         }
@@ -983,7 +973,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         for _ in 0..100 {
             let tries = create_tries();
-            let trie = tries.get_trie_for_shard(ShardUId::single_shard());
+            let trie = tries.get_trie();
             let trie_changes = gen_changes(&mut rng, 20);
             let simplified_changes = simplify_changes(&trie_changes);
 
@@ -1007,13 +997,12 @@ mod tests {
         let mut rng = rand::thread_rng();
         for _test_run in 0..10 {
             let tries = create_tries();
-            let trie = tries.get_trie_for_shard(ShardUId::single_shard());
+            let trie = tries.get_trie();
             let trie_changes = gen_changes(&mut rng, 500);
 
             let state_root = test_populate_trie(
                 &tries,
                 &Trie::empty_root(),
-                ShardUId::single_shard(),
                 trie_changes.clone(),
             );
             let queries = gen_changes(&mut rng, 500).into_iter().map(|(key, _)| key);
@@ -1033,12 +1022,12 @@ mod tests {
         for _test_run in 0..10 {
             let num_iterations = rng.gen_range(1, 20);
             let tries = create_tries();
-            let trie = tries.get_trie_for_shard(ShardUId::single_shard());
+            let trie = tries.get_trie();
             let mut state_root = Trie::empty_root();
             for _ in 0..num_iterations {
                 let trie_changes = gen_changes(&mut rng, 20);
                 state_root =
-                    test_populate_trie(&tries, &state_root, ShardUId::single_shard(), trie_changes);
+                    test_populate_trie(&tries, &state_root, trie_changes);
                 println!(
                     "New memory_usage: {}",
                     trie.retrieve_root_node(&state_root).unwrap().memory_usage
@@ -1054,7 +1043,7 @@ mod tests {
                     })
                     .collect::<Vec<_>>();
                 state_root =
-                    test_populate_trie(&tries, &state_root, ShardUId::single_shard(), trie_changes);
+                    test_populate_trie(&tries, &state_root, trie_changes);
                 assert_eq!(state_root, Trie::empty_root(), "Trie must be empty");
                 assert!(
                     trie.storage
@@ -1074,7 +1063,7 @@ mod tests {
     #[test]
     fn test_trie_restart() {
         let store = create_test_store();
-        let tries = ShardTries::new(store.clone(), 0, 1);
+        let tries = ShardTries::new(store.clone());
         let empty_root = Trie::empty_root();
         let changes = vec![
             (b"doge".to_vec(), Some(b"coin".to_vec())),
@@ -1084,10 +1073,10 @@ mod tests {
             (b"dog".to_vec(), Some(b"puppy".to_vec())),
             (b"h".to_vec(), Some(b"value".to_vec())),
         ];
-        let root = test_populate_trie(&tries, &empty_root, ShardUId::single_shard(), changes);
+        let root = test_populate_trie(&tries, &empty_root, changes);
 
-        let tries2 = ShardTries::new(store, 0, 1);
-        let trie2 = tries2.get_trie_for_shard(ShardUId::single_shard());
+        let tries2 = ShardTries::new(store);
+        let trie2 = tries2.get_trie();
         assert_eq!(trie2.get(&root, b"doge"), Ok(Some(b"coin".to_vec())));
     }
 
@@ -1095,7 +1084,7 @@ mod tests {
     #[test]
     fn test_trie_recording_reads() {
         let store = create_test_store();
-        let tries = ShardTries::new(store, 0, 1);
+        let tries = ShardTries::new(store);
         let empty_root = Trie::empty_root();
         let changes = vec![
             (b"doge".to_vec(), Some(b"coin".to_vec())),
@@ -1105,9 +1094,9 @@ mod tests {
             (b"dog".to_vec(), Some(b"puppy".to_vec())),
             (b"h".to_vec(), Some(b"value".to_vec())),
         ];
-        let root = test_populate_trie(&tries, &empty_root, ShardUId::single_shard(), changes);
+        let root = test_populate_trie(&tries, &empty_root, changes);
 
-        let trie2 = tries.get_trie_for_shard(ShardUId::single_shard()).recording_reads();
+        let trie2 = tries.get_trie().recording_reads();
         trie2.get(&root, b"dog").unwrap();
         trie2.get(&root, b"horse").unwrap();
         let partial_storage = trie2.recorded_storage();
@@ -1122,23 +1111,23 @@ mod tests {
     #[test]
     fn test_trie_recording_reads_update() {
         let store = create_test_store();
-        let tries = ShardTries::new(store, 0, 1);
+        let tries = ShardTries::new(store);
         let empty_root = Trie::empty_root();
         let changes = vec![
             (b"doge".to_vec(), Some(b"coin".to_vec())),
             (b"docu".to_vec(), Some(b"value".to_vec())),
         ];
-        let root = test_populate_trie(&tries, &empty_root, ShardUId::single_shard(), changes);
+        let root = test_populate_trie(&tries, &empty_root, changes);
         // Trie: extension -> branch -> 2 leaves
         {
-            let trie2 = tries.get_trie_for_shard(ShardUId::single_shard()).recording_reads();
+            let trie2 = tries.get_trie().recording_reads();
             trie2.get(&root, b"doge").unwrap();
             // record extension, branch and one leaf with value, but not the other
             assert_eq!(trie2.recorded_storage().unwrap().nodes.0.len(), 4);
         }
 
         {
-            let trie2 = tries.get_trie_for_shard(ShardUId::single_shard()).recording_reads();
+            let trie2 = tries.get_trie().recording_reads();
             let updates = vec![(b"doge".to_vec(), None)];
             trie2.update(&root, updates.into_iter()).unwrap();
             // record extension, branch and both leaves (one with value)
@@ -1146,7 +1135,7 @@ mod tests {
         }
 
         {
-            let trie2 = tries.get_trie_for_shard(ShardUId::single_shard()).recording_reads();
+            let trie2 = tries.get_trie().recording_reads();
             let updates = vec![(b"dodo".to_vec(), Some(b"asdf".to_vec()))];
             trie2.update(&root, updates.into_iter()).unwrap();
             // record extension and branch, but not leaves
@@ -1157,19 +1146,19 @@ mod tests {
     #[test]
     fn test_dump_load_trie() {
         let store = create_test_store();
-        let tries = ShardTries::new(store.clone(), 0, 1);
+        let tries = ShardTries::new(store.clone());
         let empty_root = Trie::empty_root();
         let changes = vec![
             (b"doge".to_vec(), Some(b"coin".to_vec())),
             (b"docu".to_vec(), Some(b"value".to_vec())),
         ];
-        let root = test_populate_trie(&tries, &empty_root, ShardUId::single_shard(), changes);
+        let root = test_populate_trie(&tries, &empty_root, changes);
         let dir = tempfile::Builder::new().prefix("test_dump_load_trie").tempdir().unwrap();
         store.save_to_file(ColState, &dir.path().join("test.bin")).unwrap();
         let store2 = create_test_store();
         store2.load_from_file(ColState, &dir.path().join("test.bin")).unwrap();
-        let tries2 = ShardTries::new(store2, 0, 1);
-        let trie2 = tries2.get_trie_for_shard(ShardUId::single_shard());
+        let tries2 = ShardTries::new(store2);
+        let trie2 = tries2.get_trie();
         assert_eq!(trie2.get(&root, b"doge").unwrap().unwrap(), b"coin");
     }
 }

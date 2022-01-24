@@ -10,35 +10,32 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use lru::LruCache;
 
+mod refcount;
 pub use db::DBCol::{self, *};
 pub use db::{
     CHUNK_TAIL_KEY, FINAL_HEAD_KEY, FORK_TAIL_KEY, HEADER_HEAD_KEY, HEAD_KEY,
     LARGEST_TARGET_HEIGHT_KEY, LATEST_KNOWN_KEY, NUM_COLS, SHOULD_COL_GC, SKIP_COL_GC, TAIL_KEY,
 };
-use near_crypto::PublicKey;
-use near_primitives::account::{AccessKey, Account};
-use near_primitives::contract::ContractCode;
-pub use near_primitives::errors::StorageError;
-use near_primitives::hash::CryptoHash;
-use near_primitives::receipt::{DelayedReceiptIndices, Receipt, ReceivedData};
-use near_primitives::serialize::to_base;
-pub use near_primitives::shard_layout::ShardUId;
-use near_primitives::trie_key::{trie_key_parsers, TrieKey};
-use near_primitives::types::{AccountId, CompiledContractCache, StateRoot};
 
-pub use crate::db::refcount::decode_value_with_rc;
-use crate::db::refcount::encode_value_with_rc;
+use skw_vm_primitives::account::Account;
+pub use skw_vm_primitives::errors::StorageError;
+use skw_vm_primitives::contract_runtime::{CryptoHash, ContractCode, AccountId, StateRoot};
+use skw_vm_primitives::receipt::{DelayedReceiptIndices, Receipt, ReceivedData};
+use skw_vm_primitives::serialize::to_base;
+use skw_vm_primitives::trie_key::{trie_key_parsers, TrieKey};
+
+pub use crate::refcount::decode_value_with_rc;
+use crate::refcount::encode_value_with_rc;
 use crate::db::{
     DBOp, DBTransaction, Database, TestDB, RocksDB, GENESIS_JSON_HASH_KEY, GENESIS_STATE_ROOTS_KEY,
 };
 pub use crate::trie::{
-    iterator::TrieIterator, split_state, update::TrieUpdate, update::TrieUpdateIterator,
+    iterator::TrieIterator, update::TrieUpdate, update::TrieUpdateIterator,
     update::TrieUpdateValuePtr, ApplyStatePartResult, KeyForStateChanges, PartialStorage,
     ShardTries, Trie, TrieChanges, WrappedTrieChanges,
 };
 
 pub mod db;
-pub mod migrations;
 pub mod test_utils;
 mod trie;
 
@@ -295,9 +292,9 @@ pub fn read_with_cache<'a, T: BorshDeserialize + 'a>(
     Ok(None)
 }
 
-pub fn create_store(_path: &Path) -> Arc<Store> {
-    // let db = Arc::pin(RocksDB::new(path).expect("Failed to open the database"));
-    let db = Arc::pin(TestDB::new());
+pub fn create_store(path: &Path) -> Arc<Store> {
+    let db = Arc::pin(RocksDB::new(path).expect("Failed to open the database"));
+    // let db = Arc::pin(TestDB::new());
     Arc::new(Store::new(db))
 }
 
@@ -386,57 +383,57 @@ pub fn get_delayed_receipt_indices(
     Ok(get(state_update, &TrieKey::DelayedReceiptIndices)?.unwrap_or_default())
 }
 
-pub fn set_access_key(
-    state_update: &mut TrieUpdate,
-    account_id: AccountId,
-    public_key: PublicKey,
-    access_key: &AccessKey,
-) {
-    set(state_update, TrieKey::AccessKey { account_id, public_key }, access_key);
-}
+// pub fn set_access_key(
+//     state_update: &mut TrieUpdate,
+//     account_id: AccountId,
+//     public_key: PublicKey,
+//     access_key: &AccessKey,
+// ) {
+//     set(state_update, TrieKey::AccessKey { account_id, public_key }, access_key);
+// }
 
-pub fn remove_access_key(
-    state_update: &mut TrieUpdate,
-    account_id: AccountId,
-    public_key: PublicKey,
-) {
-    state_update.remove(TrieKey::AccessKey { account_id, public_key });
-}
+// pub fn remove_access_key(
+//     state_update: &mut TrieUpdate,
+//     account_id: AccountId,
+//     public_key: PublicKey,
+// ) {
+//     state_update.remove(TrieKey::AccessKey { account_id, public_key });
+// }
 
-pub fn get_access_key(
-    state_update: &TrieUpdate,
-    account_id: &AccountId,
-    public_key: &PublicKey,
-) -> Result<Option<AccessKey>, StorageError> {
-    get(
-        state_update,
-        &TrieKey::AccessKey { account_id: account_id.clone(), public_key: public_key.clone() },
-    )
-}
+// pub fn get_access_key(
+//     state_update: &TrieUpdate,
+//     account_id: &AccountId,
+//     public_key: &PublicKey,
+// ) -> Result<Option<AccessKey>, StorageError> {
+//     get(
+//         state_update,
+//         &TrieKey::AccessKey { account_id: account_id.clone(), public_key: public_key.clone() },
+//     )
+// }
 
-pub fn get_access_key_raw(
-    state_update: &TrieUpdate,
-    raw_key: &[u8],
-) -> Result<Option<AccessKey>, StorageError> {
-    get(
-        state_update,
-        &trie_key_parsers::parse_trie_key_access_key_from_raw_key(raw_key)
-            .expect("access key in the state should be correct"),
-    )
-}
+// pub fn get_access_key_raw(
+//     state_update: &TrieUpdate,
+//     raw_key: &[u8],
+// ) -> Result<Option<AccessKey>, StorageError> {
+//     get(
+//         state_update,
+//         &trie_key_parsers::parse_trie_key_access_key_from_raw_key(raw_key)
+//             .expect("access key in the state should be correct"),
+//     )
+// }
 
 pub fn set_code(state_update: &mut TrieUpdate, account_id: AccountId, code: &ContractCode) {
-    state_update.set(TrieKey::ContractCode { account_id }, code.code().to_vec());
+    state_update.set(TrieKey::ContractCode { account_id }, code.code.to_vec());
 }
 
 pub fn get_code(
     state_update: &TrieUpdate,
     account_id: &AccountId,
-    code_hash: Option<CryptoHash>,
+    _code_hash: Option<CryptoHash>,
 ) -> Result<Option<ContractCode>, StorageError> {
     state_update
         .get(&TrieKey::ContractCode { account_id: account_id.clone() })
-        .map(|opt| opt.map(|code| ContractCode::new(code, code_hash)))
+        .map(|opt| opt.map(|code| ContractCode::new(&code)))
 }
 
 /// Removes account, code and all access keys associated to it.
@@ -448,21 +445,21 @@ pub fn remove_account(
     state_update.remove(TrieKey::ContractCode { account_id: account_id.clone() });
 
     // Removing access keys
-    let public_keys = state_update
-        .iter(&trie_key_parsers::get_raw_prefix_for_access_keys(account_id))?
-        .map(|raw_key| {
-            trie_key_parsers::parse_public_key_from_access_key_key(&raw_key?, account_id).map_err(
-                |_e| {
-                    StorageError::StorageInconsistentState(
-                        "Can't parse public key from raw key for AccessKey".to_string(),
-                    )
-                },
-            )
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    for public_key in public_keys {
-        state_update.remove(TrieKey::AccessKey { account_id: account_id.clone(), public_key });
-    }
+    // let public_keys = state_update
+    //     .iter(&trie_key_parsers::get_raw_prefix_for_access_keys(account_id))?
+    //     .map(|raw_key| {
+    //         trie_key_parsers::parse_public_key_from_access_key_key(&raw_key?, account_id).map_err(
+    //             |_e| {
+    //                 StorageError::StorageInconsistentState(
+    //                     "Can't parse public key from raw key for AccessKey".to_string(),
+    //                 )
+    //             },
+    //         )
+    //     })
+    //     .collect::<Result<Vec<_>, _>>()?;
+    // for public_key in public_keys {
+    //     state_update.remove(TrieKey::AccessKey { account_id: account_id.clone(), public_key });
+    // }
 
     // Removing contract data
     let data_keys = state_update
@@ -503,25 +500,25 @@ pub fn set_genesis_state_roots(store_update: &mut StoreUpdate, genesis_roots: &V
         .expect("Borsh cannot fail");
 }
 
-pub struct StoreCompiledContractCache {
-    pub store: Arc<Store>,
-}
+// pub struct StoreCompiledContractCache {
+//     pub store: Arc<Store>,
+// }
 
-/// Cache for compiled contracts code using Store for keeping data.
-/// We store contracts in VM-specific format in DBCol::ColCachedContractCode.
-/// Key must take into account VM being used and its configuration, so that
-/// we don't cache non-gas metered binaries, for example.
-impl CompiledContractCache for StoreCompiledContractCache {
-    fn put(&self, key: &[u8], value: &[u8]) -> Result<(), std::io::Error> {
-        let mut store_update = self.store.store_update();
-        store_update.set(DBCol::ColCachedContractCode, key, value);
-        store_update.commit()
-    }
+// /// Cache for compiled contracts code using Store for keeping data.
+// /// We store contracts in VM-specific format in DBCol::ColCachedContractCode.
+// /// Key must take into account VM being used and its configuration, so that
+// /// we don't cache non-gas metered binaries, for example.
+// impl CompiledContractCache for StoreCompiledContractCache {
+//     fn put(&self, key: &[u8], value: &[u8]) -> Result<(), std::io::Error> {
+//         let mut store_update = self.store.store_update();
+//         store_update.set(DBCol::ColCachedContractCode, key, value);
+//         store_update.commit()
+//     }
 
-    fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, std::io::Error> {
-        self.store.get(DBCol::ColCachedContractCode, key)
-    }
-}
+//     fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, std::io::Error> {
+//         self.store.get(DBCol::ColCachedContractCode, key)
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

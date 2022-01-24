@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use near_crypto::{PublicKey, Signature};
+use crate::crypto::{PublicKey, Signature};
 
 use crate::contract_runtime::{CryptoHash, hash_bytes, AccountId, Balance, Gas, Nonce};
 use crate::serialize::{base64_format, u128_dec_format_compatible};
@@ -49,8 +49,11 @@ impl Transaction {
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub enum Action {
     /// Sets a Wasm code to a receiver_id
+    CreateAccount(CreateAccountAction),
+    Transfer(TransferAction),
     DeployContract(DeployContractAction),
     FunctionCall(FunctionCallAction),
+    DeleteAccount(DeleteAccountAction),
 }
 
 impl Action {
@@ -65,6 +68,41 @@ impl Action {
             Action::FunctionCall(a) => a.deposit,
             _ => 0,
         }
+    }
+}
+
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct CreateAccountAction {}
+
+impl From<CreateAccountAction> for Action {
+    fn from(create_account_action: CreateAccountAction) -> Self {
+        Self::CreateAccount(create_account_action)
+    }
+}
+
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct DeleteAccountAction {
+    pub beneficiary_id: AccountId,
+}
+
+impl From<DeleteAccountAction> for Action {
+    fn from(delete_account_action: DeleteAccountAction) -> Self {
+        Self::DeleteAccount(delete_account_action)
+    }
+}
+
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct TransferAction {
+    #[serde(with = "u128_dec_format_compatible")]
+    pub deposit: Balance,
+}
+
+impl From<TransferAction> for Action {
+    fn from(transfer_action: TransferAction) -> Self {
+        Self::Transfer(transfer_action)
     }
 }
 
@@ -349,7 +387,7 @@ pub fn verify_transaction_signature(
 mod tests {
     use borsh::BorshDeserialize;
 
-    use near_crypto::{InMemorySigner, KeyType, Signature, Signer};
+    use crate::crypto::{InMemorySigner, KeyType, Signature, Signer};
     use crate::serialize::to_base;
 
     use super::*;
@@ -408,7 +446,7 @@ mod tests {
 
         assert_eq!(
             to_base(&new_signed_tx.get_hash()),
-            "46tFgAevuo14w8Voo9j2sYq1KED54D7rgbGs6P8GWNxV"
+            "3iXu3iSvUdAMqDJb5HPGtk8EgVnSM7Jy6vg6ZE6JG6wZ"
         );
     }
 

@@ -6,26 +6,26 @@ use crate::ViewResult;
 use near_crypto::{InMemorySigner, KeyType, PublicKey, Signer};
 use near_pool::{types::PoolIterator, TransactionPool};
 
-use near_primitives::account::{AccessKey, Account};
-use near_primitives::errors::RuntimeError;
-use near_primitives::hash::CryptoHash;
-use near_primitives::profile::ProfileData;
-use near_primitives::receipt::Receipt;
-use near_primitives::runtime::config::RuntimeConfig;
-use near_primitives::state_record::StateRecord;
-use near_primitives::test_utils::account_new;
-use near_primitives::test_utils::MockEpochInfoProvider;
-use near_primitives::transaction::{ExecutionOutcome, ExecutionStatus, SignedTransaction};
-use near_primitives::types::{
+use skw_vm_primitives::account::{AccessKey, Account};
+use skw_vm_primitives::errors::RuntimeError;
+use skw_vm_primitives::hash::CryptoHash;
+use skw_vm_primitives::profile::ProfileData;
+use skw_vm_primitives::receipt::Receipt;
+use skw_vm_primitives::runtime::config::RuntimeConfig;
+use skw_vm_primitives::state_record::StateRecord;
+use skw_vm_primitives::test_utils::account_new;
+use skw_vm_primitives::test_utils::MockEpochInfoProvider;
+use skw_vm_primitives::transaction::{ExecutionOutcome, ExecutionStatus, SignedTransaction};
+use skw_vm_primitives::types::{
     AccountInfo, Balance, BlockHeight, EpochHeight, EpochId, EpochInfoProvider, Gas,
     StateChangeCause,
 };
-use near_primitives::version::PROTOCOL_VERSION;
-use near_primitives::views::ViewApplyState;
+use skw_vm_primitives::version::PROTOCOL_VERSION;
+use skw_vm_primitives::views::ViewApplyState;
 
-use near_runtime::{state_viewer::TrieViewer, ApplyState, Runtime};
-use near_sdk::{AccountId, Duration};
-use near_store::{
+use skw_vm_runtime::{state_viewer::TrieViewer, ApplyState, Runtime};
+use skw_contract_sdk:{AccountId, Duration};
+use skw_vm_store::{
     get_access_key, get_account, set_account, test_utils::create_test_store, ShardTries, Store,
 };
 
@@ -51,7 +51,6 @@ pub struct GenesisConfig {
     pub block_prod_time: Duration,
     pub runtime_config: RuntimeConfig,
     pub state_records: Vec<StateRecord>,
-    pub validators: Vec<AccountInfo>,
 }
 
 impl Default for GenesisConfig {
@@ -70,7 +69,6 @@ impl Default for GenesisConfig {
             block_prod_time: DEFAULT_BLOCK_PROD_TIME,
             runtime_config,
             state_records: vec![],
-            validators: vec![],
         }
     }
 }
@@ -303,16 +301,6 @@ impl RuntimeStandalone {
             profile: profile_data.clone(),
             block_hash: Default::default(),
         };
-
-        // pub fn apply(
-        //     &self,
-        //     trie: Trie,
-        //     root: CryptoHash,
-        //     validator_accounts_update: &Option<ValidatorAccountsUpdate>,
-        //     apply_state: &ApplyState,
-        //     incoming_receipts: &[Receipt],
-        //     transactions: &[SignedTransaction],
-        // ) -> Result<ApplyResult, RuntimeError> {
 
         // RUNTIME:: runtime.apply seems to be the critical method for importing states
         let apply_result = self.runtime.apply(
