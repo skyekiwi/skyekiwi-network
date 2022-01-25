@@ -21,6 +21,7 @@ extern "C" {
     // TODO #1903 fn block_height() -> u64;
     fn block_number() -> u64;
     fn block_timestamp() -> u64;
+    fn epoch_height() -> u64;
     fn storage_usage() -> u64;
     // #################
     // # Economics API #
@@ -73,6 +74,7 @@ extern "C" {
     // #######################
     // # Promise API actions #
     // #######################
+    fn promise_batch_action_create_account(promise_index: u64);
     fn promise_batch_action_deploy_contract(promise_index: u64, code_len: u64, code_ptr: u64);
     fn promise_batch_action_function_call(
         promise_index: u64,
@@ -82,6 +84,12 @@ extern "C" {
         arguments_ptr: u64,
         amount_ptr: u64,
         gas: u64,
+    );
+    fn promise_batch_action_transfer(promise_index: u64, amount_ptr: u64);
+    fn promise_batch_action_delete_account(
+        promise_index: u64,
+        beneficiary_id_len: u64,
+        beneficiary_id_ptr: u64,
     );
     // #######################
     // # Promise API results #
@@ -589,6 +597,10 @@ fn call_promise() {
                     account_id.len() as u64,
                     account_id.as_ptr() as u64,
                 )
+            } else if let Some(action) = arg.get("action_create_account") {
+                let promise_index = action["promise_index"].as_i64().unwrap() as u64;
+                promise_batch_action_create_account(promise_index);
+                promise_index
             } else if let Some(action) = arg.get("action_deploy_contract") {
                 let promise_index = action["promise_index"].as_i64().unwrap() as u64;
                 let code = from_base64(action["code"].as_str().unwrap());
@@ -612,6 +624,23 @@ fn call_promise() {
                     arguments.as_ptr() as u64,
                     &amount as *const u128 as *const u64 as u64,
                     gas,
+                );
+                promise_index
+            } else if let Some(action) = arg.get("action_transfer") {
+                let promise_index = action["promise_index"].as_i64().unwrap() as u64;
+                let amount = action["amount"].as_str().unwrap().parse::<u128>().unwrap();
+                promise_batch_action_transfer(
+                    promise_index,
+                    &amount as *const u128 as *const u64 as u64,
+                );
+                promise_index
+            } else if let Some(action) = arg.get("action_delete_account") {
+                let promise_index = action["promise_index"].as_i64().unwrap() as u64;
+                let beneficiary_id = action["beneficiary_id"].as_str().unwrap().as_bytes();
+                promise_batch_action_delete_account(
+                    promise_index,
+                    beneficiary_id.len() as u64,
+                    beneficiary_id.as_ptr() as u64,
                 );
                 promise_index
             } else {

@@ -1,5 +1,5 @@
 use borsh::{BorshSerialize};
-use skw_vm_primitives::errors::{ActionErrorKind, ContractCallError, RuntimeError};
+use skw_vm_primitives::errors::{ActionErrorKind, ContractCallError, RuntimeError, ActionError};
 use skw_vm_primitives::contract_runtime::{CryptoHash, ContractCode, AccountId};
 use skw_vm_primitives::receipt::{ActionReceipt, Receipt};
 use skw_vm_primitives::fees::{RuntimeFeesConfig};
@@ -16,13 +16,13 @@ use skw_vm_store::{
     StorageError, TrieUpdate,
 };
 use skw_vm_primitives::errors::{
-    CacheError, CompilationError, FunctionCallError, InconsistentStateError, VMError,
+    CacheError, CompilationError, FunctionCallError, VMError,
 };
 use skw_vm_host::types::PromiseResult;
 use skw_vm_host::{VMContext, VMOutcome};
 
 use crate::config::{safe_add_gas, RuntimeConfig};
-use crate::ext::{ExternalError, RuntimeExt};
+use crate::ext::{RuntimeExt};
 use crate::{ActionResult, ApplyState};
 use skw_vm_primitives::config::ViewConfig;
 
@@ -54,7 +54,7 @@ pub(crate) fn execute_function_call(
             });
             return (None, Some(VMError::FunctionCallError(error)));
         }
-        Err(e) => {
+        Err(_e) => {
             return (
                 None,
                 Some(VMError::ExternalError(b"storage error".to_vec()))
@@ -217,7 +217,7 @@ pub(crate) fn action_function_call(
     config: &RuntimeConfig,
     is_last_action: bool,
 ) -> Result<(), RuntimeError> {
-    
+
     if account.amount().checked_add(function_call.deposit).is_none() {
         return Err(StorageError::StorageInconsistentState(
             "Account balance integer overflow during function call deposit".to_string(),
@@ -232,8 +232,6 @@ pub(crate) fn action_function_call(
         &action_receipt.signer_public_key,
         action_receipt.gas_price,
         action_hash,
-        &apply_state.prev_block_hash,
-        &apply_state.block_hash,
     );
 
     let (outcome, err) = execute_function_call(
@@ -327,9 +325,8 @@ pub(crate) fn action_function_call(
         // TODO: check profile data merge
         result.profile.merge(&outcome.profile);
         if execution_succeeded {
-            // TODO: remove the account system in runtime
-            // account.set_amount(outcome.balance);
-            // account.set_storage_usage(outcome.storage_usage);
+            account.set_amount(outcome.balance);
+            account.set_storage_usage(outcome.storage_usage);
 
             result.result = Ok(outcome.return_data);
             
@@ -351,7 +348,7 @@ pub(crate) fn action_deploy_contract(
 ) -> Result<(), StorageError> {
     let code = ContractCode::new(&deploy_contract.code);
     let prev_code = get_code(state_update, account_id, Some(account.code_hash()))?;
-    let prev_code_length = prev_code.map(|code| code.code.len() as u64).unwrap_or_default();
+    let _prev_code_length = prev_code.map(|code| code.code.len() as u64).unwrap_or_default();
     
     account.set_code_hash(code.hash);
     set_code(state_update, account_id.clone(), &code);
@@ -359,202 +356,251 @@ pub(crate) fn action_deploy_contract(
     // Precompile the contract and store result (compiled code or error) in the database.
     // Note, that contract compilation costs are already accounted in deploy cost using
     // special logic in estimator (see get_runtime_config() function).
-    // TODO: should pre-compile the contract & put in cache
-    // precompile_contract(
-    //     &code,
-    //     &apply_state.config.wasm_config,
-    //     current_protocol_version,
-    //     apply_state.cache.as_deref(),
-    // )
-    // .ok();
+    skw_vm_engine::create_module_instance(
+        &code,
+        &apply_state.config.wasm_config,
+        skw_vm_engine::WasmiMemory::new(
+            apply_state.config.wasm_config.limit_config.initial_memory_pages,
+            apply_state.config.wasm_config.limit_config.max_memory_pages,
+        ).expect("Cannot create memory for a contract call").clone()
+    )
+    .ok();
     Ok(())
 }
 
 
-// #[cfg(test)]
-// mod tests {
-//     use skw_vm_primitives::contract_runtime::hash_bytes;
-//     use near_primitives::trie_key::TrieKey;
-//     use skw_vm_store::test_utils::create_tries;
+pub(crate) fn check_account_existence(
+    action: &Action,
+    account: &mut Option<Account>,
+    account_id: &AccountId,
+    is_the_only_action: bool,
+    is_refund: bool,
+) -> Result<(), ActionError> {
+    match action {
+        Action::CreateAccount(_) => {
+            if account.is_some() {
+                return Err(ActionErrorKind::AccountAlreadyExists {
+                    account_id: account_id.clone(),
+                }
+                .into());
+            }
+        }
+        Action::Transfer(_) => {
+            if account.is_none() {
+                return if is_the_only_action && !is_refund
+                {
+                    // OK. It's implicit account creation.
+                    // Notes:
+                    // - The transfer action has to be the only action in the transaction to avoid
+                    // abuse by hijacking this account with other public keys or contracts.
+                    // - Refunds don't automatically create accounts, because refunds are free and
+                    // we don't want some type of abuse.
+                    // - Account deletion with beneficiary creates a refund, so it'll not create a
+                    // new account.
+                    Ok(())
+                } else {
+                    Err(ActionErrorKind::AccountDoesNotExist { account_id: account_id.clone() }
+                        .into())
+                };
+            }
+        }
+        Action::DeployContract(_)
+        | Action::FunctionCall(_)
+        | Action::DeleteAccount(_) => {
+            if account.is_none() {
+                return Err(ActionErrorKind::AccountDoesNotExist {
+                    account_id: account_id.clone(),
+                }
+                .into());
+            }
+        }
+    };
+    Ok(())
+}
 
-//     use super::*;
-//     use crate::near_primitives::shard_layout::ShardUId;
+#[cfg(test)]
+mod tests {
+    use skw_vm_primitives::contract_runtime::hash_bytes;
+    use skw_vm_primitives::trie_key::TrieKey;
+    use skw_vm_store::test_utils::create_tries;
+    use skw_vm_primitives::errors::ActionError;
 
-//     fn test_action_create_account(
-//         account_id: AccountId,
-//         predecessor_id: AccountId,
-//         length: u8,
-//     ) -> ActionResult {
-//         let mut account = None;
-//         let mut actor_id = predecessor_id.clone();
-//         let mut action_result = ActionResult::default();
-//         action_create_account(
-//             &RuntimeFeesConfig::test(),
-//             &AccountCreationConfig {
-//                 min_allowed_top_level_account_length: length,
-//                 registrar_account_id: "registrar".parse().unwrap(),
-//             },
-//             &mut account,
-//             &mut actor_id,
-//             &account_id,
-//             &predecessor_id,
-//             &mut action_result,
-//         );
-//         if action_result.result.is_ok() {
-//             assert!(account.is_some());
-//             assert_eq!(actor_id, account_id);
-//         } else {
-//             assert!(account.is_none());
-//         }
-//         action_result
-//     }
+    use super::*;
 
-//     #[test]
-//     fn test_create_account_valid_top_level_long() {
-//         let account_id = "bob_near_long_name".parse().unwrap();
-//         let predecessor_id = "alice.near".parse().unwrap();
-//         let action_result = test_action_create_account(account_id, predecessor_id, 11);
-//         assert!(action_result.result.is_ok());
-//     }
+    fn test_action_create_account(
+        account_id: AccountId,
+        predecessor_id: AccountId,
+        length: u8,
+    ) -> ActionResult {
+        let mut account = None;
+        let mut actor_id = predecessor_id.clone();
+        let mut action_result = ActionResult::default();
+        action_create_account(
+            &RuntimeFeesConfig::test(),
+            &AccountCreationConfig {
+                min_allowed_top_level_account_length: length,
+                registrar_account_id: "registrar".parse().unwrap(),
+            },
+            &mut account,
+            &mut actor_id,
+            &account_id,
+            &predecessor_id,
+            &mut action_result,
+        );
+        if action_result.result.is_ok() {
+            assert!(account.is_some());
+            assert_eq!(actor_id, account_id);
+        } else {
+            assert!(account.is_none());
+        }
+        action_result
+    }
 
-//     #[test]
-//     fn test_create_account_valid_top_level_by_registrar() {
-//         let account_id = "bob".parse().unwrap();
-//         let predecessor_id = "registrar".parse().unwrap();
-//         let action_result = test_action_create_account(account_id, predecessor_id, 11);
-//         assert!(action_result.result.is_ok());
-//     }
+    #[test]
+    fn test_create_account_valid_top_level_long() {
+        let account_id = "bob_near_long_name".parse().unwrap();
+        let predecessor_id = "alice.near".parse().unwrap();
+        let action_result = test_action_create_account(account_id, predecessor_id, 11);
+        assert!(action_result.result.is_ok());
+    }
 
-//     #[test]
-//     fn test_create_account_valid_sub_account() {
-//         let account_id = "alice.near".parse().unwrap();
-//         let predecessor_id = "near".parse().unwrap();
-//         let action_result = test_action_create_account(account_id, predecessor_id, 11);
-//         assert!(action_result.result.is_ok());
-//     }
+    #[test]
+    fn test_create_account_valid_top_level_by_registrar() {
+        let account_id = "bob".parse().unwrap();
+        let predecessor_id = "registrar".parse().unwrap();
+        let action_result = test_action_create_account(account_id, predecessor_id, 11);
+        assert!(action_result.result.is_ok());
+    }
 
-//     #[test]
-//     fn test_create_account_invalid_sub_account() {
-//         let account_id = "alice.near".parse::<AccountId>().unwrap();
-//         let predecessor_id = "bob".parse::<AccountId>().unwrap();
-//         let action_result =
-//             test_action_create_account(account_id.clone(), predecessor_id.clone(), 11);
-//         assert_eq!(
-//             action_result.result,
-//             Err(ActionError {
-//                 index: None,
-//                 kind: ActionErrorKind::CreateAccountNotAllowed {
-//                     account_id: account_id,
-//                     predecessor_id: predecessor_id,
-//                 },
-//             })
-//         );
-//     }
+    #[test]
+    fn test_create_account_valid_sub_account() {
+        let account_id = "alice.near".parse().unwrap();
+        let predecessor_id = "near".parse().unwrap();
+        let action_result = test_action_create_account(account_id, predecessor_id, 11);
+        assert!(action_result.result.is_ok());
+    }
 
-//     #[test]
-//     fn test_create_account_invalid_short_top_level() {
-//         let account_id = "bob".parse::<AccountId>().unwrap();
-//         let predecessor_id = "near".parse::<AccountId>().unwrap();
-//         let action_result =
-//             test_action_create_account(account_id.clone(), predecessor_id.clone(), 11);
-//         assert_eq!(
-//             action_result.result,
-//             Err(ActionError {
-//                 index: None,
-//                 kind: ActionErrorKind::CreateAccountOnlyByRegistrar {
-//                     account_id: account_id,
-//                     registrar_account_id: "registrar".parse().unwrap(),
-//                     predecessor_id: predecessor_id,
-//                 },
-//             })
-//         );
-//     }
+    #[test]
+    fn test_create_account_invalid_sub_account() {
+        let account_id = "alice.near".parse::<AccountId>().unwrap();
+        let predecessor_id = "bob".parse::<AccountId>().unwrap();
+        let action_result =
+            test_action_create_account(account_id.clone(), predecessor_id.clone(), 11);
+        assert_eq!(
+            action_result.result,
+            Err(ActionError {
+                index: None,
+                kind: ActionErrorKind::CreateAccountNotAllowed {
+                    account_id: account_id,
+                    predecessor_id: predecessor_id,
+                },
+            })
+        );
+    }
 
-//     #[test]
-//     fn test_create_account_valid_short_top_level_len_allowed() {
-//         let account_id = "bob".parse().unwrap();
-//         let predecessor_id = "near".parse().unwrap();
-//         let action_result = test_action_create_account(account_id, predecessor_id, 0);
-//         assert!(action_result.result.is_ok());
-//     }
+    #[test]
+    fn test_create_account_invalid_short_top_level() {
+        let account_id = "bob".parse::<AccountId>().unwrap();
+        let predecessor_id = "near".parse::<AccountId>().unwrap();
+        let action_result =
+            test_action_create_account(account_id.clone(), predecessor_id.clone(), 11);
+        assert_eq!(
+            action_result.result,
+            Err(ActionError {
+                index: None,
+                kind: ActionErrorKind::CreateAccountOnlyByRegistrar {
+                    account_id: account_id,
+                    registrar_account_id: "registrar".parse().unwrap(),
+                    predecessor_id: predecessor_id,
+                },
+            })
+        );
+    }
 
-//     fn test_delete_large_account(
-//         account_id: &AccountId,
-//         code_hash: &CryptoHash,
-//         storage_usage: u64,
-//         state_update: &mut TrieUpdate,
-//     ) -> ActionResult {
-//         let mut account = Some(Account::new(100, 0, *code_hash, storage_usage));
-//         let mut actor_id = account_id.clone();
-//         let mut action_result = ActionResult::default();
-//         let receipt = Receipt::new_balance_refund(&"alice.near".parse().unwrap(), 0);
-//         let res = action_delete_account(
-//             state_update,
-//             &mut account,
-//             &mut actor_id,
-//             &receipt,
-//             &mut action_result,
-//             account_id,
-//             &DeleteAccountAction { beneficiary_id: "bob".parse().unwrap() },
-//             ProtocolFeature::DeleteActionRestriction.protocol_version(),
-//         );
-//         assert!(res.is_ok());
-//         action_result
-//     }
+    #[test]
+    fn test_create_account_valid_short_top_level_len_allowed() {
+        let account_id = "bob".parse().unwrap();
+        let predecessor_id = "near".parse().unwrap();
+        let action_result = test_action_create_account(account_id, predecessor_id, 0);
+        assert!(action_result.result.is_ok());
+    }
 
-//     #[test]
-//     fn test_delete_account_too_large() {
-//         let tries = create_tries();
-//         let mut state_update =
-//             tries.new_trie_update(ShardUId::single_shard(), CryptoHash::default());
-//         let action_result = test_delete_large_account(
-//             &"alice".parse().unwrap(),
-//             &CryptoHash::default(),
-//             Account::MAX_ACCOUNT_DELETION_STORAGE_USAGE + 1,
-//             &mut state_update,
-//         );
-//         assert_eq!(
-//             action_result.result,
-//             Err(ActionError {
-//                 index: None,
-//                 kind: ActionErrorKind::DeleteAccountWithLargeState {
-//                     account_id: "alice".parse().unwrap()
-//                 }
-//             })
-//         )
-//     }
+    fn test_delete_large_account(
+        account_id: &AccountId,
+        code_hash: &CryptoHash,
+        storage_usage: u64,
+        state_update: &mut TrieUpdate,
+    ) -> ActionResult {
+        let mut account = Some(Account::new(100, 0, *code_hash, storage_usage));
+        let mut actor_id = account_id.clone();
+        let mut action_result = ActionResult::default();
+        let receipt = Receipt::new_balance_refund(&"alice.near".parse().unwrap(), 0);
+        let res = action_delete_account(
+            state_update,
+            &mut account,
+            &mut actor_id,
+            &receipt,
+            &mut action_result,
+            account_id,
+            &DeleteAccountAction { beneficiary_id: "bob".parse().unwrap() },
+        );
+        assert!(res.is_ok());
+        action_result
+    }
 
-//     fn test_delete_account_with_contract(storage_usage: u64) -> ActionResult {
-//         let tries = create_tries();
-//         let mut state_update =
-//             tries.new_trie_update(ShardUId::single_shard(), CryptoHash::default());
-//         let account_id = "alice".parse::<AccountId>().unwrap();
-//         let trie_key = TrieKey::ContractCode { account_id: account_id.clone() };
-//         let empty_contract = [0; 10_000].to_vec();
-//         let contract_hash = hash(&empty_contract);
-//         state_update.set(trie_key, empty_contract);
-//         test_delete_large_account(&account_id, &contract_hash, storage_usage, &mut state_update)
-//     }
+    #[test]
+    fn test_delete_account_too_large() {
+        let tries = create_tries();
+        let mut state_update =
+            tries.new_trie_update([0; 32]);
+        let action_result = test_delete_large_account(
+            &"alice".parse().unwrap(),
+            &[0; 32],
+            Account::MAX_ACCOUNT_DELETION_STORAGE_USAGE + 1,
+            &mut state_update,
+        );
+        assert_eq!(
+            action_result.result,
+            Err(ActionError {
+                index: None,
+                kind: ActionErrorKind::DeleteAccountWithLargeState {
+                    account_id: "alice".parse().unwrap()
+                }
+            })
+        )
+    }
 
-//     #[test]
-//     fn test_delete_account_with_contract_and_small_state() {
-//         let action_result =
-//             test_delete_account_with_contract(Account::MAX_ACCOUNT_DELETION_STORAGE_USAGE + 100);
-//         assert!(action_result.result.is_ok());
-//     }
+    fn test_delete_account_with_contract(storage_usage: u64) -> ActionResult {
+        let tries = create_tries();
+        let mut state_update =
+            tries.new_trie_update( CryptoHash::default());
+        let account_id = "alice".parse::<AccountId>().unwrap();
+        let trie_key = TrieKey::ContractCode { account_id: account_id.clone() };
+        let empty_contract = [0; 10_000].to_vec();
+        let contract_hash = hash_bytes(&empty_contract);
+        state_update.set(trie_key, empty_contract);
+        test_delete_large_account(&account_id, &contract_hash, storage_usage, &mut state_update)
+    }
 
-//     #[test]
-//     fn test_delete_account_with_contract_and_large_state() {
-//         let action_result =
-//             test_delete_account_with_contract(10 * Account::MAX_ACCOUNT_DELETION_STORAGE_USAGE);
-//         assert_eq!(
-//             action_result.result,
-//             Err(ActionError {
-//                 index: None,
-//                 kind: ActionErrorKind::DeleteAccountWithLargeState {
-//                     account_id: "alice".parse().unwrap()
-//                 }
-//             })
-//         );
-//     }
-// }
+    #[test]
+    fn test_delete_account_with_contract_and_small_state() {
+        let action_result =
+            test_delete_account_with_contract(Account::MAX_ACCOUNT_DELETION_STORAGE_USAGE + 100);
+        assert!(action_result.result.is_ok());
+    }
+
+    #[test]
+    fn test_delete_account_with_contract_and_large_state() {
+        let action_result =
+            test_delete_account_with_contract(10 * Account::MAX_ACCOUNT_DELETION_STORAGE_USAGE);
+        assert_eq!(
+            action_result.result,
+            Err(ActionError {
+                index: None,
+                kind: ActionErrorKind::DeleteAccountWithLargeState {
+                    account_id: "alice".parse().unwrap()
+                }
+            })
+        );
+    }
+}

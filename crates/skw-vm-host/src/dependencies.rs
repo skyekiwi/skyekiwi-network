@@ -3,7 +3,6 @@
 use crate::types::{ReceiptIndex};
 use skw_vm_primitives::contract_runtime::{AccountId, Balance, Gas};
 use skw_vm_primitives::errors::VMLogicError;
-use skw_vm_primitives::crypto::PublicKey;
 /// An abstraction over the memory of the smart contract.
 pub trait MemoryLike {
     /// Returns whether the memory interval is completely inside the smart contract memory.

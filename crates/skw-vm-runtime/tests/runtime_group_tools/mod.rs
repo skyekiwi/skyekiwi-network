@@ -48,7 +48,6 @@ impl StandaloneRuntime {
         signer: InMemorySigner,
         state_records: &[StateRecord],
         tries: ShardTries,
-        validators: Vec<AccountInfo>,
     ) -> Self {
         let mut runtime_config = random_config();
         // Bumping costs to avoid inflation overflows.
@@ -227,9 +226,8 @@ impl RuntimeGroup {
         for signer in &group.signers {
             let signer = signer.clone();
             let state_records = Arc::clone(&group.state_records);
-            let validators = group.validators.clone();
             let runtime_factory =
-                move || StandaloneRuntime::new(signer, &state_records, create_tries(), validators);
+                move || StandaloneRuntime::new(signer, &state_records, create_tries());
             handles.push(Self::start_runtime_in_thread(group.clone(), runtime_factory));
         }
         handles
@@ -382,6 +380,8 @@ macro_rules! assert_receipts {
             _ => panic!("Receipt {:#?} does not satisfy the pattern {}", r, stringify!($receipt_pat)),
         }
        let receipt_log = $group.get_transaction_log(&r.get_hash());
+
+       println!("{:?}", receipt_log.outcome);
        tuplet!(( $($produced_receipt),* ) = receipt_log.outcome.receipt_ids, "Incorrect number of produced receipts for a receipt");
     };
 }

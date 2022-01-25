@@ -1,20 +1,12 @@
-use std::collections::HashMap;
-
-use num_rational::Rational;
-
-use crate::crypto::{EmptySigner, PublicKey, Signature, Signer};
+use crate::crypto::{EmptySigner, PublicKey, Signer};
 
 use crate::account::{Account};
-// use crate::block::Block;
-// use crate::block_header::{BlockHeader, BlockHeaderV3};
-use crate::errors::{TxExecutionError};
-use crate::serialize::from_base64;
 use crate::transaction::{
     Action, CreateAccountAction, DeleteAccountAction,
     DeployContractAction, FunctionCallAction, SignedTransaction, Transaction,
     TransferAction,
 };
-use crate::contract_runtime::{AccountId, Balance, CryptoHash, BlockNumber, Gas, Nonce};
+use crate::contract_runtime::{AccountId, Balance, CryptoHash, Gas, Nonce};
 
 pub fn account_new(amount: Balance, code_hash: CryptoHash) -> Account {
     Account::new(amount, 0, code_hash, std::mem::size_of::<Account>() as u64)
@@ -116,7 +108,6 @@ impl SignedTransaction {
         originator: AccountId,
         new_account_id: AccountId,
         amount: Balance,
-        public_key: PublicKey,
         signer: &dyn Signer,
         block_hash: CryptoHash,
     ) -> Self {
@@ -139,7 +130,6 @@ impl SignedTransaction {
         new_account_id: AccountId,
         code: Vec<u8>,
         amount: Balance,
-        public_key: PublicKey,
         signer: &dyn Signer,
         block_hash: CryptoHash,
     ) -> Self {

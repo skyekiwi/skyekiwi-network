@@ -1,12 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use borsh::BorshSerialize;
-
 use skw_vm_genesis_configs::Genesis;
-use skw_vm_primitives::crypto::PublicKey;
 use skw_vm_primitives::fees::StorageUsageConfig;
 use skw_vm_primitives::{
-    contract_runtime::{ContractCode, AccountId, Balance, MerkleHash, StateChangeCause, StateRoot},
+    contract_runtime::{ContractCode, AccountId, MerkleHash, StateChangeCause, StateRoot},
     receipt::{DelayedReceiptIndices, Receipt, ReceiptEnum, ReceivedData},
     state_record::{state_record_to_account_id, StateRecord},
     trie_key::TrieKey,

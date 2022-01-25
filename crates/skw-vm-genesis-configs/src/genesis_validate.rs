@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashSet};
 
 use crate::genesis_config::{Genesis, GenesisConfig};
 use skw_vm_primitives::state_record::StateRecord;
@@ -71,11 +71,7 @@ mod test {
     use super::*;
 
     use crate::GenesisRecords;
-    use near_crypto::{KeyType, PublicKey};
     use skw_vm_primitives::account::{Account};
-    use skw_vm_primitives::contract_runtime::AccountInfo;
-
-    const VALID_ED25519_RISTRETTO_KEY: &str = "ed25519:KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7";
 
     fn create_account() -> Account {
         Account::new(100, 10, Default::default(), 0)

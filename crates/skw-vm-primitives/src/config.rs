@@ -171,8 +171,11 @@ pub struct ViewConfig {
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, Debug, PartialOrd, Ord)]
 #[allow(non_camel_case_types)]
 pub enum ActionCosts {
+    create_account,
+    delete_account,
     deploy_contract,
     function_call,
+    transfer,
     value_return,
     new_receipt,
 
@@ -194,14 +197,16 @@ impl ActionCosts {
 
     pub fn name_of(index: usize) -> &'static str {
         vec![
+            "create_account",
+            "delete_account",
             "deploy_contract",
             "function_call",
+            "transfer",
             "value_return",
             "new_receipt",
         ][index]
     }
 }
-
 impl fmt::Display for ExtCosts {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", ExtCosts::name_of(*self as usize))

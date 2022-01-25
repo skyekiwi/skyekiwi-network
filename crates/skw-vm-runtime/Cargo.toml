@@ -23,11 +23,6 @@ thiserror = "1.0"
 
 borsh = "0.9"
 
-# near-crypto = { git = "https://github.com/near/nearcore" }
-
-near-primitives = { git = "https://github.com/near/nearcore" }
-# near-store = { git = "https://github.com/near/nearcore" }
-# near-chain-configs = { git = "https://github.com/near/nearcore" }
 skw-vm-genesis-configs = { path = "../skw-vm-genesis-configs" }
 skw-vm-store = { path = "../skw-vm-store" }
 skw-vm-host = { path = "../skw-vm-host" }

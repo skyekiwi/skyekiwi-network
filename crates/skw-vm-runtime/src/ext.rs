@@ -24,8 +24,6 @@ pub struct RuntimeExt<'a> {
     gas_price: Balance,
     action_hash: &'a CryptoHash,
     data_count: u64,
-    prev_block_hash: &'a CryptoHash,
-    last_block_hash: &'a CryptoHash,
 }
 
 /// Error used by `RuntimeExt`.
@@ -37,7 +35,7 @@ pub(crate) enum ExternalError {
 }
 
 impl From<ExternalError> for VMLogicError {
-    fn from(err: ExternalError) -> Self {
+    fn from(_: ExternalError) -> Self {
         // let ExternalError(v) = err;
         VMLogicError::ExternalError(b"external error".to_vec())
     }
@@ -63,8 +61,6 @@ impl<'a> RuntimeExt<'a> {
         signer_public_key: &'a PublicKey,
         gas_price: Balance,
         action_hash: &'a CryptoHash,
-        prev_block_hash: &'a CryptoHash,
-        last_block_hash: &'a CryptoHash,
     ) -> Self {
         RuntimeExt {
             trie_update,
@@ -75,8 +71,6 @@ impl<'a> RuntimeExt<'a> {
             gas_price,
             action_hash,
             data_count: 0,
-            prev_block_hash,
-            last_block_hash,
         }
     }
 

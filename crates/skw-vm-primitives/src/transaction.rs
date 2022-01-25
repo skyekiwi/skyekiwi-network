@@ -66,6 +66,7 @@ impl Action {
     pub fn get_deposit_balance(&self) -> Balance {
         match self {
             Action::FunctionCall(a) => a.deposit,
+            Action::Transfer(a) => a.deposit,
             _ => 0,
         }
     }

@@ -27,7 +27,7 @@ use skw_vm_primitives::trie_key::{trie_key_parsers, TrieKey};
 pub use crate::refcount::decode_value_with_rc;
 use crate::refcount::encode_value_with_rc;
 use crate::db::{
-    DBOp, DBTransaction, Database, TestDB, RocksDB, GENESIS_JSON_HASH_KEY, GENESIS_STATE_ROOTS_KEY,
+    DBOp, DBTransaction, Database, RocksDB, GENESIS_JSON_HASH_KEY, GENESIS_STATE_ROOTS_KEY,
 };
 pub use crate::trie::{
     iterator::TrieIterator, update::TrieUpdate, update::TrieUpdateIterator,

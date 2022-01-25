@@ -18,7 +18,6 @@ pub use crate::trie::shard_tries::{KeyForStateChanges, ShardTries, WrappedTrieCh
 use crate::trie::trie_storage::{
     TouchedNodesCounter, TrieMemoryPartialStorage, TrieRecordingStorage, TrieStorage,
 };
-pub(crate) use crate::trie::trie_storage::{TrieCache, TrieCachingStorage};
 use crate::StorageError;
 
 mod insert_delete;

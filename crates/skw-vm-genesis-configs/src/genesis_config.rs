@@ -11,15 +11,14 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Serializer;
 use sha2::digest::Digest;
 use smart_default::SmartDefault;
-use tracing::{info, warn};
+use tracing::{warn};
 
 use crate::genesis_validate::validate_genesis;
 use skw_vm_primitives::{
-    config::RuntimeConfig,
     serialize::{u128_dec_format, u128_dec_format_compatible},
     state_record::StateRecord,
     contract_runtime::{
-        CryptoHash, AccountId, AccountInfo, Balance, BlockNumber, Gas,
+        CryptoHash, Balance, BlockNumber, Gas,
     },
 };
 

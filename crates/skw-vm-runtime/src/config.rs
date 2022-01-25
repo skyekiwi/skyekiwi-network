@@ -70,7 +70,7 @@ pub fn total_send_fees(
     config: &RuntimeFeesConfig,
     sender_is_receiver: bool,
     actions: &[Action],
-    receiver_id: &AccountId,
+    _receiver_id: &AccountId,
 ) -> Result<Gas, IntegerOverflowError> {
     let cfg = &config.action_creation_config;
     let mut result = 0;
@@ -102,7 +102,7 @@ pub fn total_send_fees(
 pub fn exec_fee(
     config: &RuntimeFeesConfig,
     action: &Action,
-    receiver_id: &AccountId,
+    _receiver_id: &AccountId,
 ) -> Gas {
     let cfg = &config.action_creation_config;
     use Action::*;

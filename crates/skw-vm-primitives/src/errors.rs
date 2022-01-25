@@ -2,7 +2,6 @@ use std::fmt::{self, Error, Formatter, Debug, Display};
 use serde::{Serialize, Deserialize};
 use crate::crypto::PublicKey;
 use borsh::{BorshDeserialize, BorshSerialize};
-use std::any::Any;
 
 use crate::contract_runtime::{Balance, Nonce, Gas};
 use crate::serialize::u128_dec_format;
@@ -969,7 +968,7 @@ impl std::fmt::Display for HostError {
 }
 
 impl From<StorageError> for RuntimeError {
-    fn from(e: StorageError) -> Self {
+    fn from(_: StorageError) -> Self {
         RuntimeError::StorageError
     }
 }

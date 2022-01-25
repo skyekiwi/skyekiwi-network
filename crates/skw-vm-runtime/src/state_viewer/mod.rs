@@ -3,7 +3,6 @@ use log::debug;
 use skw_vm_primitives::crypto::{KeyType, PublicKey};
 use skw_vm_primitives::config::RuntimeConfig;
 use skw_vm_primitives::{
-    borsh::BorshDeserialize,
     receipt::ActionReceipt,
     apply_state::ApplyState,
     serialize::to_base64,
@@ -141,8 +140,6 @@ impl TrieViewer {
             &public_key,
             0,
             &empty_hash,
-            &view_state.prev_block_hash,
-            &view_state.block_hash,
         );
         
         let config = RuntimeConfig::test();
