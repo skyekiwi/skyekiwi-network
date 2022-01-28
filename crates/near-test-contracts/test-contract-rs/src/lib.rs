@@ -18,7 +18,6 @@ extern "C" {
     fn signer_account_pk(register_id: u64);
     fn predecessor_account_id(register_id: u64);
     fn input(register_id: u64);
-    // TODO #1903 fn block_height() -> u64;
     fn block_number() -> u64;
     fn block_timestamp() -> u64;
     fn epoch_height() -> u64;
@@ -86,6 +85,28 @@ extern "C" {
         gas: u64,
     );
     fn promise_batch_action_transfer(promise_index: u64, amount_ptr: u64);
+    fn promise_batch_action_add_key_with_full_access(
+        promise_index: u64,
+        public_key_len: u64,
+        public_key_ptr: u64,
+        nonce: u64,
+    );
+    fn promise_batch_action_add_key_with_function_call(
+        promise_index: u64,
+        public_key_len: u64,
+        public_key_ptr: u64,
+        nonce: u64,
+        allowance_ptr: u64,
+        receiver_id_len: u64,
+        receiver_id_ptr: u64,
+        method_names_len: u64,
+        method_names_ptr: u64,
+    );
+    fn promise_batch_action_delete_key(
+        promise_index: u64,
+        public_key_len: u64,
+        public_key_ptr: u64,
+    );
     fn promise_batch_action_delete_account(
         promise_index: u64,
         beneficiary_id_len: u64,
@@ -632,6 +653,45 @@ fn call_promise() {
                 promise_batch_action_transfer(
                     promise_index,
                     &amount as *const u128 as *const u64 as u64,
+                );
+                promise_index
+            } else if let Some(action) = arg.get("action_add_key_with_full_access") {
+                let promise_index = action["promise_index"].as_i64().unwrap() as u64;
+                let public_key = from_base64(action["public_key"].as_str().unwrap());
+                let nonce = action["nonce"].as_i64().unwrap() as u64;
+                promise_batch_action_add_key_with_full_access(
+                    promise_index,
+                    public_key.len() as u64,
+                    public_key.as_ptr() as u64,
+                    nonce,
+                );
+                promise_index
+            } else if let Some(action) = arg.get("action_add_key_with_function_call") {
+                let promise_index = action["promise_index"].as_i64().unwrap() as u64;
+                let public_key = from_base64(action["public_key"].as_str().unwrap());
+                let nonce = action["nonce"].as_i64().unwrap() as u64;
+                let allowance = action["allowance"].as_str().unwrap().parse::<u128>().unwrap();
+                let receiver_id = action["receiver_id"].as_str().unwrap().as_bytes();
+                let method_names = action["method_names"].as_str().unwrap().as_bytes();
+                promise_batch_action_add_key_with_function_call(
+                    promise_index,
+                    public_key.len() as u64,
+                    public_key.as_ptr() as u64,
+                    nonce,
+                    &allowance as *const u128 as *const u64 as u64,
+                    receiver_id.len() as u64,
+                    receiver_id.as_ptr() as u64,
+                    method_names.len() as u64,
+                    method_names.as_ptr() as u64,
+                );
+                promise_index
+            } else if let Some(action) = arg.get("action_delete_key") {
+                let promise_index = action["promise_index"].as_i64().unwrap() as u64;
+                let public_key = from_base64(action["public_key"].as_str().unwrap());
+                promise_batch_action_delete_key(
+                    promise_index,
+                    public_key.len() as u64,
+                    public_key.as_ptr() as u64,
                 );
                 promise_index
             } else if let Some(action) = arg.get("action_delete_account") {

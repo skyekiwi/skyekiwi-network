@@ -66,10 +66,6 @@ use wasmi::{
 				  Signature::new(&[][..], Some(ValueType::I64)),
 				  HostFunctions::BlockTimestamp.into(),
 			  )),
-			  "epoch_height" => Ok(FuncInstance::alloc_host(
-				  Signature::new(&[][..], Some(ValueType::I64)),
-				  HostFunctions::EpochHeight.into(),
-			  )),
 			  "storage_usage" => Ok(FuncInstance::alloc_host(
 				  Signature::new(&[][..], Some(ValueType::I64)),
 				  HostFunctions::StorageUsage.into(),
@@ -186,7 +182,7 @@ use wasmi::{
 			)),
 
 			"promise_batch_action_delete_key" => Ok(FuncInstance::alloc_host(
-				Signature::new(&[ValueType::I64, ValueType::I64][..], None),
+				Signature::new(&[ValueType::I64, ValueType::I64, ValueType::I64][..], None),
 				HostFunctions::PromiseBatchActionDeleteKey.into(),
 			)),
 			  "promise_batch_action_delete_account" => Ok(FuncInstance::alloc_host(

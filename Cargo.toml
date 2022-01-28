@@ -19,24 +19,14 @@ members = [
     'crates/near-test-contracts',
     'crates/skw-vm-store',
 
+    # SkyeKiwi VM contract sdk based on near-sdk-rs
     'crates/skw-contract-sdk',
     'crates/skw-contract-macros',
     'crates/skw-contract-sys',
-    # 'crates/skw-contract-sim',
-    
+    'crates/skw-contract-sim',
+
     # sgx enclave host
     'crates/skw-sgx-ipfs',
-
-    # "crates/skw-contract-sdk/examples/callback-results",
-    # "crates/skw-contract-sdk/examples/cross-contract-high-level",
-    # "crates/skw-contract-sdk/examples/cross-contract-low-level",
-    # "crates/skw-contract-sdk/examples/fungible-token",
-    # "crates/skw-contract-sdk/examples/lockable-fungible-token",
-    # "crates/skw-contract-sdk/examples/mission-control",
-    # "crates/skw-contract-sdk/examples/non-fungible-token",
-    # "crates/skw-contract-sdk/examples/status-message",
-    # "crates/skw-contract-sdk/examples/status-message-collections",
-    # "crates/skw-contract-sdk/examples/test-contract",
 ]
 
 exclude = [
@@ -47,14 +37,7 @@ exclude = [
     'enclave/skw-sgx-host',
     'enclave/skw-sgx-enclave',
 
-
-    # SkyeKiwi VM contract sdk based on near-sdk-rs
-    # 'crates/skw-contract-sdk',
-    # 'crates/skw-contract-macros',
-    # 'crates/skw-contract-sys',
-    # 'crates/skw-contract-sim',
-    
-    'crates/near-contract-standards',
+    "crates/near-contract-standards",
 ]
 [profile.release]
 panic = 'unwind'

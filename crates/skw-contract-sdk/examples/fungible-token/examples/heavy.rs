@@ -1,11 +1,11 @@
-use near_sdk::{env, AccountId};
-use near_sdk_sim::{call, deploy, init_simulator, to_yocto, ContractAccount, UserAccount};
+use skw_contract_sdk::{env, AccountId};
+use skw_contract_sim::{call, deploy, root_account, init_simulator, to_yocto, ContractAccount, UserAccount};
 
 use defi::*;
 /// Import the generated proxy contract
 use fungible_token::ContractContract as FtContract;
 
-near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
+skw_contract_sim::lazy_static_include::lazy_static_include_bytes! {
   TOKEN_WASM_BYTES => "res/fungible_token.wasm",
   DEFI_WASM_BYTES => "res/defi.wasm",
 }
@@ -32,11 +32,11 @@ fn init(
         // init method
         init_method:
           new_default_meta(
-            root.account_id(),
+            root_account(),
             initial_balance.into()
         )
     );
-    let alice = root.create_user(AccountId::new_unchecked("alice".to_string()), to_yocto("100"));
+    let alice = root.create_user("alice".parse().unwrap(), to_yocto("100"));
     register_user(&ft, &alice);
 
     let id = AccountId::new_unchecked(FT_ID.to_string());

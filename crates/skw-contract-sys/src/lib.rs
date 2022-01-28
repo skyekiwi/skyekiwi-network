@@ -95,6 +95,28 @@ extern "C" {
         gas: u64,
     );
     pub fn promise_batch_action_transfer(promise_index: u64, amount_ptr: u64);
+    pub fn promise_batch_action_add_key_with_full_access(
+        promise_index: u64,
+        public_key_len: u64,
+        public_key_ptr: u64,
+        nonce: u64,
+    );
+    pub fn promise_batch_action_add_key_with_function_call(
+        promise_index: u64,
+        public_key_len: u64,
+        public_key_ptr: u64,
+        nonce: u64,
+        allowance_ptr: u64,
+        receiver_id_len: u64,
+        receiver_id_ptr: u64,
+        function_names_len: u64,
+        function_names_ptr: u64,
+    );
+    pub fn promise_batch_action_delete_key(
+        promise_index: u64,
+        public_key_len: u64,
+        public_key_ptr: u64,
+    );
     pub fn promise_batch_action_delete_account(
         promise_index: u64,
         beneficiary_id_len: u64,

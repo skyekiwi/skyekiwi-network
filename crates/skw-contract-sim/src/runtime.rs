@@ -5,17 +5,17 @@ use std::collections::HashSet;
 
 use crate::ViewResult;
 use skw_vm_primitives::crypto::{InMemorySigner, KeyType, PublicKey, Signer};
+use skw_vm_primitives::account::{AccessKey, Account};
 use skw_vm_pool::{types::PoolIterator, TransactionPool};
-use skw_vm_genesis_configs::{Genesis};
-use skw_vm_primitives::account::{Account};
+use skw_vm_genesis_configs::{Genesis, get_initial_supply, GenesisConfig, GenesisRecords};
 use skw_vm_primitives::errors::RuntimeError;
 use skw_vm_primitives::contract_runtime::{
-    CryptoHash, AccountInfo, Balance, BlockNumber, Gas, StateChangeCause, AccountId,
+    CryptoHash, Balance, BlockNumber, Gas, StateChangeCause, AccountId,
 };
 use skw_vm_primitives::profile::ProfileData;
 use skw_vm_primitives::receipt::Receipt;
 use skw_vm_primitives::config::RuntimeConfig;
-use skw_vm_primitives::state_record::StateRecord;
+use skw_vm_primitives::state_record::{StateRecord, state_record_to_account_id};
 
 use skw_vm_primitives::test_utils::account_new;
 
@@ -25,65 +25,61 @@ use skw_vm_primitives::views::ViewApplyState;
 use skw_vm_runtime::{state_viewer::TrieViewer, ApplyState, Runtime};
 use skw_contract_sdk::{Duration};
 use skw_vm_store::{
-    get_account, set_account, test_utils::create_test_store, ShardTries, Store,
+    get_account, set_account, test_utils::create_test_store, ShardTries, Store, get_access_key,
 };
 
-const DEFAULT_EPOCH_LENGTH: u64 = 3;
 const DEFAULT_BLOCK_PROD_TIME: Duration = 1_000_000_000;
-
 pub fn init_runtime(
-    genesis_config: Option<Genesis>,
-) -> (RuntimeStandalone, InMemorySigner, AccountId) {
-    let mut genesis = genesis_config.unwrap_or_default();
-    genesis.runtime_config.wasm_config.limit_config.max_total_prepaid_gas = genesis.config.gas_limit;
-    let root_account_id: AccountId = AccountId::new_unvalidated("root".to_string());
-    let signer = genesis.init_root_signer(root_account_id.as_str());
-    let runtime = RuntimeStandalone::new_with_store(genesis);
-    (runtime, signer, root_account_id)
+    account_id: &AccountId,
+    cfg: Option<GenesisBlockConfig>,
+) -> (RuntimeStandalone, InMemorySigner) {
+    let mut config = cfg.unwrap_or_default();
+    let signer = InMemorySigner::from_seed(
+        AccountId::try_from(account_id.to_string()).expect("creating root signer cannot fail"), 
+        KeyType::ED25519, "test"
+    );
+    let root_account = account_new(10u128.pow(33), CryptoHash::default());
+
+    config.state_records.push(StateRecord::Account {
+        account_id: account_id.clone(),
+        account: root_account,
+    });
+
+    config.state_records.push(StateRecord::AccessKey {
+        account_id: account_id.clone(),
+        public_key: signer.public_key(),
+        access_key: AccessKey::full_access(),
+    });
+
+    // genesis.config.wasm_config.limit_config.max_total_prepaid_gas = genesis.config.gas_limit;
+    let runtime = RuntimeStandalone::new_with_store(&config);
+    (runtime, signer)
 }
 
-// #[derive(Debug)]
-// pub struct GenesisConfig {
-//     pub genesis_time: u64,
-//     pub gas_price: Balance,
-//     pub gas_limit: Gas,
-//     pub genesis_height: u64,
-//     pub block_prod_time: Duration,
-//     pub runtime_config: RuntimeConfig,
-//     pub state_records: Vec<StateRecord>,
-// }
+#[derive(Debug)]
+pub struct GenesisBlockConfig {
+    pub genesis_time: u64,
+    pub gas_price: Balance,
+    pub gas_limit: Gas,
+    pub genesis_height: u64,
+    pub runtime_config: RuntimeConfig,
+    pub state_records: Vec<StateRecord>,
+}
 
-// impl Default for GenesisConfig {
-//     fn default() -> Self {
-//         let runtime_config = RuntimeConfig::test();
+impl Default for GenesisBlockConfig {
+    fn default() -> Self {
+        let runtime_config = RuntimeConfig::test();
 
-//         Self {
-//             genesis_time: 0,
-//             gas_price: 100_000_000,
-//             gas_limit: runtime_config.wasm_config.limit_config.max_total_prepaid_gas,
-//             genesis_height: 0,
-//             block_prod_time: DEFAULT_BLOCK_PROD_TIME,
-//             runtime_config,
-//             state_records: vec![],
-//         }
-//     }
-// }
-
-// impl GenesisConfig {
-//     pub fn init_root_signer(&mut self, account_id: &str) -> InMemorySigner {
-//         let signer = InMemorySigner::from_seed(
-//             AccountId::try_from(account_id.to_string()).expect("creating root signer cannot fail"), 
-//             KeyType::ED25519, "test"
-//         );
-//         let root_account = account_new(10u128.pow(33), CryptoHash::default());
-
-//         self.state_records.push(StateRecord::Account {
-//             account_id: account_id.to_string(),
-//             account: root_account,
-//         });
-//         signer
-//     }
-// }
+        Self {
+            genesis_time: 0,
+            gas_price: 100_000_000,
+            gas_limit: runtime_config.wasm_config.limit_config.max_total_prepaid_gas,
+            genesis_height: 0,
+            runtime_config,
+            state_records: vec![],
+        }
+    }
+}
 
 #[derive(Debug, Default, Clone)]
 pub struct Block {
@@ -107,14 +103,14 @@ impl Drop for Block {
 }
 
 impl Block {
-    pub fn genesis(genesis: &Genesis) -> Self {
+    pub fn genesis(config: &GenesisBlockConfig) -> Self {
         Self {
             prev_block: None,
             state_root: CryptoHash::default(),
-            block_number: genesis.config.genesis_height,
-            block_timestamp: genesis.config.genesis_time,
-            gas_price: genesis.config.min_gas_price,
-            gas_limit: genesis.config.gas_limit,
+            block_number: config.genesis_height,
+            block_timestamp: config.genesis_time,
+            gas_price: config.gas_price,
+            gas_limit: config.gas_limit,
         }
     }
 
@@ -135,7 +131,7 @@ impl Block {
 }
 
 pub struct RuntimeStandalone {
-    pub genesis: Genesis,
+    runtime_config: RuntimeConfig,
     tx_pool: TransactionPool,
     transactions: HashMap<CryptoHash, SignedTransaction>,
     outcomes: HashMap<CryptoHash, ExecutionOutcome>,
@@ -148,23 +144,38 @@ pub struct RuntimeStandalone {
 }
 
 impl RuntimeStandalone {
-    pub fn new(genesis: Genesis, store: Arc<Store>) -> Self {
+    pub fn new(genesis: &GenesisBlockConfig, store: Arc<Store>) -> Self {
         let mut genesis_block = Block::genesis(&genesis);
-        let mut store_update = store.store_update();
+        // let mut store_update = store.store_update();
+
         let runtime = Runtime::new();
         let tries = ShardTries::new(store);
-        
+        let genesis_obj = Genesis::new(
+            GenesisConfig {
+                total_supply: get_initial_supply(&genesis.state_records),
+                ..Default::default()
+            },
+            GenesisRecords(genesis.state_records.clone()),
+        );
+
+
+        let mut account_ids = HashSet::<AccountId>::new();
+        genesis_obj.records.for_each_record(|record: &StateRecord| {
+            account_ids.insert(state_record_to_account_id(record).clone());
+        });
+
+
         let state_root = runtime.apply_genesis_state(
             tries.clone(),
-            &genesis,
+            &genesis_obj,
             &genesis.runtime_config,
-            HashSet::new(),
+            account_ids,
         );
 
         genesis_block.state_root = state_root;
 
         Self {
-            genesis,
+            runtime_config: genesis.runtime_config.clone(),
             tries,
             runtime,
             transactions: HashMap::new(),
@@ -177,7 +188,7 @@ impl RuntimeStandalone {
         }
     }
 
-    pub fn new_with_store(genesis: Genesis) -> Self {
+    pub fn new_with_store(genesis: &GenesisBlockConfig) -> Self {
         RuntimeStandalone::new(genesis, create_test_store())
     }
 
@@ -202,7 +213,7 @@ impl RuntimeStandalone {
                     }
                 };
             } else if self.pending_receipts.is_empty() {
-                unreachable!("Lost an outcome for the receipt hash {}", outcome_hash);
+                unreachable!("Lost an outcome for the receipt hash {:?}", outcome_hash);
             }
         }
     }
@@ -244,7 +255,7 @@ impl RuntimeStandalone {
             block_timestamp: self.cur_block.block_timestamp,
             gas_limit: None,
             random_seed: Default::default(),
-            config: Arc::new(self.genesis.runtime_config.clone()),
+            config: Arc::new(self.runtime_config.clone()),
         };
 
         let apply_result = self.runtime.apply(
@@ -253,6 +264,7 @@ impl RuntimeStandalone {
             &apply_state,
             &self.pending_receipts,
             &Self::prepare_transactions(&mut self.tx_pool),
+            None,
         )?;
         self.pending_receipts = apply_result.outgoing_receipts;
         apply_result.outcomes.iter().for_each(|outcome| {
@@ -265,7 +277,7 @@ impl RuntimeStandalone {
         update.commit().expect("Unexpected io error");
         self.cur_block = self.cur_block.produce(
             apply_result.state_root,
-            self.genesis.block_prod_time,
+            DEFAULT_BLOCK_PROD_TIME,
         );
 
         Ok(())
@@ -281,7 +293,7 @@ impl RuntimeStandalone {
     /// Force alter account and change state_root.
     pub fn force_account_update(&mut self, account_id: AccountId, account: &Account) {
         let mut trie_update = self.tries.new_trie_update(self.cur_block.state_root);
-        set_account(&mut trie_update, String::from(account_id), account);
+        set_account(&mut trie_update, account_id, account);
         trie_update.commit(StateChangeCause::ValidatorAccountsUpdate);
         let (trie_changes, _) = trie_update.finalize().expect("Unexpected Storage error");
         let (store_update, new_root) = self.tries.apply_all(&trie_changes).unwrap();
@@ -289,15 +301,21 @@ impl RuntimeStandalone {
         self.cur_block.state_root = new_root;
     }
 
-    pub fn view_account(&self, account_id: &str) -> Option<Account> {
+    pub fn view_account(&self, account_id: AccountId) -> Option<Account> {
         let trie_update = self.tries.new_trie_update(self.cur_block.state_root);
-        get_account(&trie_update, &account_id.to_string()).expect("Unexpected Storage error")
+        get_account(&trie_update, &account_id).expect("Unexpected Storage error")
+    }
+
+    pub fn view_access_key(&self, account_id: AccountId, public_key: &PublicKey) -> Option<AccessKey> {
+        let trie_update = self.tries.new_trie_update(self.cur_block.state_root);
+        get_access_key(&trie_update, &account_id, public_key)
+            .expect("Unexpected Storage error")
     }
 
     /// Returns a ViewResult containing the value or error and any logs
     pub fn view_method_call(
         &self,
-        account_id: &str,
+        account_id: &AccountId,
         function_name: &str,
         args: &[u8],
     ) -> ViewResult {
@@ -313,7 +331,7 @@ impl RuntimeStandalone {
         let result = viewer.call_function(
             trie_update,
             view_state,
-            &account_id.to_string(),
+            &account_id,
             function_name,
             args,
             &mut logs,
@@ -345,28 +363,15 @@ impl RuntimeStandalone {
 mod tests {
     use super::*;
     use crate::to_yocto;
-
-    struct Foo {}
-
-    impl Foo {
-        fn _private(&self) {
-            print!("yay!")
-        }
-    }
-
-    #[test]
-    fn single_test() {
-        let _foo = Foo {};
-        _foo._private();
-    }
+    use crate::{alice_account, bob_account, contract_account, caller_account};
 
     #[test]
     fn single_block() {
-        let (mut runtime, signer, _) = init_runtime(None);
+        let (mut runtime, signer) = init_runtime(&alice_account(), None);
         let hash = runtime.send_tx(SignedTransaction::create_account(
             1,
             signer.account_id.clone(),
-            "alice".into(),
+            bob_account(),
             100,
             signer.public_key(),
             &signer,
@@ -381,42 +386,38 @@ mod tests {
 
     #[test]
     fn process_all() {
-        let (mut runtime, signer, _) = init_runtime(None);
-        assert_eq!(runtime.view_account("alice"), None);
+        let (mut runtime, signer) = init_runtime(&alice_account(), None);
+        assert_eq!(runtime.view_account(bob_account()), None);
         let outcome = runtime.resolve_tx(SignedTransaction::create_account(
             1,
-            signer.account_id.clone(),
-            "alice".into(),
+            alice_account(),
+            bob_account(),
             165437999999999999999000,
             signer.public_key(),
             &signer,
             CryptoHash::default(),
         ));
+        println!("{:?}", outcome);
         assert!(matches!(
             outcome,
             Ok((_, ExecutionOutcome { status: ExecutionStatus::SuccessValue(_), .. }))
         ));
-        assert_eq!(
-            runtime.view_account("alice"),
-            Some(Account {
-                amount: 165437999999999999999000,
-                code_hash: CryptoHash::default(),
-                locked: 0,
-                storage_usage: 182,
-            })
-        );
+        assert_eq!(runtime.view_account(bob_account()).unwrap().amount(), 165437999999999999999000);
+        assert_eq!(runtime.view_account(bob_account()).unwrap().code_hash(), CryptoHash::default());
+        assert_eq!(runtime.view_account(bob_account()).unwrap().locked(), 0);
+        assert_eq!(runtime.view_account(bob_account()).unwrap().storage_usage(), 182);
     }
 
     #[test]
     fn test_cross_contract_call() {
-        let (mut runtime, signer, _) = init_runtime(None);
+        let (mut runtime, signer) = init_runtime(&alice_account(), None);
 
         assert!(matches!(
             runtime.resolve_tx(SignedTransaction::create_contract(
                 1,
                 signer.account_id.clone(),
-                "status".into(),
-                include_bytes!("../../examples/status-message/res/status_message.wasm")
+                contract_account(),
+                include_bytes!("../../skw-contract-sdk/examples/status-message/res/status_message.wasm")
                     .as_ref()
                     .into(),
                 to_yocto("35"),
@@ -429,9 +430,9 @@ mod tests {
         let res = runtime.resolve_tx(SignedTransaction::create_contract(
             2,
             signer.account_id.clone(),
-            "caller".into(),
+            caller_account(),
             include_bytes!(
-                "../../examples/cross-contract-high-level/res/cross_contract_high_level.wasm"
+                "../../skw-contract-sdk/examples/cross-contract-high-level/res/cross_contract_high_level.wasm"
             )
             .as_ref()
             .into(),
@@ -447,7 +448,7 @@ mod tests {
         let res = runtime.resolve_tx(SignedTransaction::call(
             3,
             signer.account_id.clone(),
-            "caller".into(),
+            caller_account(),
             &signer,
             0,
             "simple_call".into(),
@@ -461,7 +462,7 @@ mod tests {
         runtime.process_all().unwrap();
 
         assert!(matches!(res, ExecutionOutcome { status: ExecutionStatus::SuccessValue(_), .. }));
-        let res = runtime.view_method_call("status", "get_status", b"{\"account_id\": \"root\"}");
+        let res = runtime.view_method_call(&contract_account(), "get_status", b"{\"account_id\": \"alice\"}");
 
         let caller_status = String::from_utf8(res.unwrap()).unwrap();
         assert_eq!("\"caller status is ok!\"", caller_status);
@@ -469,16 +470,16 @@ mod tests {
 
     #[test]
     fn test_force_update_account() {
-        let (mut runtime, _, _) = init_runtime(None);
-        let mut bob_account = runtime.view_account("root").unwrap();
-        bob_account.locked = 10000;
-        runtime.force_account_update("root".parse().unwrap(), &bob_account);
-        assert_eq!(runtime.view_account("root").unwrap().locked, 10000);
+        let (mut runtime, _) = init_runtime(&alice_account(), None);
+        let mut account = runtime.view_account(alice_account()).unwrap();
+        account.set_amount(10000);
+        runtime.force_account_update(bob_account(), &account);
+        assert_eq!(runtime.view_account(bob_account()).unwrap().amount(), 10000);
     }
 
     #[test]
     fn can_produce_many_blocks_without_stack_overflow() {
-        let (mut runtime, _signer, _) = init_runtime(None);
+        let (mut runtime, _) = init_runtime(&alice_account(), None);
         runtime.produce_blocks(20_000).unwrap();
     }
 }

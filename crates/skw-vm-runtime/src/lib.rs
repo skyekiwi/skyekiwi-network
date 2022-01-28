@@ -9,7 +9,6 @@ pub use skw_vm_primitives::crypto;
 #[cfg(feature = "sandbox")]
 use skw_vm_primitives::contract_runtime::ContractCode;
 
-use skw_vm_primitives::errors::InvalidTxError;
 use skw_vm_primitives::profile::ProfileData;
 pub use skw_vm_primitives::apply_state::ApplyState;
 use skw_vm_primitives::fees::RuntimeFeesConfig;
@@ -334,7 +333,7 @@ impl Runtime {
                         )?;
                     }
                 } else {
-                    return Err(RuntimeError::InvalidTxError(InvalidTxError::SignerDoesNotExist{ signer_id: actor_id.clone()}));
+                    // return Err(RuntimeError::InvalidTxError(InvalidTxError::SignerDoesNotExist{ signer_id: actor_id.clone()}));
                 }
             }
             Action::AddKey(add_key) => {
@@ -405,8 +404,6 @@ impl Runtime {
             ReceiptEnum::Action(action_receipt) => action_receipt,
             _ => unreachable!("given receipt should be an action receipt"),
         };
-
-        println!("Stats! {:?}", stats );
 
         let account_id = &receipt.receiver_id;
         // Collecting input data and removing it from the state
@@ -1013,7 +1010,6 @@ impl Runtime {
             validate_receipt(&apply_state.config.wasm_config.limit_config, receipt)
                 .map_err(RuntimeError::ReceiptValidationError)?;
             
-            println!("Reciept Gas {:?} - {:?}", total_gas_burnt, gas_limit);
             if total_gas_burnt < gas_limit {
                 process_receipt(receipt, &mut state_update, &mut total_gas_burnt)?;
             } else {
@@ -1300,7 +1296,6 @@ mod tests {
         // Checking n receipts delayed
         for i in 1..=n + 3 {
             let prev_receipts: &[Receipt] = if i == 1 { &receipts } else { &[] };
-            println!("{:?}", prev_receipts);
             let apply_result = runtime
                 .apply(
                     tries.get_trie(),

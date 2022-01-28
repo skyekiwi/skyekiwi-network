@@ -1,6 +1,6 @@
-use near_sdk::json_types::U128;
-use near_sdk::serde_json::json;
-use near_sdk_sim::{call, to_yocto, transaction::ExecutionStatus, view, DEFAULT_GAS};
+use skw_contract_sdk::json_types::U128;
+use skw_contract_sdk::serde_json::json;
+use skw_contract_sim::{call, to_yocto, transaction::ExecutionStatus, view, DEFAULT_GAS};
 
 use crate::utils::{init_with_macros as init, register_user};
 
@@ -21,7 +21,7 @@ fn simulate_simple_transfer() {
     let (root, ft, _, alice) = init(initial_balance);
 
     // Transfer from root to alice.
-    // Uses default gas amount, `near_sdk_sim::DEFAULT_GAS`
+    // Uses default gas amount, `skw_contract_sim::DEFAULT_GAS`
     call!(
         root,
         ft.ft_transfer(alice.account_id(), transfer_amount.into(), None),

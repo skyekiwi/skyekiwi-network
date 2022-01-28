@@ -1,5 +1,5 @@
 [package]
-name = "skw-sdk-macros"
+name = "skw-contract-macros"
 version = '0.1.0'
 authors = ['SkyeKiwi <hello@skye.kiwi>', "Near Inc <max@nearprotocol.com>"]
 edition = '2021'

@@ -1,5 +1,5 @@
 [package]
-name = "skw_ipfs"
+name = "skw_sgx_ipfs"
 version = "0.1.0"
 edition = "2018"
 

@@ -13,6 +13,7 @@ NEAR Simulator & cross-contract testing library
 
 [dependencies]
 skw-contract-sdk = { path = "../skw-contract-sdk" }
+
 skw-vm-host = { path = "../skw-vm-host" }
 skw-vm-store = { path = "../skw-vm-store" }
 skw-vm-primitives = { path = "../skw-vm-primitives" }

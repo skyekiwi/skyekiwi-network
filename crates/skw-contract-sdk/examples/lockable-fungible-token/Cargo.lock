@@ -773,23 +773,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02658e48d89f2bec991f9a78e69cfa4c316f8d6a6c4ec12fae1aeb263d486788"
 
 [[package]]
-name = "skw-contract-sdk"
-version = "0.1.0"
-dependencies = [
- "base64 0.13.0",
- "borsh",
- "bs58",
- "serde",
- "serde_json",
- "skw-sdk-macros",
- "skw-sys",
- "skw-vm-host",
- "skw-vm-primitives",
- "wee_alloc",
-]
-
-[[package]]
-name = "skw-sdk-macros"
+name = "skw-contract-macros"
 version = "0.1.0"
 dependencies = [
  "Inflector",
@@ -799,7 +783,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "skw-sys"
+name = "skw-contract-sdk"
+version = "0.1.0"
+dependencies = [
+ "base64 0.13.0",
+ "borsh",
+ "bs58",
+ "serde",
+ "serde_json",
+ "skw-contract-macros",
+ "skw-contract-sys",
+ "skw-vm-host",
+ "skw-vm-primitives",
+ "wee_alloc",
+]
+
+[[package]]
+name = "skw-contract-sys"
 version = "0.1.0"
 
 [[package]]

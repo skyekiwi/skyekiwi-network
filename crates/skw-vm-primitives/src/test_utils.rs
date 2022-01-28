@@ -1,10 +1,10 @@
 use crate::crypto::{EmptySigner, PublicKey, Signer};
 
-use crate::account::{Account};
+use crate::account::{Account, AccessKey, AccessKeyPermission};
 use crate::transaction::{
     Action, CreateAccountAction, DeleteAccountAction,
     DeployContractAction, FunctionCallAction, SignedTransaction, Transaction,
-    TransferAction,
+    TransferAction, AddKeyAction,
 };
 use crate::contract_runtime::{AccountId, Balance, CryptoHash, Gas, Nonce};
 
@@ -108,6 +108,7 @@ impl SignedTransaction {
         originator: AccountId,
         new_account_id: AccountId,
         amount: Balance,
+        public_key: PublicKey,
         signer: &dyn Signer,
         block_hash: CryptoHash,
     ) -> Self {
@@ -118,6 +119,10 @@ impl SignedTransaction {
             signer,
             vec![
                 Action::CreateAccount(CreateAccountAction {}),
+                Action::AddKey(AddKeyAction {
+                    public_key,
+                    access_key: AccessKey { nonce: 0, permission: AccessKeyPermission::FullAccess },
+                }),
                 Action::Transfer(TransferAction { deposit: amount }),
             ],
             block_hash,
@@ -130,6 +135,7 @@ impl SignedTransaction {
         new_account_id: AccountId,
         code: Vec<u8>,
         amount: Balance,
+        public_key: PublicKey,
         signer: &dyn Signer,
         block_hash: CryptoHash,
     ) -> Self {
@@ -140,6 +146,10 @@ impl SignedTransaction {
             signer,
             vec![
                 Action::CreateAccount(CreateAccountAction {}),
+                Action::AddKey(AddKeyAction {
+                    public_key,
+                    access_key: AccessKey { nonce: 0, permission: AccessKeyPermission::FullAccess },
+                }),
                 Action::Transfer(TransferAction { deposit: amount }),
                 Action::DeployContract(DeployContractAction { code }),
             ],

@@ -289,6 +289,10 @@ mod mock_chain {
         with_mock_interface(|b| b.promise_batch_then(promise_index, account_id_len, account_id_ptr))
     }
     #[no_mangle]
+    extern "C" fn promise_batch_action_create_account(promise_index: u64) {
+        with_mock_interface(|b| b.promise_batch_action_create_account(promise_index))
+    }
+    #[no_mangle]
     extern "C" fn promise_batch_action_deploy_contract(
         promise_index: u64,
         code_len: u64,
@@ -317,6 +321,76 @@ mod mock_chain {
                 arguments_ptr,
                 amount_ptr,
                 gas,
+            )
+        })
+    }
+    #[no_mangle]
+    extern "C" fn promise_batch_action_transfer(promise_index: u64, amount_ptr: u64) {
+        with_mock_interface(|b| b.promise_batch_action_transfer(promise_index, amount_ptr))
+    }
+    #[no_mangle]
+    extern "C" fn promise_batch_action_add_key_with_full_access(
+        promise_index: u64,
+        public_key_len: u64,
+        public_key_ptr: u64,
+        nonce: u64,
+    ) {
+        with_mock_interface(|b| {
+            b.promise_batch_action_add_key_with_full_access(
+                promise_index,
+                public_key_len,
+                public_key_ptr,
+                nonce,
+            )
+        })
+    }
+    #[no_mangle]
+    extern "C" fn promise_batch_action_add_key_with_function_call(
+        promise_index: u64,
+        public_key_len: u64,
+        public_key_ptr: u64,
+        nonce: u64,
+        allowance_ptr: u64,
+        receiver_id_len: u64,
+        receiver_id_ptr: u64,
+        function_names_len: u64,
+        function_names_ptr: u64,
+    ) {
+        with_mock_interface(|b| {
+            b.promise_batch_action_add_key_with_function_call(
+                promise_index,
+                public_key_len,
+                public_key_ptr,
+                nonce,
+                allowance_ptr,
+                receiver_id_len,
+                receiver_id_ptr,
+                function_names_len,
+                function_names_ptr,
+            )
+        })
+    }
+    #[no_mangle]
+    extern "C" fn promise_batch_action_delete_key(
+        promise_index: u64,
+        public_key_len: u64,
+        public_key_ptr: u64,
+    ) {
+        with_mock_interface(|b| {
+            b.promise_batch_action_delete_key(promise_index, public_key_len, public_key_ptr)
+        })
+    }
+    #[no_mangle]
+    extern "C" fn promise_batch_action_delete_account(
+        promise_index: u64,
+        beneficiary_id_len: u64,
+        beneficiary_id_ptr: u64,
+    ) {
+        with_mock_interface(|b| {
+            b.promise_batch_action_delete_account(
+                promise_index,
+                beneficiary_id_len,
+                beneficiary_id_ptr,
             )
         })
     }
