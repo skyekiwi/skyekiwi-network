@@ -15,6 +15,7 @@ pub mod state_record;
 pub mod account;
 pub mod challenge;
 pub mod test_utils;
+pub mod version;
 
 pub use num_rational;
 pub use borsh;
@@ -30,6 +31,7 @@ pub mod contract_runtime {
     use serde::{Serialize, Deserialize};
     use crate::crypto::PublicKey;
     use crate::serialize::u128_dec_format;
+    pub type RngSeed = [u8; 32];
 
     pub type CryptoHash = [u8; 32];
     pub type MerkleHash = CryptoHash;

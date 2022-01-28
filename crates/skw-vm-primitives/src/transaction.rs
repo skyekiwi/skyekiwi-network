@@ -10,11 +10,9 @@ use crate::crypto::{PublicKey, Signature};
 use crate::contract_runtime::{CryptoHash, hash_bytes, AccountId, Balance, Gas, Nonce};
 use crate::serialize::{base64_format, u128_dec_format_compatible};
 use crate::profile::ProfileData;
+use crate::account::AccessKey;
 
 use crate::errors::TxExecutionError;
-
-// // use crate::account::AccessKey;
-// // use crate::merkle::MerklePath;
 
 pub type LogEntry = String;
 
@@ -52,6 +50,8 @@ pub enum Action {
     CreateAccount(CreateAccountAction),
     Transfer(TransferAction),
     DeployContract(DeployContractAction),
+    AddKey(AddKeyAction),
+    DeleteKey(DeleteKeyAction),
     FunctionCall(FunctionCallAction),
     DeleteAccount(DeleteAccountAction),
 }
@@ -141,6 +141,33 @@ pub struct FunctionCallAction {
     pub deposit: Balance,
 }
 
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct AddKeyAction {
+    /// A public key which will be associated with an access_key
+    pub public_key: PublicKey,
+    /// An access key with the permission
+    pub access_key: AccessKey,
+}
+
+impl From<AddKeyAction> for Action {
+    fn from(add_key_action: AddKeyAction) -> Self {
+        Self::AddKey(add_key_action)
+    }
+}
+
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct DeleteKeyAction {
+    /// A public key associated with the access_key to be deleted.
+    pub public_key: PublicKey,
+}
+
+impl From<DeleteKeyAction> for Action {
+    fn from(delete_key_action: DeleteKeyAction) -> Self {
+        Self::DeleteKey(delete_key_action)
+    }
+}
 #[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(BorshSerialize, BorshDeserialize, Eq, Debug, Clone)]
 #[borsh_init(init)]
@@ -447,7 +474,7 @@ mod tests {
 
         assert_eq!(
             to_base(&new_signed_tx.get_hash()),
-            "3iXu3iSvUdAMqDJb5HPGtk8EgVnSM7Jy6vg6ZE6JG6wZ"
+            "Lg7phGrzH1upCaX5wYtAKV2ZStrNc1TppoivbMwZWZB"
         );
     }
 

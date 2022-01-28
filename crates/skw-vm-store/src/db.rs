@@ -12,7 +12,7 @@ use rocksdb::{
 use strum::EnumIter;
 use tracing::warn;
 
-use near_primitives::version::DbVersion;
+use skw_vm_primitives::version::DbVersion;
 
 use crate::refcount::merge_refcounted_records;
 

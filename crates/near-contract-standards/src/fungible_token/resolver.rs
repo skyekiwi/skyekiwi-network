@@ -1,4 +1,4 @@
-use near_sdk::{json_types::U128, AccountId};
+use skw_contract_sdk::{json_types::U128, AccountId};
 
 pub trait FungibleTokenResolver {
     fn ft_resolve_transfer(

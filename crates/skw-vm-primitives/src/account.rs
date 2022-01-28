@@ -1,13 +1,11 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use crate::contract_runtime::{CryptoHash, Balance, StorageUsage};
-use crate::serialize::{u128_dec_format_compatible};
-
-// TODO: Nonce!!!
+use crate::contract_runtime::{CryptoHash, Balance, Nonce, StorageUsage};
+use crate::serialize::{option_u128_dec_format, u128_dec_format_compatible};
 
 /// Per account information stored in the state.
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Account {
     /// The total not locked tokens.
     #[serde(with = "u128_dec_format_compatible")]
@@ -76,6 +74,76 @@ impl Account {
     }
 }
 
+/// Access key provides limited access to an account. Each access key belongs to some account and
+/// is identified by a unique (within the account) public key. One account may have large number of
+/// access keys. Access keys allow to act on behalf of the account by restricting transactions
+/// that can be issued.
+/// `account_id,public_key` is a key in the state
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Debug,
+)]
+pub struct AccessKey {
+    /// Nonce for this access key, used for tx nonce generation. When access key is created, nonce
+    /// is set to `(block_height - 1) * 1e6` to avoid tx hash collision on access key re-creation.
+    /// See <https://github.com/near/nearcore/issues/3779> for more details.
+    pub nonce: Nonce,
+
+    /// Defines permissions for this access key.
+    pub permission: AccessKeyPermission,
+}
+
+impl AccessKey {
+    pub const ACCESS_KEY_NONCE_RANGE_MULTIPLIER: u64 = 1_000_000;
+
+    pub fn full_access() -> Self {
+        Self { nonce: 0, permission: AccessKeyPermission::FullAccess }
+    }
+}
+
+/// Defines permissions for AccessKey
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Debug,
+)]
+pub enum AccessKeyPermission {
+    FunctionCall(FunctionCallPermission),
+
+    /// Grants full access to the account.
+    /// NOTE: It's used to replace account-level public keys.
+    FullAccess,
+}
+
+/// Grants limited permission to make transactions with FunctionCallActions
+/// The permission can limit the allowed balance to be spent on the prepaid gas.
+/// It also restrict the account ID of the receiver for this function call.
+/// It also can restrict the method name for the allowed function calls.
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(
+    BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Debug,
+)]
+pub struct FunctionCallPermission {
+    /// Allowance is a balance limit to use by this access key to pay for function call gas and
+    /// transaction fees. When this access key is used, both account balance and the allowance is
+    /// decreased by the same value.
+    /// `None` means unlimited allowance.
+    /// NOTE: To change or increase the allowance, the old access key needs to be deleted and a new
+    /// access key should be created.
+    #[serde(with = "option_u128_dec_format")]
+    pub allowance: Option<Balance>,
+
+    // This isn't an AccountId because already existing records in testnet genesis have invalid
+    // values for this field (see: https://github.com/near/nearcore/pull/4621#issuecomment-892099860)
+    // we accomodate those by using a string, allowing us to read and parse genesis.
+    /// The access key only allows transactions with the given receiver's account id.
+    pub receiver_id: String,
+
+    /// A list of method names that can be used. The access key only allows transactions with the
+    /// function call of one of the given method names.
+    /// Empty list means any method name can be used.
+    pub method_names: Vec<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use borsh::BorshSerialize;
@@ -94,19 +162,18 @@ mod tests {
 
     #[test]
     fn test_account_deserialization() {
-        let original_account = Account {
+        let old_account = Account {
             amount: 100,
             locked: 200,
             code_hash: CryptoHash::default(),
             storage_usage: 300,
         };
-        let mut original_bytes = &original_account.try_to_vec().unwrap()[..];
-        let new_account = <Account as BorshDeserialize>::deserialize(&mut original_bytes).unwrap();
-        assert_eq!(new_account.amount, original_account.amount);
-        assert_eq!(new_account.locked, original_account.locked);
-        assert_eq!(new_account.code_hash, original_account.code_hash);
-        assert_eq!(new_account.storage_usage, original_account.storage_usage);
-        
+        let mut old_bytes = &old_account.try_to_vec().unwrap()[..];
+        let new_account = <Account as BorshDeserialize>::deserialize(&mut old_bytes).unwrap();
+        assert_eq!(new_account.amount, old_account.amount);
+        assert_eq!(new_account.locked, old_account.locked);
+        assert_eq!(new_account.code_hash, old_account.code_hash);
+        assert_eq!(new_account.storage_usage, old_account.storage_usage);
         let mut new_bytes = &new_account.try_to_vec().unwrap()[..];
         let deserialized_account =
             <Account as BorshDeserialize>::deserialize(&mut new_bytes).unwrap();

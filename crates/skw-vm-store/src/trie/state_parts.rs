@@ -273,7 +273,6 @@ mod tests {
     use crate::trie::{TrieRefcountChange, ValueHandle};
 
     use super::*;
-    use near_primitives::shard_layout::ShardUId;
 
     impl Trie {
         /// Combines all parts and returns TrieChanges that can be applied to storage.

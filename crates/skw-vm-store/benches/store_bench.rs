@@ -2,8 +2,8 @@
 extern crate bencher;
 
 use bencher::{black_box, Bencher};
-use near_primitives::borsh::maybestd::sync::Arc;
-use near_primitives::errors::StorageError;
+use skw_vm_primitives::borsh::maybestd::sync::Arc;
+use skw_vm_primitives::errors::StorageError;
 use skw_vm_store::db::DBCol::ColBlockMerkleTree;
 use skw_vm_store::{create_store, DBCol, Store};
 use std::time::{Duration, Instant};
@@ -57,7 +57,7 @@ fn generate_keys(count: usize, key_size: usize) -> Vec<Vec<u8>> {
 
 /// Read from DB value for given `kyes` in random order for `col`.
 /// Works only for column configured without reference counting, that is `.is_rc() == false`.
-fn read_from_db(store: &Arc<Store>, keys: &Vec<Vec<u8>>, col: DBCol) -> usize {
+fn read_from_db(store: &Store, keys: &Vec<Vec<u8>>, col: DBCol) -> usize {
     let mut read = 0;
     for _k in 0..keys.len() {
         let r = rand::random::<u32>() % (keys.len() as u32);
@@ -76,7 +76,7 @@ fn read_from_db(store: &Arc<Store>, keys: &Vec<Vec<u8>>, col: DBCol) -> usize {
 /// Write random value of size between `0` and `max_value_size` to given `keys` at specific column
 /// `col.`
 /// Works only for column configured without reference counting, that is `.is_rc() == false`.
-fn write_to_db(store: &Arc<Store>, keys: &[Vec<u8>], max_value_size: usize, col: DBCol) {
+fn write_to_db(store: &Store, keys: &[Vec<u8>], max_value_size: usize, col: DBCol) {
     let mut store_update = store.store_update();
     for key in keys.iter() {
         let x: usize = rand::random::<usize>() % max_value_size;
@@ -91,7 +91,6 @@ fn benchmark_write_then_read_successful_10m(bench: &mut Bencher) {
     // By adding logs, I've seen a lot of write to keys with size 40, an values with sizes
     // between 10 .. 333.
     // NOTE: ColBlockMerkleTree was chosen to be a column, where `.is_rc() == false`.
-    // benchmark_write_then_read_successful(bench, 10_000_000, 40, 333, ColBlockMerkleTree);
     benchmark_write_then_read_successful(bench, 10_000, 40, 333, ColBlockMerkleTree);
 }
 

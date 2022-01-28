@@ -1,8 +1,8 @@
 use super::NonFungibleTokenEnumeration;
 use crate::non_fungible_token::token::Token;
 use crate::non_fungible_token::NonFungibleToken;
-use near_sdk::json_types::U128;
-use near_sdk::{env, require, AccountId};
+use skw_contract_sdk::json_types::U128;
+use skw_contract_sdk::{env, require, AccountId};
 
 type TokenId = String;
 

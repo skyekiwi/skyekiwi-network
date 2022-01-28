@@ -5,10 +5,10 @@ use crate::rate::*;
 use skw_contract_sdk::AccountId;
 use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use skw_contract_sdk::serde::{Deserialize, Serialize};
-use skw_contract_sdk::{env, near_bindgen};
+use skw_contract_sdk::{env, skw_bindgen};
 use std::collections::HashMap;
 
-#[near_bindgen]
+#[skw_bindgen]
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "skw_contract_sdk::serde")]
 pub struct MissionControl {
@@ -17,7 +17,7 @@ pub struct MissionControl {
     rates: HashMap<Exchange, Rate>,
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl MissionControl {
     pub fn add_agent(&mut self) {
         let account_id = env::signer_account_id();

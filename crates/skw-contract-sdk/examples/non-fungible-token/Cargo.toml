@@ -6,8 +6,8 @@ edition = "2018"
 
 [dev-dependencies]
 skw-contract-sdk = { path = "../../" }
-skw-sdk-sim = { path = "../../../skw-contract-sim" }
-near-contract-standards = { path = "../../near-contract-standards" }
+skw-contract-sim = { path = "../../../skw-contract-sim" }
+near-contract-standards = { path = "../../../near-contract-standards" }
 
 # remember to include a line for each contract
 non-fungible-token = { path = "./nft" }

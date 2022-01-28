@@ -2,7 +2,7 @@
 use skw_vm_primitives::crypto::{InMemorySigner, KeyType};
 use skw_vm_genesis_configs::{Genesis, GenesisConfig, GenesisRecords, get_initial_supply};
 
-use skw_vm_primitives::account::{Account};
+use skw_vm_primitives::account::{Account, AccessKey};
 use skw_vm_primitives::contract_runtime::{hash_bytes, CryptoHash, AccountId, AccountInfo, Balance};
 use skw_vm_primitives::receipt::Receipt;
 use skw_vm_primitives::state_record::{state_record_to_account_id, StateRecord};
@@ -111,6 +111,7 @@ impl StandaloneRuntime {
                 &self.apply_state,
                 receipts,
                 transactions,
+                None,
             )
             .unwrap();
 
@@ -197,6 +198,11 @@ impl RuntimeGroup {
                 state_records.push(StateRecord::Account {
                     account_id: account_id.clone(),
                     account: Account::new(TESTING_INIT_BALANCE, TESTING_INIT_STAKE, code_hash, 0),
+                });
+                state_records.push(StateRecord::AccessKey {
+                    account_id: account_id.clone(),
+                    public_key: signer.public_key.clone(),
+                    access_key: AccessKey::full_access().into(),
                 });
                 state_records
                     .push(StateRecord::Contract { account_id, code: contract_code.to_vec() });

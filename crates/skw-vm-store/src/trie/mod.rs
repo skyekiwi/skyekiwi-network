@@ -767,7 +767,6 @@ mod tests {
     use super::*;
 
     type TrieChanges = Vec<(Vec<u8>, Option<Vec<u8>>)>;
-    const SHARD_VERSION: u32 = 1;
 
     fn test_clear_trie(
         tries: &ShardTries,

@@ -2,7 +2,7 @@ use skw_vm_primitives::num_rational::Rational;
 use skw_vm_primitives::config::RuntimeConfig;
 use skw_vm_primitives::fees::{
     ActionCreationConfig, DataReceiptCreationConfig, Fee,
-    RuntimeFeesConfig, StorageUsageConfig,
+    RuntimeFeesConfig, StorageUsageConfig, AccessKeyCreationConfig,
 };
 use rand::{thread_rng, RngCore};
 
@@ -27,6 +27,12 @@ pub fn random_config() -> RuntimeConfig {
                 function_call_cost: random_fee(),
                 function_call_cost_per_byte: random_fee(),
                 transfer_cost: random_fee(),
+                add_key_cost: AccessKeyCreationConfig {
+                    full_access_cost: random_fee(),
+                    function_call_cost: random_fee(),
+                    function_call_cost_per_byte: random_fee(),
+                },
+                delete_key_cost: random_fee(),
                 delete_account_cost: random_fee(),
             },
             storage_usage_config: StorageUsageConfig {

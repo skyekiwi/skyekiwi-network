@@ -1,5 +1,3 @@
-//! External dependencies of the near-vm-logic.
-
 use crate::types::{ReceiptIndex};
 use skw_vm_primitives::contract_runtime::{AccountId, Balance, Gas};
 use skw_vm_primitives::errors::VMLogicError;
@@ -305,6 +303,113 @@ pub trait RuntimeExternal {
         prepaid_gas: Gas,
     ) -> Result<()>;
 
+    /// Attach the [`AddKeyAction`] action to an existing receipt.
+    ///
+    /// # Arguments
+    ///
+    /// * `receipt_index` - an index of Receipt to append an action
+    /// * `public_key` - a public key for an access key
+    /// * `nonce` - a nonce
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use skw_vm_host::mocks::mock_external::MockedExternal;
+    /// # use skw_vm_host::RuntimeExternal;
+    ///
+    /// # let mut external = MockedExternal::new();
+    /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
+    /// external.append_action_add_key_with_full_access(
+    ///     receipt_index,
+    ///     b"some public key".to_vec(),
+    ///     0u64
+    /// ).unwrap();
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `receipt_index` does not refer to a known receipt.
+    fn append_action_add_key_with_full_access(
+        &mut self,
+        receipt_index: ReceiptIndex,
+        public_key: Vec<u8>,
+        nonce: u64,
+    ) -> Result<()>;
+
+    /// Attach the [`AddKeyAction`] action an existing receipt.
+    ///
+    /// The access key associated with the action will have the
+    /// [`AccessKeyPermission::FunctionCall`] permission scope.
+    ///
+    /// # Arguments
+    ///
+    /// * `receipt_index` - an index of Receipt to append an action
+    /// * `public_key` - a public key for an access key
+    /// * `nonce` - a nonce
+    /// * `allowance` - amount of tokens allowed to spend by this access key
+    /// * `receiver_id` - a contract witch will be allowed to call with this access key
+    /// * `method_names` - a list of method names is allowed to call with this access key (empty = any method)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use skw_vm_host::mocks::mock_external::MockedExternal;
+    /// # use skw_vm_host::RuntimeExternal;
+    ///
+    /// # let mut external = MockedExternal::new();
+    /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
+    /// external.append_action_add_key_with_function_call(
+    ///     receipt_index,
+    ///     b"some public key".to_vec(),
+    ///     0u64,
+    ///     None,
+    ///     "bob.near".parse().unwrap(),
+    ///     vec![b"foo".to_vec(), b"bar".to_vec()]
+    /// ).unwrap();
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `receipt_index` does not refer to a known receipt.
+    fn append_action_add_key_with_function_call(
+        &mut self,
+        receipt_index: ReceiptIndex,
+        public_key: Vec<u8>,
+        nonce: u64,
+        allowance: Option<Balance>,
+        receiver_id: AccountId,
+        method_names: Vec<Vec<u8>>,
+    ) -> Result<()>;
+
+    /// Attach the [`DeleteKeyAction`] action to an existing receipt.
+    ///
+    /// # Arguments
+    ///
+    /// * `receipt_index` - an index of Receipt to append an action
+    /// * `public_key` - a public key for an access key to delete
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use skw_vm_host::mocks::mock_external::MockedExternal;
+    /// # use skw_vm_host::RuntimeExternal;
+    ///
+    /// # let mut external = MockedExternal::new();
+    /// let receipt_index = external.create_receipt(vec![], "charli.near".parse().unwrap()).unwrap();
+    /// external.append_action_delete_key(
+    ///     receipt_index,
+    ///     b"some public key".to_vec()
+    /// ).unwrap();
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `receipt_index` does not refer to a known receipt.
+    fn append_action_delete_key(
+        &mut self,
+        receipt_index: ReceiptIndex,
+        public_key: Vec<u8>,
+    ) -> Result<()>;
 
     /// Attach the [`DeleteAccountAction`] action to an existing receipt
     ///

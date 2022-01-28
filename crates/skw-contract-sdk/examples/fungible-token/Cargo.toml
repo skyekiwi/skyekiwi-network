@@ -6,7 +6,7 @@ edition = "2018"
 
 [dev-dependencies]
 skw-contract-sdk = { path = "../../" }
-skw-sdk-sim = { path = "../../../skw-contrat-sim" }
+skw-contract-sim = { path = "../../../skw-contract-sim" }
 
 # remember to include a line for each contract
 fungible-token = { path = "./ft" }

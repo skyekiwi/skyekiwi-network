@@ -44,7 +44,7 @@ impl BorshSerialize for DataArray {
 
 /// Profile of gas consumption.
 /// When add new cost, the new cost should also be append to Cost::ALL
-#[derive(BorshDeserialize, BorshSerialize, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct ProfileData {
     data: DataArray,
 }
@@ -186,6 +186,8 @@ impl Cost {
         Cost::ActionCost { action_cost_kind: ActionCosts::deploy_contract },
         Cost::ActionCost { action_cost_kind: ActionCosts::function_call },
         Cost::ActionCost { action_cost_kind: ActionCosts::transfer },
+        Cost::ActionCost { action_cost_kind: ActionCosts::add_key },
+        Cost::ActionCost { action_cost_kind: ActionCosts::delete_key },
         Cost::ActionCost { action_cost_kind: ActionCosts::value_return },
         Cost::ActionCost { action_cost_kind: ActionCosts::new_receipt },
         Cost::ExtCost { ext_cost_kind: ExtCosts::base },
@@ -226,6 +228,14 @@ impl Cost {
         Cost::ExtCost { ext_cost_kind: ExtCosts::storage_remove_ret_value_byte },
         Cost::ExtCost { ext_cost_kind: ExtCosts::storage_has_key_base },
         Cost::ExtCost { ext_cost_kind: ExtCosts::storage_has_key_byte },
+        Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_create_prefix_base },
+        Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_create_prefix_byte },
+        Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_create_range_base },
+        Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_create_from_byte },
+        Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_create_to_byte },
+        Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_next_base },
+        Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_next_key_byte },
+        Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_next_value_byte },
         Cost::ExtCost { ext_cost_kind: ExtCosts::touching_trie_node },
         Cost::ExtCost { ext_cost_kind: ExtCosts::promise_and_base },
         Cost::ExtCost { ext_cost_kind: ExtCosts::promise_and_per_promise },
@@ -240,52 +250,62 @@ impl Cost {
             Cost::ActionCost { action_cost_kind: ActionCosts::deploy_contract } => 2,
             Cost::ActionCost { action_cost_kind: ActionCosts::function_call } => 3,
             Cost::ActionCost { action_cost_kind: ActionCosts::transfer } => 4,
-            Cost::ActionCost { action_cost_kind: ActionCosts::value_return } => 5,
-            Cost::ActionCost { action_cost_kind: ActionCosts::new_receipt } => 6,
+            Cost::ActionCost { action_cost_kind: ActionCosts::add_key } => 6,
+            Cost::ActionCost { action_cost_kind: ActionCosts::delete_key } => 7,
+            Cost::ActionCost { action_cost_kind: ActionCosts::value_return } => 8,
+            Cost::ActionCost { action_cost_kind: ActionCosts::new_receipt } => 9,
             Cost::ActionCost { action_cost_kind: ActionCosts::__count } => unreachable!(),
-            Cost::ExtCost { ext_cost_kind: ExtCosts::base } => 7,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::contract_compile_base } => 8,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::contract_compile_bytes } => 9,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::read_memory_base } => 10,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::read_memory_byte } => 11,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::write_memory_base } => 12,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::write_memory_byte } => 13,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::read_register_base } => 14,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::read_register_byte } => 15,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::write_register_base } => 16,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::write_register_byte } => 17,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::utf8_decoding_base } => 18,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::utf8_decoding_byte } => 19,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::utf16_decoding_base } => 20,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::utf16_decoding_byte } => 21,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::sha256_base } => 22,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::sha256_byte } => 23,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::keccak256_base } => 24,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::keccak256_byte } => 25,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::keccak512_base } => 26,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::keccak512_byte } => 27,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::ripemd160_base } => 28,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::ripemd160_block } => 29,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::ecrecover_base } => 30,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::log_base } => 31,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::log_byte } => 32,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_write_base } => 33,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_write_key_byte } => 34,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_write_value_byte } => 35,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_write_evicted_byte } => 36,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_read_base } => 37,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_read_key_byte } => 38,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_read_value_byte } => 39,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_remove_base } => 40,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_remove_key_byte } => 41,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_remove_ret_value_byte } => 42,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_has_key_base } => 43,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_has_key_byte } => 44,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::touching_trie_node } => 45,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::promise_and_base } => 46,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::promise_and_per_promise } => 47,
-            Cost::ExtCost { ext_cost_kind: ExtCosts::promise_return } => 48,
-            Cost::WasmInstruction => 49,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::base } => 10,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::contract_compile_base } => 11,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::contract_compile_bytes } => 12,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::read_memory_base } => 13,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::read_memory_byte } => 14,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::write_memory_base } => 15,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::write_memory_byte } => 16,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::read_register_base } => 17,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::read_register_byte } => 18,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::write_register_base } => 19,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::write_register_byte } => 20,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::utf8_decoding_base } => 21,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::utf8_decoding_byte } => 22,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::utf16_decoding_base } => 23,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::utf16_decoding_byte } => 24,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::sha256_base } => 25,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::sha256_byte } => 26,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::keccak256_base } => 27,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::keccak256_byte } => 28,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::keccak512_base } => 29,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::keccak512_byte } => 30,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::ripemd160_base } => 31,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::ripemd160_block } => 32,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::ecrecover_base } => 33,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::log_base } => 34,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::log_byte } => 35,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_write_base } => 36,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_write_key_byte } => 37,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_write_value_byte } => 38,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_write_evicted_byte } => 39,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_read_base } => 40,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_read_key_byte } => 41,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_read_value_byte } => 42,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_remove_base } => 43,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_remove_key_byte } => 44,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_remove_ret_value_byte } => 45,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_has_key_base } => 46,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_has_key_byte } => 47,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_create_prefix_base } => 48,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_create_prefix_byte } => 49,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_create_range_base } => 50,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_create_from_byte } => 51,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_create_to_byte } => 52,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_next_base } => 53,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_next_key_byte } => 54,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::storage_iter_next_value_byte } => 55,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::touching_trie_node } => 56,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::promise_and_base } => 57,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::promise_and_per_promise } => 58,
+            Cost::ExtCost { ext_cost_kind: ExtCosts::promise_return } => 59,
+            Cost::WasmInstruction => 62,
             Cost::ExtCost { ext_cost_kind: ExtCosts::__count } => unreachable!(),
         }
     }
@@ -302,5 +322,47 @@ impl Index<Cost> for ProfileData {
 impl IndexMut<Cost> for ProfileData {
     fn index_mut(&mut self, index: Cost) -> &mut Self::Output {
         &mut self.data[index.index()]
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_profile_data_debug() {
+        let profile_data = ProfileData::new();
+        println!("{:#?}", &profile_data);
+    }
+
+    #[test]
+    fn test_profile_data_debug_no_data() {
+        let profile_data = ProfileData::new();
+        println!("{:#?}", &profile_data);
+    }
+
+    #[test]
+    fn test_no_panic_on_overflow() {
+        let mut profile_data = ProfileData::new();
+        profile_data.add_action_cost(ActionCosts::function_call, u64::MAX);
+        profile_data.add_action_cost(ActionCosts::function_call, u64::MAX);
+
+        let res = profile_data.get_action_cost(ActionCosts::function_call);
+        assert_eq!(res, u64::MAX);
+    }
+
+    #[test]
+    fn test_merge() {
+        let mut profile_data = ProfileData::new();
+        profile_data.add_action_cost(ActionCosts::function_call, 111);
+        profile_data.add_ext_cost(ExtCosts::storage_read_base, 11);
+
+        let mut profile_data2 = ProfileData::new();
+        profile_data2.add_action_cost(ActionCosts::function_call, 222);
+        profile_data2.add_ext_cost(ExtCosts::storage_read_base, 22);
+
+        profile_data.merge(&profile_data2);
+        assert_eq!(profile_data.get_action_cost(ActionCosts::function_call), 333);
+        assert_eq!(profile_data.get_ext_cost(ExtCosts::storage_read_base), 33);
     }
 }

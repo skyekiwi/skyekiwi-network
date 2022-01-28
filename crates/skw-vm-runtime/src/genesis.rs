@@ -1,15 +1,17 @@
 use std::collections::{HashMap, HashSet};
-
-use skw_vm_genesis_configs::Genesis;
+use borsh::BorshSerialize;
+use skw_vm_genesis_configs::{GenesisRecords};
 use skw_vm_primitives::fees::StorageUsageConfig;
 use skw_vm_primitives::{
     contract_runtime::{ContractCode, AccountId, MerkleHash, StateChangeCause, StateRoot},
     receipt::{DelayedReceiptIndices, Receipt, ReceiptEnum, ReceivedData},
     state_record::{state_record_to_account_id, StateRecord},
     trie_key::TrieKey,
+    account::{AccessKey},
+    crypto::PublicKey,
 };
 use skw_vm_store::{
-    get_account, get_received_data, set, set_account, set_code,
+    get_account, get_received_data, set, set_access_key, set_account, set_code,
     set_postponed_receipt, set_received_data, ShardTries, TrieUpdate,
 };
 
@@ -38,6 +40,14 @@ impl<'a> StorageComputer<'a> {
             }
             StateRecord::Contract { account_id, code } => {
                 Some((account_id.clone(), code.len() as u64))
+            }
+            StateRecord::AccessKey { account_id, public_key, access_key } => {
+                let public_key: PublicKey = public_key.clone();
+                let access_key: AccessKey = access_key.clone();
+                let storage_usage = self.config.num_extra_bytes_record
+                    + public_key.try_to_vec().unwrap().len() as u64
+                    + access_key.try_to_vec().unwrap().len() as u64;
+                Some((account_id.clone(), storage_usage))
             }
             StateRecord::PostponedReceipt(_) => None,
             StateRecord::ReceivedData { .. } => None,
@@ -81,7 +91,7 @@ impl GenesisStateApplier {
         delayed_receipts_indices: &mut DelayedReceiptIndices,
         tries: &mut ShardTries,
         config: &RuntimeConfig,
-        genesis: &Genesis,
+        genesis: &GenesisRecords,
         batch_account_ids: HashSet<&AccountId>,
     ) {
         let mut state_update = tries.new_trie_update(*current_state_root);
@@ -109,6 +119,9 @@ impl GenesisStateApplier {
                     let code = ContractCode::new(&code);
                     set_code(&mut state_update, account_id, &code);
                     assert_eq!(code.hash, acc.code_hash());
+                }
+                StateRecord::AccessKey { account_id, public_key, access_key } => {
+                    set_access_key(&mut state_update, account_id, public_key, &access_key);
                 }
                 StateRecord::PostponedReceipt(receipt) => {
                     // Delaying processing postponed receipts, until we process all data first
@@ -199,7 +212,7 @@ impl GenesisStateApplier {
     pub fn apply(
         mut tries: ShardTries,
         config: &RuntimeConfig,
-        genesis: &Genesis,
+        genesis: &GenesisRecords,
         account_ids: HashSet<AccountId>,
     ) -> StateRoot {
         let mut current_state_root = MerkleHash::default();

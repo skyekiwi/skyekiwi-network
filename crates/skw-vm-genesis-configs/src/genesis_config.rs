@@ -140,6 +140,14 @@ impl GenesisRecords {
         )
         .expect("Failed to create / write a genesis records file.");
     }
+
+    /// If records vector is empty processes records stream from records_file.
+    /// May panic if records_file is removed or is in wrong format.
+    pub fn for_each_record(&self, mut callback: impl FnMut(&StateRecord)) {
+        for record in &self.0 {
+            callback(record);
+        }
+    }
 }
 
 /// Visitor for records.

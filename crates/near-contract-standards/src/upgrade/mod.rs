@@ -1,6 +1,6 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::U64;
-use near_sdk::{env, require, AccountId, Duration, Promise, Timestamp};
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::json_types::U64;
+use skw_contract_sdk::{env, require, AccountId, Duration, Promise, Timestamp};
 
 type WrappedDuration = U64;
 

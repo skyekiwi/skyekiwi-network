@@ -1,6 +1,3 @@
-//! Module that takes care of loading, checking and preprocessing of a
-//! wasm module before execution.
-
 use parity_wasm::builder;
 use parity_wasm::elements::{self, External, MemorySection, Type, Module};
 use pwasm_utils::{self, rules};

@@ -6,12 +6,13 @@ use num_bigint::BigUint;
 use num_traits::cast::ToPrimitive;
 use num_traits::pow::Pow;
 
+use skw_vm_primitives::account::{AccessKeyPermission};
 use skw_vm_primitives::errors::IntegerOverflowError;
 pub use skw_vm_primitives::num_rational::Rational;
 pub use skw_vm_primitives::config::RuntimeConfig;
 use skw_vm_primitives::fees::{transfer_exec_fee, transfer_send_fee, RuntimeFeesConfig};
 use skw_vm_primitives::transaction::{
-    Action, DeployContractAction, FunctionCallAction, Transaction,
+    Action, AddKeyAction, DeployContractAction, FunctionCallAction, Transaction,
 };
 use skw_vm_primitives::contract_runtime::{AccountId, Balance, Gas};
 
@@ -91,7 +92,27 @@ pub fn total_send_fees(
             }
             Transfer(_) => {
                 transfer_send_fee(cfg, sender_is_receiver)
-            }
+            },
+            AddKey(AddKeyAction { access_key, .. }) => match &access_key.permission {
+                AccessKeyPermission::FunctionCall(call_perm) => {
+                    let num_bytes = call_perm
+                        .method_names
+                        .iter()
+                        // Account for null-terminating characters.
+                        .map(|name| name.as_bytes().len() as u64 + 1)
+                        .sum::<u64>();
+                    cfg.add_key_cost.function_call_cost.send_fee(sender_is_receiver)
+                        + num_bytes
+                            * cfg
+                                .add_key_cost
+                                .function_call_cost_per_byte
+                                .send_fee(sender_is_receiver)
+                }
+                AccessKeyPermission::FullAccess => {
+                    cfg.add_key_cost.full_access_cost.send_fee(sender_is_receiver)
+                }
+            },
+            DeleteKey(_) => cfg.delete_key_cost.send_fee(sender_is_receiver),
             DeleteAccount(_) => cfg.delete_account_cost.send_fee(sender_is_receiver),
         };
         result = safe_add_gas(result, delta)?;
@@ -122,6 +143,20 @@ pub fn exec_fee(
         Transfer(_) => {
             transfer_exec_fee(cfg)
         },
+        AddKey(AddKeyAction { access_key, .. }) => match &access_key.permission {
+            AccessKeyPermission::FunctionCall(call_perm) => {
+                let num_bytes = call_perm
+                    .method_names
+                    .iter()
+                    // Account for null-terminating characters.
+                    .map(|name| name.as_bytes().len() as u64 + 1)
+                    .sum::<u64>();
+                cfg.add_key_cost.function_call_cost.exec_fee()
+                    + num_bytes * cfg.add_key_cost.function_call_cost_per_byte.exec_fee()
+            }
+            AccessKeyPermission::FullAccess => cfg.add_key_cost.full_access_cost.exec_fee(),
+        },
+        DeleteKey(_) => cfg.delete_key_cost.exec_fee(),
         DeleteAccount(_) => cfg.delete_account_cost.exec_fee(),
     }
 }

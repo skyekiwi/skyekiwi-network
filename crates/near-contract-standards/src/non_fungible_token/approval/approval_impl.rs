@@ -7,7 +7,7 @@ use crate::non_fungible_token::utils::{
     refund_approved_account_ids_iter, refund_deposit,
 };
 use crate::non_fungible_token::NonFungibleToken;
-use near_sdk::{assert_one_yocto, env, ext_contract, require, AccountId, Balance, Gas, Promise};
+use skw_contract_sdk::{assert_one_yocto, env, ext_contract, require, AccountId, Balance, Gas, Promise};
 
 const GAS_FOR_NFT_APPROVE: Gas = Gas(10_000_000_000_000);
 const NO_DEPOSIT: Balance = 0;

@@ -24,6 +24,8 @@ pub enum ViewContractCodeError {
 pub enum ViewAccessKeyError {
     #[error("Account ID \"{requested_account_id}\" is invalid")]
     InvalidAccountId { requested_account_id: skw_vm_primitives::contract_runtime::AccountId },
+    #[error("Access key for public key #{public_key} does not exist")]
+    AccessKeyDoesNotExist { public_key: skw_vm_primitives::crypto::PublicKey },
     #[error("Internal error: #{error_message}")]
     InternalError { error_message: String },
 }

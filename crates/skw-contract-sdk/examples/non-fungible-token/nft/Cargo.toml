@@ -8,5 +8,5 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-skw-contract-sdk = { path = "../../skw-contract-sdk" }
-near-contract-standards = { path = "../../../near-contract-standards" }
+skw-contract-sdk = { path = "../../../" }
+near-contract-standards = { path = "../../../../near-contract-standards" }

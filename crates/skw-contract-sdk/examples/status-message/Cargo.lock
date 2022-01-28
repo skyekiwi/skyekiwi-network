@@ -433,41 +433,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8452105ba047068f40ff7093dd1d9da90898e63dd61736462e9cdda6a90ad3c3"
 
 [[package]]
-name = "near-account-id"
-version = "0.0.0"
-source = "git+https://github.com/near/nearcore#2ac3047cb1189d9ed4b663bb76e95528f7df5e03"
-dependencies = [
- "borsh",
- "serde",
-]
-
-[[package]]
-name = "near-crypto"
-version = "0.0.0"
-source = "git+https://github.com/near/nearcore#2ac3047cb1189d9ed4b663bb76e95528f7df5e03"
-dependencies = [
- "arrayref",
- "blake2",
- "borsh",
- "bs58",
- "c2-chacha",
- "curve25519-dalek",
- "derive_more",
- "ed25519-dalek",
- "libc",
- "near-account-id",
- "once_cell",
- "parity-secp256k1",
- "primitive-types",
- "rand 0.7.3",
- "rand_core 0.5.1",
- "serde",
- "serde_json",
- "subtle",
- "thiserror",
-]
-
-[[package]]
 name = "num-bigint"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -497,6 +462,7 @@ dependencies = [
  "autocfg",
  "num-integer",
  "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -836,7 +802,6 @@ dependencies = [
  "base64 0.13.0",
  "bs58",
  "byteorder",
- "near-crypto",
  "ripemd160",
  "serde",
  "sha2",
@@ -849,14 +814,30 @@ dependencies = [
 name = "skw-vm-primitives"
 version = "0.1.0"
 dependencies = [
+ "arrayref",
  "base64 0.11.0",
+ "blake2",
  "borsh",
  "bs58",
- "near-crypto",
+ "byteorder",
+ "c2-chacha",
+ "curve25519-dalek",
+ "derive_more",
+ "ed25519-dalek",
+ "hex",
+ "libc",
  "num-rational 0.3.2",
+ "once_cell",
+ "parity-secp256k1",
+ "primitive-types",
+ "rand 0.7.3",
+ "rand_core 0.5.1",
  "serde",
+ "serde_json",
  "sha2",
  "smart-default",
+ "subtle",
+ "thiserror",
  "wasmi",
 ]
 

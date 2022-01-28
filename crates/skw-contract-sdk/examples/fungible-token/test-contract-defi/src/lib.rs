@@ -2,10 +2,10 @@
 Some hypothetical DeFi contract that will do smart things with the transferred tokens
 */
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::U128;
-use near_sdk::{
-    env, ext_contract, log, near_bindgen, require, AccountId, Balance, Gas, PanicOnDefault,
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::json_types::U128;
+use skw_contract_sdk::{
+    env, ext_contract, log, skw_bindgen, require, AccountId, Balance, Gas, PanicOnDefault,
     PromiseOrValue,
 };
 
@@ -15,7 +15,7 @@ const GAS_FOR_FT_ON_TRANSFER: Gas = Gas(BASE_GAS + PROMISE_CALL);
 
 const NO_DEPOSIT: Balance = 0;
 
-#[near_bindgen]
+#[skw_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct DeFi {
     fungible_token_account_id: AccountId,
@@ -32,7 +32,7 @@ trait ValueReturnTrait {
     fn value_please(&self, amount_to_return: String) -> PromiseOrValue<U128>;
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl DeFi {
     #[init]
     pub fn new(fungible_token_account_id: AccountId) -> Self {
@@ -41,7 +41,7 @@ impl DeFi {
     }
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl FungibleTokenReceiver for DeFi {
     /// If given `msg: "take-my-money", immediately returns U128::From(0)
     /// Otherwise, makes a cross-contract call to own `value_please` function, passing `msg`
@@ -75,7 +75,7 @@ impl FungibleTokenReceiver for DeFi {
     }
 }
 
-#[near_bindgen]
+#[skw_bindgen]
 impl ValueReturnTrait for DeFi {
     fn value_please(&self, amount_to_return: String) -> PromiseOrValue<U128> {
         log!("in value_please, amount_to_return = {}", amount_to_return);

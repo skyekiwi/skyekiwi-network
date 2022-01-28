@@ -5,8 +5,8 @@ pub use approval_impl::*;
 pub use approval_receiver::*;
 
 use crate::non_fungible_token::token::TokenId;
-use near_sdk::AccountId;
-use near_sdk::Promise;
+use skw_contract_sdk::AccountId;
+use skw_contract_sdk::Promise;
 
 /// Trait used when it's desired to have a non-fungible token that has a
 /// traditional escrow or approval system. This allows Alice to allow Bob

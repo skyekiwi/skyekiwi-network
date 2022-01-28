@@ -5,14 +5,16 @@ use skw_vm_primitives::receipt::{ActionReceipt, Receipt};
 use skw_vm_primitives::fees::{RuntimeFeesConfig};
 use skw_vm_primitives::config::{AccountCreationConfig};
 
-use skw_vm_primitives::account::Account;
+use skw_vm_primitives::account::{Account, AccessKeyPermission};
+use skw_vm_primitives::crypto::PublicKey;
 use skw_vm_primitives::transaction::{
-    Action, DeployContractAction, FunctionCallAction, TransferAction, DeleteAccountAction
+    Action, AddKeyAction, DeleteAccountAction, DeleteKeyAction, DeployContractAction,
+    FunctionCallAction, TransferAction,
 };
 use skw_vm_primitives::utils::create_random_seed;
 
 use skw_vm_store::{
-    get_code, set_code, remove_account,
+    get_access_key, get_code, remove_access_key, remove_account, set_access_key, set_code,
     StorageError, TrieUpdate,
 };
 use skw_vm_primitives::errors::{
@@ -26,7 +28,6 @@ use crate::ext::{RuntimeExt};
 use crate::{ActionResult, ApplyState};
 use skw_vm_primitives::config::ViewConfig;
 
-// TODO: get this exposed
 // use skw_vm_engine::precompile_contract;
 
 /// Runs given function call with given context / apply state.
@@ -104,6 +105,34 @@ pub(crate) fn execute_function_call(
     )
 }
 
+
+/// Tries to refunds the allowance of the access key for a gas refund action.
+pub(crate) fn try_refund_allowance(
+    state_update: &mut TrieUpdate,
+    account_id: &AccountId,
+    public_key: &PublicKey,
+    transfer: &TransferAction,
+) -> Result<(), StorageError> {
+    if let Some(mut access_key) = get_access_key(state_update, account_id, public_key)? {
+        let mut updated = false;
+        if let AccessKeyPermission::FunctionCall(function_call_permission) =
+            &mut access_key.permission
+        {
+            if let Some(allowance) = function_call_permission.allowance.as_mut() {
+                let new_allowance = allowance.saturating_add(transfer.deposit);
+                if new_allowance > *allowance {
+                    *allowance = new_allowance;
+                    updated = true;
+                }
+            }
+        }
+        if updated {
+            set_access_key(state_update, account_id.clone(), public_key.clone(), &access_key);
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn action_transfer(
     account: &mut Account,
     transfer: &TransferAction,
@@ -159,7 +188,6 @@ pub(crate) fn action_create_account(
     ));
 }
 
-
 pub(crate) fn action_delete_account(
     state_update: &mut TrieUpdate,
     account: &mut Option<Account>,
@@ -200,6 +228,187 @@ pub(crate) fn action_delete_account(
     remove_account(state_update, account_id)?;
     *actor_id = receipt.predecessor_id.clone();
     *account = None;
+    Ok(())
+}
+
+pub(crate) fn action_delete_key(
+    fee_config: &RuntimeFeesConfig,
+    state_update: &mut TrieUpdate,
+    account: &mut Account,
+    result: &mut ActionResult,
+    account_id: &AccountId,
+    delete_key: &DeleteKeyAction,
+) -> Result<(), StorageError> {
+    let access_key = get_access_key(state_update, account_id, &delete_key.public_key)?;
+    if let Some(access_key) = access_key {
+        let storage_usage_config = &fee_config.storage_usage_config;
+        let storage_usage = 
+        {
+            delete_key.public_key.try_to_vec().unwrap().len() as u64
+                + access_key.try_to_vec().unwrap().len() as u64
+                + storage_usage_config.num_extra_bytes_record
+        };
+        // Remove access key
+        remove_access_key(state_update, account_id.clone(), delete_key.public_key.clone());
+        account.set_storage_usage(account.storage_usage().saturating_sub(storage_usage));
+    } else {
+        result.result = Err(ActionErrorKind::DeleteKeyDoesNotExist {
+            public_key: delete_key.public_key.clone(),
+            account_id: account_id.clone(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
+pub(crate) fn action_add_key(
+    apply_state: &ApplyState,
+    state_update: &mut TrieUpdate,
+    account: &mut Account,
+    result: &mut ActionResult,
+    account_id: &AccountId,
+    add_key: &AddKeyAction,
+) -> Result<(), StorageError> {
+    if get_access_key(state_update, account_id, &add_key.public_key)?.is_some() {
+        result.result = Err(ActionErrorKind::AddKeyAlreadyExists {
+            account_id: account_id.to_owned(),
+            public_key: add_key.public_key.clone(),
+        }
+        .into());
+        return Ok(());
+    }
+
+    set_access_key(
+        state_update,
+        account_id.clone(),
+        add_key.public_key.clone(),
+        &add_key.access_key,
+    );
+
+
+    let storage_config = &apply_state.config.transaction_costs.storage_usage_config;
+    account.set_storage_usage(
+        account
+            .storage_usage()
+            .checked_add(
+                add_key.public_key.try_to_vec().unwrap().len() as u64
+                    + add_key.access_key.try_to_vec().unwrap().len() as u64
+                    + storage_config.num_extra_bytes_record,
+            )
+            .ok_or_else(|| {
+                StorageError::StorageInconsistentState(format!(
+                    "Storage usage integer overflow for account {}",
+                    account_id
+                ))
+            })?,
+    );
+    Ok(())
+}
+
+pub(crate) fn check_actor_permissions(
+    action: &Action,
+    account: &Option<Account>,
+    actor_id: &AccountId,
+    account_id: &AccountId,
+) -> Result<(), ActionError> {
+    match action {
+        Action::DeployContract(_) | Action::AddKey(_) | Action::DeleteKey(_) => {
+            if actor_id != account_id {
+                return Err(ActionErrorKind::ActorNoPermission {
+                    account_id: account_id.clone(),
+                    actor_id: actor_id.clone(),
+                }
+                .into());
+            }
+        }
+        Action::DeleteAccount(_) => {
+            if actor_id != account_id {
+                return Err(ActionErrorKind::ActorNoPermission {
+                    account_id: account_id.clone(),
+                    actor_id: actor_id.clone(),
+                }
+                .into());
+            }
+            let account = account.as_ref().unwrap();
+            if account.locked() != 0 {
+                return Err(ActionErrorKind::DeleteAccountStaking {
+                    account_id: account_id.clone(),
+                }
+                .into());
+            }
+        }
+        Action::CreateAccount(_) | Action::FunctionCall(_) | Action::Transfer(_) => (),
+    };
+    Ok(())
+}
+
+pub(crate) fn check_account_existence(
+    action: &Action,
+    account: &mut Option<Account>,
+    account_id: &AccountId,
+    is_the_only_action: bool,
+    is_refund: bool,
+) -> Result<(), ActionError> {
+    match action {
+        Action::CreateAccount(_) => {
+            if account.is_some() {
+                return Err(ActionErrorKind::AccountAlreadyExists {
+                    account_id: account_id.clone(),
+                }
+                .into());
+            } else {
+                if account_id.is_implicit()
+                {
+                    // If the account doesn't exist and it's 64-length hex account ID, then you
+                    // should only be able to create it using single transfer action.
+                    // Because you should not be able to add another access key to the account in
+                    // the same transaction.
+                    // Otherwise you can hijack an account without having the private key for the
+                    // public key. We've decided to make it an invalid transaction to have any other
+                    // actions on the 64-length hex accounts.
+                    // The easiest way is to reject the `CreateAccount` action.
+                    // See https://github.com/nearprotocol/NEPs/pull/71
+                    return Err(ActionErrorKind::OnlyImplicitAccountCreationAllowed {
+                        account_id: account_id.clone(),
+                    }
+                    .into());
+                }
+            }
+        }
+        Action::Transfer(_) => {
+            if account.is_none() {
+                return if is_the_only_action
+                    && account_id.is_implicit()
+                    && !is_refund
+                {
+                    // OK. It's implicit account creation.
+                    // Notes:
+                    // - The transfer action has to be the only action in the transaction to avoid
+                    // abuse by hijacking this account with other public keys or contracts.
+                    // - Refunds don't automatically create accounts, because refunds are free and
+                    // we don't want some type of abuse.
+                    // - Account deletion with beneficiary creates a refund, so it'll not create a
+                    // new account.
+                    Ok(())
+                } else {
+                    Err(ActionErrorKind::AccountDoesNotExist { account_id: account_id.clone() }
+                        .into())
+                };
+            }
+        }
+        Action::DeployContract(_)
+        | Action::FunctionCall(_)
+        | Action::AddKey(_)
+        | Action::DeleteKey(_)
+        | Action::DeleteAccount(_) => {
+            if account.is_none() {
+                return Err(ActionErrorKind::AccountDoesNotExist {
+                    account_id: account_id.clone(),
+                }
+                .into());
+            }
+        }
+    };
     Ok(())
 }
 
@@ -322,7 +531,6 @@ pub(crate) fn action_function_call(
         // Note: logs are events - needs to be serde'd 
         result.logs.extend(outcome.logs.into_iter());
 
-        // TODO: check profile data merge
         result.profile.merge(&outcome.profile);
         if execution_succeeded {
             account.set_amount(outcome.balance);
@@ -330,7 +538,7 @@ pub(crate) fn action_function_call(
 
             result.result = Ok(outcome.return_data);
             
-            // TODO: link to into_receipts(account: id)
+            // TODO: link to into_receipts(account: id) ??
             result.new_receipts.extend(runtime_ext.into_receipts(account_id));
         }
     } else {
@@ -348,8 +556,17 @@ pub(crate) fn action_deploy_contract(
 ) -> Result<(), StorageError> {
     let code = ContractCode::new(&deploy_contract.code);
     let prev_code = get_code(state_update, account_id, Some(account.code_hash()))?;
-    let _prev_code_length = prev_code.map(|code| code.code.len() as u64).unwrap_or_default();
+    let prev_code_length = prev_code.map(|code| code.code.len() as u64).unwrap_or_default();
     
+    account.set_storage_usage(account.storage_usage().saturating_sub(prev_code_length));
+    account.set_storage_usage(
+        account.storage_usage().checked_add(code.code.len() as u64).ok_or_else(|| {
+            StorageError::StorageInconsistentState(format!(
+                "Storage usage integer overflow for account {}",
+                account_id
+            ))
+        })?,
+    );
     account.set_code_hash(code.hash);
     set_code(state_update, account_id.clone(), &code);
     
@@ -365,56 +582,6 @@ pub(crate) fn action_deploy_contract(
         ).expect("Cannot create memory for a contract call").clone()
     )
     .ok();
-    Ok(())
-}
-
-
-pub(crate) fn check_account_existence(
-    action: &Action,
-    account: &mut Option<Account>,
-    account_id: &AccountId,
-    is_the_only_action: bool,
-    is_refund: bool,
-) -> Result<(), ActionError> {
-    match action {
-        Action::CreateAccount(_) => {
-            if account.is_some() {
-                return Err(ActionErrorKind::AccountAlreadyExists {
-                    account_id: account_id.clone(),
-                }
-                .into());
-            }
-        }
-        Action::Transfer(_) => {
-            if account.is_none() {
-                return if is_the_only_action && !is_refund
-                {
-                    // OK. It's implicit account creation.
-                    // Notes:
-                    // - The transfer action has to be the only action in the transaction to avoid
-                    // abuse by hijacking this account with other public keys or contracts.
-                    // - Refunds don't automatically create accounts, because refunds are free and
-                    // we don't want some type of abuse.
-                    // - Account deletion with beneficiary creates a refund, so it'll not create a
-                    // new account.
-                    Ok(())
-                } else {
-                    Err(ActionErrorKind::AccountDoesNotExist { account_id: account_id.clone() }
-                        .into())
-                };
-            }
-        }
-        Action::DeployContract(_)
-        | Action::FunctionCall(_)
-        | Action::DeleteAccount(_) => {
-            if account.is_none() {
-                return Err(ActionErrorKind::AccountDoesNotExist {
-                    account_id: account_id.clone(),
-                }
-                .into());
-            }
-        }
-    };
     Ok(())
 }
 

@@ -9,8 +9,8 @@ pub use self::receiver::*;
 pub use self::resolver::*;
 
 use crate::non_fungible_token::token::{Token, TokenId};
-use near_sdk::AccountId;
-use near_sdk::PromiseOrValue;
+use skw_contract_sdk::AccountId;
+use skw_contract_sdk::PromiseOrValue;
 
 /// Used for all non-fungible tokens. The specification for the
 /// [core non-fungible token standard] lays out the reasoning for each method.

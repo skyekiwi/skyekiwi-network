@@ -1,4 +1,5 @@
 use crate::contract_runtime::{CryptoHash, AccountId};
+use crate::crypto::PublicKey;
 use borsh::{BorshDeserialize, BorshSerialize};
 use std::mem::size_of;
 
@@ -11,29 +12,33 @@ pub(crate) mod col {
     pub const ACCOUNT: &[u8] = &[0];
     /// This column id is used when storing contract blob for a given `account_id`.
     pub const CONTRACT_CODE: &[u8] = &[1];
+    /// This column id is used when storing `primitives::account::AccessKey` type for a given
+    /// `account_id`.
+    pub const ACCESS_KEY: &[u8] = &[2];
     /// This column id is used when storing `primitives::receipt::ReceivedData` type (data received
     /// for a key `data_id`). The required postponed receipt might be still not received or requires
     /// more pending input data.
-    pub const RECEIVED_DATA: &[u8] = &[2];
+    pub const RECEIVED_DATA: &[u8] = &[3];
     /// This column id is used when storing `primitives::hash::CryptoHash` (ReceiptId) type. The
     /// ReceivedData is not available and is needed for the postponed receipt to execute.
-    pub const POSTPONED_RECEIPT_ID: &[u8] = &[3];
+    pub const POSTPONED_RECEIPT_ID: &[u8] = &[4];
     /// This column id is used when storing the number of missing data inputs that are still not
     /// available for a key `receipt_id`.
-    pub const PENDING_DATA_COUNT: &[u8] = &[4];
+    pub const PENDING_DATA_COUNT: &[u8] = &[5];
     /// This column id is used when storing the postponed receipts (`primitives::receipt::Receipt`).
-    pub const POSTPONED_RECEIPT: &[u8] = &[5];
+    pub const POSTPONED_RECEIPT: &[u8] = &[6];
     /// This column id is used when storing the indices of the delayed receipts queue.
     /// NOTE: It is a singleton per shard.
-    pub const DELAYED_RECEIPT_INDICES: &[u8] = &[6];
+    pub const DELAYED_RECEIPT_INDICES: &[u8] = &[7];
     /// This column id is used when storing delayed receipts, because the shard is overwhelmed.
-    pub const DELAYED_RECEIPT: &[u8] = &[7];
+    pub const DELAYED_RECEIPT: &[u8] = &[8];
     /// This column id is used when storing Key-Value data from a contract on an `account_id`.
-    pub const CONTRACT_DATA: &[u8] = &[8];
+    pub const CONTRACT_DATA: &[u8] = &[9];
     /// All columns
     pub const NON_DELAYED_RECEIPT_COLUMNS: &[(&[u8], &str)] = &[
         (ACCOUNT, "Account"),
         (CONTRACT_CODE, "ContractCode"),
+        (ACCESS_KEY, "AccessKey"),
         (RECEIVED_DATA, "ReceivedData"),
         (POSTPONED_RECEIPT_ID, "PostponedReceiptId"),
         (PENDING_DATA_COUNT, "PendingDataCount"),
@@ -49,6 +54,9 @@ pub enum TrieKey {
     Account { account_id: AccountId },
     /// Used to store `Vec<u8>` contract code for a given `AccountId`.
     ContractCode { account_id: AccountId },
+    /// Used to store `primitives::account::AccessKey` struct for a given `AccountId` and
+    /// a given `public_key` of the `AccessKey`.
+    AccessKey { account_id: AccountId, public_key: PublicKey },
     /// Used to store `primitives::receipt::ReceivedData` struct for a given receiver's `AccountId`
     /// of `DataReceipt` and a given `data_id` (the unique identifier for the data).
     /// NOTE: This is one of the input data for some action receipt.
@@ -81,6 +89,9 @@ impl TrieKey {
         match self {
             TrieKey::Account { account_id } => col::ACCOUNT.len() + account_id.len(),
             TrieKey::ContractCode { account_id } => col::CONTRACT_CODE.len() + account_id.len(),
+            TrieKey::AccessKey { account_id, public_key } => {
+                col::ACCESS_KEY.len() * 2 + account_id.len() + public_key.len()
+            }
             TrieKey::ReceivedData { receiver_id, data_id } => {
                 col::RECEIVED_DATA.len()
                     + receiver_id.len()
@@ -128,6 +139,12 @@ impl TrieKey {
                 res.extend(col::CONTRACT_CODE);
                 res.extend(account_id.as_ref().as_bytes());
             }
+            TrieKey::AccessKey { account_id, public_key } => {
+                res.extend(col::ACCESS_KEY);
+                res.extend(account_id.as_ref().as_bytes());
+                res.extend(col::ACCESS_KEY);
+                res.extend(public_key.try_to_vec().unwrap());
+            }
             TrieKey::ReceivedData { receiver_id, data_id } => {
                 res.extend(col::RECEIVED_DATA);
                 res.extend(receiver_id.as_ref().as_bytes());
@@ -174,6 +191,20 @@ impl TrieKey {
 // TODO: Remove once we switch to non-raw keys everywhere.
 pub mod trie_key_parsers {
     use super::*;
+
+    pub fn parse_public_key_from_access_key_key(
+        raw_key: &[u8],
+        account_id: &AccountId,
+    ) -> Result<PublicKey, std::io::Error> {
+        let prefix_len = col::ACCESS_KEY.len() * 2 + account_id.len();
+        if raw_key.len() < prefix_len {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "raw key is too short for TrieKey::AccessKey",
+            ));
+        }
+        PublicKey::try_from_slice(&raw_key[prefix_len..])
+    }
 
     pub fn parse_data_key_from_contract_data_key<'a>(
         raw_key: &'a [u8],
@@ -253,11 +284,42 @@ pub mod trie_key_parsers {
         parse_account_id_from_slice(account_id, "Account")
     }
 
+    pub fn parse_account_id_from_access_key_key(
+        raw_key: &[u8],
+    ) -> Result<AccountId, std::io::Error> {
+        let account_id_prefix = parse_account_id_prefix(col::ACCESS_KEY, raw_key)?;
+        // To simplify things, we assume that the data separator is a single byte.
+        debug_assert_eq!(col::ACCESS_KEY.len(), 1);
+        let public_key_position = if let Some(index) = account_id_prefix
+            .iter()
+            .enumerate()
+            .find(|(_, c)| **c == col::ACCESS_KEY[0])
+            .map(|(index, _)| index)
+        {
+            index
+        } else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "raw key does not have public key to be TrieKey::AccessKey",
+            ));
+        };
+        let account_id = &account_id_prefix[..public_key_position];
+        parse_account_id_from_slice(account_id, "AccessKey")
+    }
+
     pub fn parse_account_id_from_contract_code_key(
         raw_key: &[u8],
     ) -> Result<AccountId, std::io::Error> {
         let account_id = parse_account_id_prefix(col::CONTRACT_CODE, raw_key)?;
         parse_account_id_from_slice(account_id, "ContractCode")
+    }
+
+    pub fn parse_trie_key_access_key_from_raw_key(
+        raw_key: &[u8],
+    ) -> Result<TrieKey, std::io::Error> {
+        let account_id = parse_account_id_from_access_key_key(raw_key)?;
+        let public_key = parse_public_key_from_access_key_key(raw_key, &account_id)?;
+        Ok(TrieKey::AccessKey { account_id, public_key })
     }
 
     #[allow(unused)]
@@ -271,6 +333,7 @@ pub mod trie_key_parsers {
             let account_id = match *col {
                 col::ACCOUNT => parse_account_id_from_account_key(raw_key)?,
                 col::CONTRACT_CODE => parse_account_id_from_contract_code_key(raw_key)?,
+                col::ACCESS_KEY => parse_account_id_from_access_key_key(raw_key)?,
                 _ => parse_account_id_from_trie_key_with_separator(col, raw_key, col_name)?,
             };
             return Ok(Some(account_id));
@@ -312,7 +375,7 @@ pub mod trie_key_parsers {
         raw_key: &[u8],
         account_id: &AccountId,
     ) -> Result<CryptoHash, std::io::Error> {
-        let prefix_len = account_id.len() + 2;
+        let prefix_len = col::ACCESS_KEY.len() * 2 + account_id.len();
         if raw_key.len() < prefix_len {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
@@ -320,12 +383,19 @@ pub mod trie_key_parsers {
             ));
         }
         CryptoHash::try_from(&raw_key[prefix_len..]).map_err(|_| {
-            println!("{:?} - {:?}", prefix_len, &raw_key[..]);
             std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Can't parse CryptoHash for TrieKey::ReceivedData",
             )
         })
+    }
+
+    pub fn get_raw_prefix_for_access_keys(account_id: &AccountId) -> Vec<u8> {
+        let mut res = Vec::with_capacity(col::ACCESS_KEY.len() * 2 + account_id.len());
+        res.extend(col::ACCESS_KEY);
+        res.extend(account_id.as_ref().as_bytes());
+        res.extend(col::ACCESS_KEY);
+        res
     }
 
     pub fn get_raw_prefix_for_contract_data(account_id: &AccountId, prefix: &[u8]) -> Vec<u8> {
@@ -345,6 +415,8 @@ pub mod trie_key_parsers {
 
 #[cfg(test)]
 mod tests {
+    use crate::crypto::KeyType;
+
     use super::*;
 
     const OK_ACCOUNT_IDS: &[&str] = &[
@@ -384,6 +456,36 @@ mod tests {
             assert_eq!(
                 trie_key_parsers::parse_account_id_from_account_key(&raw_key).unwrap(),
                 account_id
+            );
+            assert_eq!(
+                trie_key_parsers::parse_account_id_from_raw_key(&raw_key).unwrap().unwrap(),
+                account_id
+            );
+        }
+    }
+
+    #[test]
+    fn test_key_for_access_key_consistency() {
+        let public_key = PublicKey::empty(KeyType::ED25519);
+        for account_id in OK_ACCOUNT_IDS.iter().map(|x| x.parse::<AccountId>().unwrap()) {
+            let key = TrieKey::AccessKey {
+                account_id: account_id.clone(),
+                public_key: public_key.clone(),
+            };
+            let raw_key = key.to_vec();
+            assert_eq!(raw_key.len(), key.len());
+            assert_eq!(
+                trie_key_parsers::parse_trie_key_access_key_from_raw_key(&raw_key).unwrap(),
+                key
+            );
+            assert_eq!(
+                trie_key_parsers::parse_account_id_from_access_key_key(&raw_key).unwrap(),
+                account_id
+            );
+            assert_eq!(
+                trie_key_parsers::parse_public_key_from_access_key_key(&raw_key, &account_id)
+                    .unwrap(),
+                public_key
             );
             assert_eq!(
                 trie_key_parsers::parse_account_id_from_raw_key(&raw_key).unwrap().unwrap(),
@@ -435,8 +537,6 @@ mod tests {
 
     #[test]
     fn test_key_for_received_data_consistency() {
-        // TODO: look more into this test-case for size of prefix
-
         for account_id in OK_ACCOUNT_IDS.iter().map(|x| x.parse::<AccountId>().unwrap()) {
             let key = TrieKey::ReceivedData {
                 receiver_id: account_id.clone(),

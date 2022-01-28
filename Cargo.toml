@@ -15,32 +15,46 @@ members = [
     'crates/skw-vm-engine-cli',
     'crates/skw-vm-runtime',
     'crates/skw-vm-genesis-configs',
+    'crates/skw-vm-pool',
     'crates/near-test-contracts',
+    'crates/skw-vm-store',
 
-    # SkyeKiwi VM contract sdk based on near-sdk-rs
-    # 'crates/skw-contract-sdk',
-    # 'crates/skw-contract-macros',
-    # 'crates/skw-contract-sys',
-
+    'crates/skw-contract-sdk',
+    'crates/skw-contract-macros',
+    'crates/skw-contract-sys',
+    # 'crates/skw-contract-sim',
+    
     # sgx enclave host
     'crates/skw-sgx-ipfs',
+
+    # "crates/skw-contract-sdk/examples/callback-results",
+    # "crates/skw-contract-sdk/examples/cross-contract-high-level",
+    # "crates/skw-contract-sdk/examples/cross-contract-low-level",
+    # "crates/skw-contract-sdk/examples/fungible-token",
+    # "crates/skw-contract-sdk/examples/lockable-fungible-token",
+    # "crates/skw-contract-sdk/examples/mission-control",
+    # "crates/skw-contract-sdk/examples/non-fungible-token",
+    # "crates/skw-contract-sdk/examples/status-message",
+    # "crates/skw-contract-sdk/examples/status-message-collections",
+    # "crates/skw-contract-sdk/examples/test-contract",
 ]
 
 exclude = [
-    'skw-contract-sdk/examples/',
     'teaclave-sgx-sdk',
-
-    # unfinished crates
-    'crates/skw-vm-store',
-    'crates/skw-contract-sim',
-    'crates/near-contract-standards',
 
     # SkyeKiwi Protocol in Intel SGX enclave
     'crates/skw-sgx-protocol',
     'enclave/skw-sgx-host',
     'enclave/skw-sgx-enclave',
 
-    "teaclave-sgx-sdk/"
+
+    # SkyeKiwi VM contract sdk based on near-sdk-rs
+    # 'crates/skw-contract-sdk',
+    # 'crates/skw-contract-macros',
+    # 'crates/skw-contract-sys',
+    # 'crates/skw-contract-sim',
+    
+    'crates/near-contract-standards',
 ]
 [profile.release]
 panic = 'unwind'

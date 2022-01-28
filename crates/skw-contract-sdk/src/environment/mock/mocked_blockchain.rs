@@ -2,6 +2,7 @@ use super::{Receipt, SdkExternal};
 use crate::test_utils::VMContextBuilder;
 use crate::types::{Balance, PromiseResult};
 use crate::RuntimeFeesConfig;
+
 use skw_vm_host::mocks::mock_memory::MockedMemory;
 use skw_vm_host::types::PromiseResult as VmPromiseResult;
 use skw_vm_host::{RuntimeExternal as External, MemoryLike, VMConfig, VMContext, VMLogic, VMOutcome};

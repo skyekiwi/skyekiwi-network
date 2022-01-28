@@ -6,7 +6,7 @@ console.log('$ yarn enclave:build', process.argv.slice(2).join(' '));
 
 function buildTEE() {
   execSync('cd enclave && make')
+  execSync('cd enclave && make')
 }
 
-buildTEE()
-
+buildTEE();

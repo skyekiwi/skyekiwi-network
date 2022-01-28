@@ -46,14 +46,17 @@ use wasmi::{
 	PromiseBatchActionFunctionCall = 35,
 	PromiseBatchActionTransfer = 36,
 	PromiseBatchActionDeleteAccount = 37,
-	PromiseResultsCount = 38,
-	PromiseResult = 39,
-	PromiseReturn = 40,
-	StorageWrite = 41,
-	StorageRead = 42,
-	StorageRemove = 43,
-	StorageHasKey = 44,
-	Gas = 45,
+	PromiseBatchActionAddKeyWithFullAccess = 38,
+	PromiseBatchActionAddKeyWithFunctionCall = 39,	
+	PromiseBatchActionDeleteKey = 40,
+	PromiseResultsCount = 41,
+	PromiseResult = 42,
+	PromiseReturn = 43,
+	StorageWrite = 44,
+	StorageRead = 45,
+	StorageRemove = 46,
+	StorageHasKey = 47,
+	Gas = 48,
 	Unknown,
   }
   
@@ -97,6 +100,11 @@ use wasmi::{
 		x if x == HostFunctions::PromiseBatchActionDeployContract as usize => HostFunctions::PromiseBatchActionDeployContract,
 		x if x == HostFunctions::PromiseBatchActionFunctionCall as usize => HostFunctions::PromiseBatchActionFunctionCall,
 		x if x == HostFunctions::PromiseBatchActionTransfer as usize => HostFunctions::PromiseBatchActionTransfer,
+
+		x if x == HostFunctions::PromiseBatchActionAddKeyWithFullAccess as usize => HostFunctions::PromiseBatchActionAddKeyWithFullAccess,
+		x if x == HostFunctions::PromiseBatchActionAddKeyWithFunctionCall as usize => HostFunctions::PromiseBatchActionAddKeyWithFunctionCall,
+		x if x == HostFunctions::PromiseBatchActionDeleteKey as usize => HostFunctions::PromiseBatchActionDeleteKey,
+
 		x if x == HostFunctions::PromiseBatchActionDeleteAccount as usize => HostFunctions::PromiseBatchActionDeleteAccount,
 		x if x == HostFunctions::PromiseResultsCount as usize => HostFunctions::PromiseResultsCount,
 		x if x == HostFunctions::PromiseResult as usize => HostFunctions::PromiseResult,
@@ -393,6 +401,40 @@ use wasmi::{
 			  self.promise_batch_action_transfer(promise_index, amount_ptr)
 				  .map(|_| None )
 				  .map_err(vmlogicerr_to_trap)
+		  },
+		  HostFunctions::PromiseBatchActionAddKeyWithFullAccess => {
+			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let public_key_len: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let public_key_ptr: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let nonce: u64 = args.nth_checked(3).map_err(|_| TrapKind::UnexpectedSignature)?;
+			self.promise_batch_action_add_key_with_full_access(promise_index, public_key_len, public_key_ptr, nonce)
+				.map(|_| None )
+				.map_err(vmlogicerr_to_trap)
+		  },
+		  HostFunctions::PromiseBatchActionAddKeyWithFunctionCall => {
+			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let public_key_len: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let public_key_ptr: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let nonce: u64 = args.nth_checked(3).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let allowance_ptr: u64 = args.nth_checked(4).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let receiver_id_len: u64 = args.nth_checked(5).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let receiver_id_ptr: u64 = args.nth_checked(6).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let method_names_len: u64 = args.nth_checked(7).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let method_names_ptr: u64 = args.nth_checked(8).map_err(|_| TrapKind::UnexpectedSignature)?;
+
+
+			self.promise_batch_action_add_key_with_function_call(promise_index, public_key_len, public_key_ptr, nonce, allowance_ptr, receiver_id_len, receiver_id_ptr, method_names_len, method_names_ptr)
+				.map(|_| None )
+				.map_err(vmlogicerr_to_trap)
+		  },
+		  HostFunctions::PromiseBatchActionDeleteKey => {
+			let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let public_key_len: u64 = args.nth_checked(1).map_err(|_| TrapKind::UnexpectedSignature)?;
+			let public_key_ptr: u64 = args.nth_checked(2).map_err(|_| TrapKind::UnexpectedSignature)?;
+
+			self.promise_batch_action_delete_key(promise_index, public_key_len, public_key_ptr)
+				.map(|_| None )
+				.map_err(vmlogicerr_to_trap)
 		  },
 		  HostFunctions::PromiseBatchActionDeleteAccount => {
 			  let promise_index: u64 = args.nth_checked(0).map_err(|_| TrapKind::UnexpectedSignature)?;

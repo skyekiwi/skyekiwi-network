@@ -2,15 +2,17 @@ use borsh::BorshDeserialize;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
+use crate::crypto::PublicKey;
 use crate::contract_runtime::{hash_bytes, CryptoHash, AccountId};
-use crate::account::Account;
+use crate::account::{Account, AccessKey};
 use crate::receipt::{Receipt, ReceivedData};
 use crate::serialize::{base64_format, option_base64_format};
 use crate::trie_key::col;
 use crate::trie_key::trie_key_parsers::{
+    parse_account_id_from_access_key_key, parse_account_id_from_account_key,
     parse_account_id_from_contract_code_key, parse_account_id_from_contract_data_key,
-    parse_account_id_from_received_data_key, parse_data_id_from_received_data_key, 
-    parse_data_key_from_contract_data_key, parse_account_id_from_account_key,
+    parse_account_id_from_received_data_key, parse_data_id_from_received_data_key,
+    parse_data_key_from_contract_data_key, parse_public_key_from_access_key_key,
 };
 
 /// Record in the state storage.
@@ -32,6 +34,8 @@ pub enum StateRecord {
         #[serde(with = "base64_format")]
         code: Vec<u8>,
     },
+    /// Access key associated with some account.
+    AccessKey { account_id: AccountId, public_key: PublicKey, access_key: AccessKey },
     /// Postponed Action Receipt.
     PostponedReceipt(Box<Receipt>),
     /// Received data from DataReceipt encoded in base64 for the given account_id and data_id.
@@ -67,6 +71,12 @@ impl StateRecord {
                 account_id: parse_account_id_from_contract_code_key(&key).unwrap(),
                 code: value,
             }),
+            col::ACCESS_KEY => {
+                let access_key = AccessKey::try_from_slice(&value).unwrap();
+                let account_id = parse_account_id_from_access_key_key(&key).unwrap();
+                let public_key = parse_public_key_from_access_key_key(&key, &account_id).unwrap();
+                Some(StateRecord::AccessKey { account_id, public_key, access_key })
+            }
             col::RECEIVED_DATA => {
                 let data = ReceivedData::try_from_slice(&value).unwrap().data;
                 let account_id = parse_account_id_from_received_data_key(&key).unwrap();
@@ -94,7 +104,7 @@ impl Display for StateRecord {
         match self {
             StateRecord::Account { account_id, account } => {
                 write!(f, "Account {:?}: {:?}", account_id, account)
-            },
+            }
             StateRecord::Data { account_id, data_key, value } => write!(
                 f,
                 "Storage {:?},{:?}: {:?}",
@@ -104,6 +114,9 @@ impl Display for StateRecord {
             ),
             StateRecord::Contract { account_id, code: _ } => {
                 write!(f, "Code for {:?}: ...", account_id)
+            }
+            StateRecord::AccessKey { account_id, public_key, access_key } => {
+                write!(f, "Access key {:?},{:?}: {:?}", account_id, public_key, access_key)
             }
             StateRecord::ReceivedData { account_id, data_id, data } => write!(
                 f,
@@ -124,7 +137,7 @@ fn to_printable(blob: &[u8]) -> String {
     } else {
         let ugly = blob.iter().any(|&x| x < b' ');
         if ugly {
-            return format!("0x{:?}", hex::encode(blob));
+            return format!("0x{}", hex::encode(blob));
         }
         match String::from_utf8(blob.to_vec()) {
             Ok(v) => v,
@@ -136,6 +149,7 @@ fn to_printable(blob: &[u8]) -> String {
 pub fn state_record_to_account_id(state_record: &StateRecord) -> &AccountId {
     match state_record {
         StateRecord::Account { account_id, .. }
+        | StateRecord::AccessKey { account_id, .. }
         | StateRecord::Contract { account_id, .. }
         | StateRecord::ReceivedData { account_id, .. }
         | StateRecord::Data { account_id, .. } => account_id,
