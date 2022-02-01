@@ -6,7 +6,7 @@ macro_rules! impl_non_fungible_token_core {
         use $crate::non_fungible_token::core::NonFungibleTokenCore;
         use $crate::non_fungible_token::core::NonFungibleTokenResolver;
 
-        #[near_bindgen]
+        #[skw_bindgen]
         impl NonFungibleTokenCore for $contract {
             #[payable]
             fn nft_transfer(
@@ -36,7 +36,7 @@ macro_rules! impl_non_fungible_token_core {
             }
         }
 
-        #[near_bindgen]
+        #[skw_bindgen]
         impl NonFungibleTokenResolver for $contract {
             #[private]
             fn nft_resolve_transfer(
@@ -64,7 +64,7 @@ macro_rules! impl_non_fungible_token_approval {
     ($contract: ident, $token: ident) => {
         use $crate::non_fungible_token::approval::NonFungibleTokenApproval;
 
-        #[near_bindgen]
+        #[skw_bindgen]
         impl NonFungibleTokenApproval for $contract {
             #[payable]
             fn nft_approve(
@@ -105,28 +105,28 @@ macro_rules! impl_non_fungible_token_enumeration {
     ($contract: ident, $token: ident) => {
         use $crate::non_fungible_token::enumeration::NonFungibleTokenEnumeration;
 
-        #[near_bindgen]
+        #[skw_bindgen]
         impl NonFungibleTokenEnumeration for $contract {
-            fn nft_total_supply(&self) -> near_sdk::json_types::U128 {
+            fn nft_total_supply(&self) -> skw_contract_sdk::json_types::U128 {
                 self.$token.nft_total_supply()
             }
 
             fn nft_tokens(
                 &self,
-                from_index: Option<near_sdk::json_types::U128>,
+                from_index: Option<skw_contract_sdk::json_types::U128>,
                 limit: Option<u64>,
             ) -> Vec<Token> {
                 self.$token.nft_tokens(from_index, limit)
             }
 
-            fn nft_supply_for_owner(&self, account_id: AccountId) -> near_sdk::json_types::U128 {
+            fn nft_supply_for_owner(&self, account_id: AccountId) -> skw_contract_sdk::json_types::U128 {
                 self.$token.nft_supply_for_owner(account_id)
             }
 
             fn nft_tokens_for_owner(
                 &self,
                 account_id: AccountId,
-                from_index: Option<near_sdk::json_types::U128>,
+                from_index: Option<skw_contract_sdk::json_types::U128>,
                 limit: Option<u64>,
             ) -> Vec<Token> {
                 self.$token.nft_tokens_for_owner(account_id, from_index, limit)

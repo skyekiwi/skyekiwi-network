@@ -2,7 +2,7 @@
 name = "callback-results"
 version = "0.1.0"
 authors = ["Near Inc <hello@nearprotocol.com>"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 skw-contract-sdk = { path = "../../" }
 
 [dev-dependencies]
-skw-sdk-sim = { path = "../../../skw-contract-sdk" }
+skw-contract-sim = { path = "../../../skw-contract-sim" }
 
 [profile.release]
 codegen-units = 1
@@ -20,3 +20,6 @@ opt-level = "z"
 lto = true
 debug = false
 panic = "abort"
+
+[workspace]
+members = []

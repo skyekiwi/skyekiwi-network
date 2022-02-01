@@ -1,5 +1,5 @@
-use near_sdk::json_types::U128;
-use near_sdk::{AccountId, PromiseOrValue};
+use skw_contract_sdk::json_types::U128;
+use skw_contract_sdk::{AccountId, PromiseOrValue};
 
 pub trait FungibleTokenReceiver {
     /// Called by fungible token contract after `ft_transfer_call` was initiated by

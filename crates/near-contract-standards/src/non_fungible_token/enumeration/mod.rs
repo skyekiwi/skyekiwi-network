@@ -1,8 +1,8 @@
 mod enumeration_impl;
 
 use crate::non_fungible_token::token::Token;
-use near_sdk::json_types::U128;
-use near_sdk::AccountId;
+use skw_contract_sdk::json_types::U128;
+use skw_contract_sdk::AccountId;
 
 /// Offers methods helpful in determining account ownership of NFTs and provides a way to page through NFTs per owner, determine total supply, etc.
 pub trait NonFungibleTokenEnumeration {

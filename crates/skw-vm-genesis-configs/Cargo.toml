@@ -1,0 +1,26 @@
+[package]
+name = "skw-vm-genesis-configs"
+version = "0.0.0"
+authors = ["SkyeKiwi <hello@skye.kiwi>", "Near Inc <hello@nearprotocol.com>"]
+publish = false
+edition = "2021"
+license = "GPL-3.0"
+repository = "https://github.com/skyekiwi/skyekiwi-network"
+description = "This crate provides typed interfaces to the NEAR Genesis and Chain Configs"
+
+[dependencies]
+chrono = { version = "0.4.4", features = ["serde"] }
+derive_more = "0.99.3"
+num-rational = { version = "0.3", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.9"
+smart-default = "0.6"
+tracing = "0.1.13"
+anyhow = "1.0.51"
+
+near-crypto = { git = "https://github.com/near/nearcore" }
+skw-vm-primitives = { path = "../skw-vm-primitives" }
+
+[features]
+default = []

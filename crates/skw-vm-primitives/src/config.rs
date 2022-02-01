@@ -1,10 +1,14 @@
-use crate::contract_runtime::Gas;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::collections::hash_map::DefaultHasher;
-use serde::{Deserialize, Serialize};
+use crate::contract_runtime::{Gas, Balance};
+use crate::account_id::AccountId;
+use crate::fees::RuntimeFeesConfig;
+use crate::serialize::u128_dec_format;
 
-#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
+use core::fmt;
+use serde::{Deserialize, Serialize};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
+#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq)]
 pub struct VMConfig {
     /// Costs for runtime externals
     pub ext_costs: ExtCostsConfig,
@@ -20,7 +24,7 @@ pub struct VMConfig {
 
 /// Describes limits for VM and Runtime.
 /// TODO #4139: consider switching to strongly-typed wrappers instead of raw quantities
-#[derive(Debug, Clone, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct VMLimitConfig {
     /// Max amount of gas that can be used, excluding gas attached to promises.
     pub max_gas_burnt: Gas,
@@ -30,6 +34,11 @@ pub struct VMLimitConfig {
     /// See <https://wiki.parity.io/WebAssembly-StackHeight> to find out
     /// how the stack frame cost is calculated.
     pub max_stack_height: u32,
+    /// Whether a legacy version of stack limiting should be used, see
+    /// [`StackLimiterVersion`].
+    #[serde(default = "StackLimiterVersion::v0")]
+    pub stack_limiter_version: StackLimiterVersion,
+
     /// The initial number of memory pages.
     /// NOTE: It's not a limiter itself, but it's a value we use for initial_memory_pages.
     pub initial_memory_pages: u32,
@@ -76,7 +85,64 @@ pub struct VMLimitConfig {
     /// Max number of input data dependencies
     pub max_number_input_data_dependencies: u64,
     /// If present, stores max number of functions in one contract
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_functions_number_per_contract: Option<u64>,
+}
+
+/// Our original code for limiting WASM stack was buggy. We fixed that, but we
+/// still have to use old (`V0`) limiter for old protocol versions.
+///
+/// This struct here exists to enforce that the value in the config is either
+/// `0` or `1`. We could have used a `bool` instead, but there's a chance that
+/// our current impl isn't perfect either and would need further tweaks in the
+/// future.
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub enum StackLimiterVersion {
+    /// Old, buggy version, don't use it unless specifically to support old protocol version.
+    V0,
+    /// What we use in today's protocol.
+    V1,
+}
+
+impl StackLimiterVersion {
+    fn v0() -> StackLimiterVersion {
+        StackLimiterVersion::V0
+    }
+    fn repr(self) -> u32 {
+        match self {
+            StackLimiterVersion::V0 => 0,
+            StackLimiterVersion::V1 => 1,
+        }
+    }
+    fn from_repr(repr: u32) -> Option<StackLimiterVersion> {
+        let res = match repr {
+            0 => StackLimiterVersion::V0,
+            1 => StackLimiterVersion::V1,
+            _ => return None,
+        };
+        Some(res)
+    }
+}
+
+impl Serialize for StackLimiterVersion {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.repr().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for StackLimiterVersion {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        u32::deserialize(deserializer).and_then(|repr| {
+            StackLimiterVersion::from_repr(repr)
+                .ok_or_else(|| serde::de::Error::custom("invalid stack_limiter_version"))
+        })
+    }
 }
 
 impl VMConfig {
@@ -116,6 +182,7 @@ impl VMLimitConfig {
             // NOTE: Stack height has to be 16K, otherwise Wasmer produces non-deterministic results.
             // For experimentation try `test_stack_overflow`.
             max_stack_height: 16 * 1024, // 16Kib of stack.
+            stack_limiter_version: StackLimiterVersion::V1,
             initial_memory_pages: 2u32.pow(10), // 64Mib of memory.
             max_memory_pages: 2u32.pow(11),     // 128Mib of memory.
 
@@ -157,55 +224,13 @@ impl VMLimitConfig {
 }
 
 /// Configuration of view methods execution, during which no costs should be charged.
-#[derive(Default, Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Default, Clone, Serialize, Deserialize, Debug, Hash, PartialEq, Eq)]
 pub struct ViewConfig {
     /// If specified, defines max burnt gas per view method.
     pub max_gas_burnt: Gas,
 }
 
-// Type of an action, used in fees logic.
-#[derive(Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, Debug, PartialOrd, Ord)]
-#[allow(non_camel_case_types)]
-pub enum ActionCosts {
-    deploy_contract,
-    function_call,
-    value_return,
-    new_receipt,
-
-    // NOTE: this should be the last element of the enum.
-    __count,
-}
-
-
-impl fmt::Display for ActionCosts {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", ActionCosts::name_of(*self as usize))
-    }
-}
-
-impl ActionCosts {
-    pub const fn count() -> usize {
-        ActionCosts::__count as usize
-    }
-
-    pub fn name_of(index: usize) -> &'static str {
-        vec![
-            "deploy_contract",
-            "function_call",
-            "value_return",
-            "new_receipt",
-        ][index]
-    }
-}
-
-impl fmt::Display for ExtCosts {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", ExtCosts::name_of(*self as usize))
-    }
-}
-
-
-#[derive(Debug, Clone, Hash, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct ExtCostsConfig {
     /// Base cost for calling a host function.
     pub base: Gas,
@@ -304,6 +329,25 @@ pub struct ExtCostsConfig {
     /// Storage trie check for key existence per key byte
     pub storage_has_key_byte: Gas,
 
+    /// Create trie prefix iterator cost base
+    pub storage_iter_create_prefix_base: Gas,
+    /// Create trie prefix iterator cost per byte.
+    pub storage_iter_create_prefix_byte: Gas,
+
+    /// Create trie range iterator cost base
+    pub storage_iter_create_range_base: Gas,
+    /// Create trie range iterator cost per byte of from key.
+    pub storage_iter_create_from_byte: Gas,
+    /// Create trie range iterator cost per byte of to key.
+    pub storage_iter_create_to_byte: Gas,
+
+    /// Trie iterator per key base cost
+    pub storage_iter_next_base: Gas,
+    /// Trie iterator next key byte cost
+    pub storage_iter_next_key_byte: Gas,
+    /// Trie iterator next key byte cost
+    pub storage_iter_next_value_byte: Gas,
+
     /// Cost per touched trie node
     pub touching_trie_node: Gas,
 
@@ -364,6 +408,14 @@ impl ExtCostsConfig {
             storage_remove_ret_value_byte: SAFETY_MULTIPLIER * 3843852,
             storage_has_key_base: SAFETY_MULTIPLIER * 18013298875,
             storage_has_key_byte: SAFETY_MULTIPLIER * 10263615,
+            storage_iter_create_prefix_base: SAFETY_MULTIPLIER * 0,
+            storage_iter_create_prefix_byte: SAFETY_MULTIPLIER * 0,
+            storage_iter_create_range_base: SAFETY_MULTIPLIER * 0,
+            storage_iter_create_from_byte: SAFETY_MULTIPLIER * 0,
+            storage_iter_create_to_byte: SAFETY_MULTIPLIER * 0,
+            storage_iter_next_base: SAFETY_MULTIPLIER * 0,
+            storage_iter_next_key_byte: SAFETY_MULTIPLIER * 0,
+            storage_iter_next_value_byte: SAFETY_MULTIPLIER * 0,
             touching_trie_node: SAFETY_MULTIPLIER * 5367318642,
             promise_and_base: SAFETY_MULTIPLIER * 488337800,
             promise_and_per_promise: SAFETY_MULTIPLIER * 1817392,
@@ -411,6 +463,14 @@ impl ExtCostsConfig {
             storage_remove_ret_value_byte: 0,
             storage_has_key_base: 0,
             storage_has_key_byte: 0,
+            storage_iter_create_prefix_base: 0,
+            storage_iter_create_prefix_byte: 0,
+            storage_iter_create_range_base: 0,
+            storage_iter_create_from_byte: 0,
+            storage_iter_create_to_byte: 0,
+            storage_iter_next_base: 0,
+            storage_iter_next_key_byte: 0,
+            storage_iter_next_value_byte: 0,
             touching_trie_node: 0,
             promise_and_base: 0,
             promise_and_per_promise: 0,
@@ -420,7 +480,7 @@ impl ExtCostsConfig {
 }
 
 /// Strongly-typed representation of the fees for counting.
-#[derive(Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, Debug, PartialOrd, Ord)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Debug, PartialOrd, Ord)]
 #[allow(non_camel_case_types)]
 pub enum ExtCosts {
     base,
@@ -461,6 +521,14 @@ pub enum ExtCosts {
     storage_remove_ret_value_byte,
     storage_has_key_base,
     storage_has_key_byte,
+    storage_iter_create_prefix_base,
+    storage_iter_create_prefix_byte,
+    storage_iter_create_range_base,
+    storage_iter_create_from_byte,
+    storage_iter_create_to_byte,
+    storage_iter_next_base,
+    storage_iter_next_key_byte,
+    storage_iter_next_value_byte,
     touching_trie_node,
     promise_and_base,
     promise_and_per_promise,
@@ -468,6 +536,56 @@ pub enum ExtCosts {
 
     // NOTE: this should be the last element of the enum.
     __count,
+}
+
+// Type of an action, used in fees logic.
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Debug, PartialOrd, Ord)]
+#[allow(non_camel_case_types)]
+pub enum ActionCosts {
+    create_account,
+    delete_account,
+    deploy_contract,
+    function_call,
+    transfer,
+    add_key,
+    delete_key,
+    value_return,
+    new_receipt,
+
+    // NOTE: this should be the last element of the enum.
+    __count,
+}
+
+impl fmt::Display for ActionCosts {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", ActionCosts::name_of(*self as usize))
+    }
+}
+
+impl ActionCosts {
+    pub const fn count() -> usize {
+        ActionCosts::__count as usize
+    }
+
+    pub fn name_of(index: usize) -> &'static str {
+        vec![
+            "create_account",
+            "delete_account",
+            "deploy_contract",
+            "function_call",
+            "transfer",
+            "add_key",
+            "delete_key",
+            "value_return",
+            "new_receipt",
+        ][index]
+    }
+}
+
+impl fmt::Display for ExtCosts {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", ExtCosts::name_of(*self as usize))
+    }
 }
 
 impl ExtCosts {
@@ -512,11 +630,18 @@ impl ExtCosts {
             storage_remove_ret_value_byte => config.storage_remove_ret_value_byte,
             storage_has_key_base => config.storage_has_key_base,
             storage_has_key_byte => config.storage_has_key_byte,
+            storage_iter_create_prefix_base => config.storage_iter_create_prefix_base,
+            storage_iter_create_prefix_byte => config.storage_iter_create_prefix_byte,
+            storage_iter_create_range_base => config.storage_iter_create_range_base,
+            storage_iter_create_from_byte => config.storage_iter_create_from_byte,
+            storage_iter_create_to_byte => config.storage_iter_create_to_byte,
+            storage_iter_next_base => config.storage_iter_next_base,
+            storage_iter_next_key_byte => config.storage_iter_next_key_byte,
+            storage_iter_next_value_byte => config.storage_iter_next_value_byte,
             touching_trie_node => config.touching_trie_node,
             promise_and_base => config.promise_and_base,
             promise_and_per_promise => config.promise_and_per_promise,
             promise_return => config.promise_return,
-
             __count => unreachable!(),
         }
     }
@@ -565,10 +690,73 @@ impl ExtCosts {
             "storage_remove_ret_value_byte",
             "storage_has_key_base",
             "storage_has_key_byte",
+            "storage_iter_create_prefix_base",
+            "storage_iter_create_prefix_byte",
+            "storage_iter_create_range_base",
+            "storage_iter_create_from_byte",
+            "storage_iter_create_to_byte",
+            "storage_iter_next_base",
+            "storage_iter_next_key_byte",
+            "storage_iter_next_value_byte",
             "touching_trie_node",
             "promise_and_base",
             "promise_and_per_promise",
             "promise_return",
         ][index]
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct RuntimeConfig {
+    /// Amount of yN per byte required to have on the account.  See
+    /// <https://nomicon.io/Economics/README.html#state-stake> for details.
+    #[serde(with = "u128_dec_format")]
+    pub storage_amount_per_byte: Balance,
+    /// Costs of different actions that need to be performed when sending and processing transaction
+    /// and receipts.
+    pub transaction_costs: RuntimeFeesConfig,
+    /// Config of wasm operations.
+    pub wasm_config: VMConfig,
+    /// Config that defines rules for account creation.
+    pub account_creation_config: AccountCreationConfig,
+}
+
+impl RuntimeConfig {
+    pub fn test() -> Self {
+        RuntimeConfig {
+            // See https://nomicon.io/Economics/README.html#general-variables for how it was calculated.
+            storage_amount_per_byte: 909 * 100_000_000_000_000_000,
+            transaction_costs: RuntimeFeesConfig::test(),
+            wasm_config: VMConfig::test(),
+            account_creation_config: AccountCreationConfig::default(),
+        }
+    }
+
+    pub fn free() -> Self {
+        Self {
+            storage_amount_per_byte: 0,
+            transaction_costs: RuntimeFeesConfig::free(),
+            wasm_config: VMConfig::free(),
+            account_creation_config: AccountCreationConfig::default(),
+        }
+    }
+}
+
+/// The structure describes configuration for creation of new accounts.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct AccountCreationConfig {
+    /// The minimum length of the top-level account ID that is allowed to be created by any account.
+    pub min_allowed_top_level_account_length: u8,
+    /// The account ID of the account registrar. This account ID allowed to create top-level
+    /// accounts of any valid length.
+    pub registrar_account_id: AccountId,
+}
+
+impl Default for AccountCreationConfig {
+    fn default() -> Self {
+        Self {
+            min_allowed_top_level_account_length: 0,
+            registrar_account_id: "registrar".parse().unwrap(),
+        }
     }
 }

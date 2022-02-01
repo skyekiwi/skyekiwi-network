@@ -1,6 +1,6 @@
 use std::fmt::{self, Error, Formatter, Debug, Display};
 use serde::{Serialize, Deserialize};
-use near_crypto::PublicKey;
+use crate::crypto::PublicKey;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::contract_runtime::{Balance, Nonce, Gas};
@@ -476,6 +476,22 @@ pub enum InvalidAccessKeyError {
     DepositWithFunctionCall,
 }
 
+/// Error returned from `Runtime::apply`
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RuntimeError {
+    /// An unexpected integer overflow occurred. The likely issue is an invalid state or the transition.
+    UnexpectedIntegerOverflow,
+    /// An error happened during TX verification and account charging. It's likely the chunk is invalid.
+    /// and should be challenged.
+    InvalidTxError(InvalidTxError),
+    /// Unexpected error which is typically related to the node storage corruption.
+    /// It's possible the input state is invalid or malicious.
+    StorageError,
+    /// An error happens if `check_balance` fails, which is likely an indication of an invalid state.
+    BalanceMismatchError(BalanceMismatchError),
+    /// The incoming receipt didn't pass the validation, it's likely a malicious behaviour.
+    ReceiptValidationError(ReceiptValidationError),
+}
 
 /// Internal
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -951,6 +967,176 @@ impl std::fmt::Display for HostError {
     }
 }
 
+impl From<StorageError> for RuntimeError {
+    fn from(_: StorageError) -> Self {
+        RuntimeError::StorageError
+    }
+}
+
+
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq)]
+pub struct IntegerOverflowError;
+
+impl From<IntegerOverflowError> for InvalidTxError {
+    fn from(_: IntegerOverflowError) -> Self {
+        InvalidTxError::CostOverflow
+    }
+}
+
+impl From<BalanceMismatchError> for RuntimeError {
+    fn from(e: BalanceMismatchError) -> Self {
+        RuntimeError::BalanceMismatchError(e)
+    }
+}
+
+impl From<IntegerOverflowError> for RuntimeError {
+    fn from(_: IntegerOverflowError) -> Self {
+        RuntimeError::UnexpectedIntegerOverflow
+    }
+}
+
+impl From<InvalidTxError> for RuntimeError {
+    fn from(e: InvalidTxError) -> Self {
+        RuntimeError::InvalidTxError(e)
+    }
+}
+
+// /// Type-erased error used to shuttle some concrete error coming from `External`
+// /// through vm-logic.
+// ///
+// /// The caller is supposed to downcast this to a concrete error type they should
+// /// know. This would be just `Box<dyn Any + Eq>` if the latter actually worked.
+// pub struct AnyError {
+//     any: Box<dyn AnyEq>,
+// }
+
+// impl AnyError {
+//     pub fn new<E: Any + Eq + Send + Sync + 'static>(err: E) -> AnyError {
+//         AnyError { any: Box::new(err) }
+//     }
+//     pub fn downcast<E: Any + Eq + Send + Sync + 'static>(self) -> Result<E, ()> {
+//         match self.any.into_any().downcast::<E>() {
+//             Ok(it) => Ok(*it),
+//             Err(_) => Err(()),
+//         }
+//     }
+// }
+
+// impl PartialEq for AnyError {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.any.any_eq(&*other.any)
+//     }
+// }
+
+// impl Eq for AnyError {}
+
+// impl fmt::Debug for AnyError {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         fmt::Debug::fmt(self.any.as_any(), f)
+//     }
+// }
+
+// trait AnyEq: Any + Send + Sync {
+//     fn any_eq(&self, rhs: &dyn AnyEq) -> bool;
+//     fn as_any(&self) -> &dyn Any;
+//     fn into_any(self: Box<Self>) -> Box<dyn Any>;
+// }
+
+// impl<T: Any + Eq + Sized + Send + Sync> AnyEq for T {
+//     fn any_eq(&self, rhs: &dyn AnyEq) -> bool {
+//         match rhs.as_any().downcast_ref::<Self>() {
+//             Some(rhs) => self == rhs,
+//             None => false,
+//         }
+//     }
+//     fn as_any(&self) -> &dyn Any {
+//         &*self
+//     }
+//     fn into_any(self: Box<Self>) -> Box<dyn Any> {
+//         self
+//     }
+// }
+
+/// Happens when the input balance doesn't match the output balance in Runtime apply.
+#[derive(
+    BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
+)]
+pub struct BalanceMismatchError {
+    // Input balances
+    #[serde(with = "u128_dec_format")]
+    pub initial_accounts_balance: Balance,
+    #[serde(with = "u128_dec_format")]
+    pub incoming_receipts_balance: Balance,
+    #[serde(with = "u128_dec_format")]
+    pub processed_delayed_receipts_balance: Balance,
+    #[serde(with = "u128_dec_format")]
+    pub initial_postponed_receipts_balance: Balance,
+    // Output balances
+    #[serde(with = "u128_dec_format")]
+    pub final_accounts_balance: Balance,
+    #[serde(with = "u128_dec_format")]
+    pub outgoing_receipts_balance: Balance,
+    #[serde(with = "u128_dec_format")]
+    pub new_delayed_receipts_balance: Balance,
+    #[serde(with = "u128_dec_format")]
+    pub final_postponed_receipts_balance: Balance,
+    #[serde(with = "u128_dec_format")]
+    pub tx_burnt_amount: Balance,
+    #[serde(with = "u128_dec_format")]
+    pub slashed_burnt_amount: Balance,
+    #[serde(with = "u128_dec_format")]
+    pub other_burnt_amount: Balance,
+}
+
+impl Display for BalanceMismatchError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        // Using saturating add to avoid overflow in display
+        let initial_balance = 0u128
+            .saturating_add(self.initial_accounts_balance)
+            .saturating_add(self.incoming_receipts_balance)
+            .saturating_add(self.processed_delayed_receipts_balance)
+            .saturating_add(self.initial_postponed_receipts_balance);
+        let final_balance = self
+            .final_accounts_balance
+            .saturating_add(self.outgoing_receipts_balance)
+            .saturating_add(self.new_delayed_receipts_balance)
+            .saturating_add(self.final_postponed_receipts_balance)
+            .saturating_add(self.tx_burnt_amount)
+            .saturating_add(self.slashed_burnt_amount)
+            .saturating_add(self.other_burnt_amount);
+        write!(
+            f,
+            "Balance Mismatch Error. The input balance {} doesn't match output balance {}\n\
+             Inputs:\n\
+             \tInitial accounts balance sum: {}\n\
+             \tIncoming receipts balance sum: {}\n\
+             \tProcessed delayed receipts balance sum: {}\n\
+             \tInitial postponed receipts balance sum: {}\n\
+             Outputs:\n\
+             \tFinal accounts balance sum: {}\n\
+             \tOutgoing receipts balance sum: {}\n\
+             \tNew delayed receipts balance sum: {}\n\
+             \tFinal postponed receipts balance sum: {}\n\
+             \tTx fees burnt amount: {}\n\
+             \tSlashed amount: {}\n\
+             \tOther burnt amount: {}",
+            initial_balance,
+            final_balance,
+            self.initial_accounts_balance,
+            self.incoming_receipts_balance,
+            self.processed_delayed_receipts_balance,
+            self.initial_postponed_receipts_balance,
+            self.final_accounts_balance,
+            self.outgoing_receipts_balance,
+            self.new_delayed_receipts_balance,
+            self.final_postponed_receipts_balance,
+            self.tx_burnt_amount,
+            self.slashed_burnt_amount,
+            self.other_burnt_amount,
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{CompilationError, FunctionCallError, MethodResolveError, PrepareError, VMError};
@@ -974,3 +1160,4 @@ mod tests {
         );
     }
 }
+

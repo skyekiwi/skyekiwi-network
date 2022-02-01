@@ -1,7 +1,6 @@
-use near_sdk::json_types::U128;
-use near_sdk::serde_json::json;
-use near_sdk_sim::{to_yocto, DEFAULT_GAS};
-
+use skw_contract_sdk::json_types::U128;
+use skw_contract_sdk::serde_json::json;
+use skw_contract_sim::{to_yocto, DEFAULT_GAS};
 use crate::utils::init_no_macros as init;
 
 #[test]

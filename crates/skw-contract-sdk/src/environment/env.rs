@@ -12,7 +12,7 @@ use crate::mock::MockedBlockchain;
 use crate::types::{
     AccountId, Balance, BlockNumber, Gas, PromiseIndex, PromiseResult, PublicKey, StorageUsage,
 };
-use skw_sys as sys;
+use skw_contract_sys as sys;
 
 const REGISTER_EXPECTED_ERR: &str =
     "Register was expected to have data because we just wrote it into it.";
@@ -407,6 +407,10 @@ pub fn promise_batch_then(promise_index: PromiseIndex, account_id: &AccountId) -
     }
 }
 
+pub fn promise_batch_action_create_account(promise_index: PromiseIndex) {
+    unsafe { sys::promise_batch_action_create_account(promise_index) }
+}
+
 pub fn promise_batch_action_deploy_contract(promise_index: u64, code: &[u8]) {
     unsafe {
         sys::promise_batch_action_deploy_contract(
@@ -433,6 +437,71 @@ pub fn promise_batch_action_function_call(
             arguments.as_ptr() as _,
             &amount as *const Balance as _,
             gas.0,
+        )
+    }
+}
+
+pub fn promise_batch_action_transfer(promise_index: PromiseIndex, amount: Balance) {
+    unsafe { sys::promise_batch_action_transfer(promise_index, &amount as *const Balance as _) }
+}
+
+pub fn promise_batch_action_add_key_with_full_access(
+    promise_index: PromiseIndex,
+    public_key: &PublicKey,
+    nonce: u64,
+) {
+    unsafe {
+        sys::promise_batch_action_add_key_with_full_access(
+            promise_index,
+            public_key.as_bytes().len() as _,
+            public_key.as_bytes().as_ptr() as _,
+            nonce,
+        )
+    }
+}
+pub fn promise_batch_action_add_key_with_function_call(
+    promise_index: PromiseIndex,
+    public_key: &PublicKey,
+    nonce: u64,
+    allowance: Balance,
+    receiver_id: &AccountId,
+    function_names: &str,
+) {
+    let receiver_id: &str = receiver_id.as_ref();
+    unsafe {
+        sys::promise_batch_action_add_key_with_function_call(
+            promise_index,
+            public_key.as_bytes().len() as _,
+            public_key.as_bytes().as_ptr() as _,
+            nonce,
+            &allowance as *const Balance as _,
+            receiver_id.len() as _,
+            receiver_id.as_ptr() as _,
+            function_names.len() as _,
+            function_names.as_ptr() as _,
+        )
+    }
+}
+pub fn promise_batch_action_delete_key(promise_index: PromiseIndex, public_key: &PublicKey) {
+    unsafe {
+        sys::promise_batch_action_delete_key(
+            promise_index,
+            public_key.as_bytes().len() as _,
+            public_key.as_bytes().as_ptr() as _,
+        )
+    }
+}
+
+pub fn promise_batch_action_delete_account(
+    promise_index: PromiseIndex,
+    beneficiary_id: &AccountId,
+) {
+    let beneficiary_id: &str = beneficiary_id.as_ref();
+    unsafe {
+        sys::promise_batch_action_delete_account(
+            promise_index,
+            beneficiary_id.len() as _,
+            beneficiary_id.as_ptr() as _,
         )
     }
 }

@@ -4,7 +4,6 @@ extern crate bencher;
 use bencher::Bencher;
 use rand::random;
 
-use near_primitives::shard_layout::ShardUId;
 use skw_vm_store::test_utils::create_tries;
 use skw_vm_store::Trie;
 
@@ -14,7 +13,7 @@ fn rand_bytes() -> Vec<u8> {
 
 fn trie_lookup(bench: &mut Bencher) {
     let tries = create_tries();
-    let trie = tries.get_trie_for_shard(ShardUId::single_shard());
+    let trie = tries.get_trie();
     let root = Trie::empty_root();
     let mut changes = vec![];
     for _ in 0..100 {
@@ -22,7 +21,7 @@ fn trie_lookup(bench: &mut Bencher) {
     }
     let other_changes = changes.clone();
     let trie_changes = trie.update(&root, changes.drain(..)).unwrap();
-    let (state_update, root) = tries.apply_all(&trie_changes, ShardUId::single_shard()).unwrap();
+    let (state_update, root) = tries.apply_all(&trie_changes).unwrap();
     state_update.commit().expect("Failed to commit");
 
     bench.iter(|| {
@@ -36,7 +35,7 @@ fn trie_lookup(bench: &mut Bencher) {
 
 fn trie_update(bench: &mut Bencher) {
     let tries = create_tries();
-    let trie = tries.get_trie_for_shard(ShardUId::single_shard());
+    let trie = tries.get_trie();
     let root = Trie::empty_root();
     let mut changes = vec![];
     for _ in 0..100 {

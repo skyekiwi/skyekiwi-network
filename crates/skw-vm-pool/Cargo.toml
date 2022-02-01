@@ -1,0 +1,16 @@
+[package]
+name = "skw-vm-pool"
+version = "0.0.0"
+license = "GPL-3.0"
+authors = ["SkyeKiwi <hello@skye.kiwi>", "Near Inc <hello@nearprotocol.com>"]
+publish = false
+# Please update rust-toolchain.toml as well when changing version here:
+rust-version = "1.56.0"
+edition = "2021"
+
+[dependencies]
+borsh = "0.9"
+once_cell = "1.5.2"
+rand = "0.7"
+
+skw-vm-primitives = { path = "../skw-vm-primitives" }

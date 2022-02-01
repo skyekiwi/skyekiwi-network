@@ -1,4 +1,5 @@
 use crate::{RuntimeExternal, ValuePtr};
+use crate::types::{PublicKey};
 use skw_vm_primitives::contract_runtime::{AccountId, Balance, Gas};
 use skw_vm_primitives::errors::HostError;
 use serde::{Deserialize, Serialize};
@@ -83,10 +84,10 @@ impl RuntimeExternal for MockedExternal {
         Ok(res)
     }
 
-    // fn append_action_create_account(&mut self, receipt_index: u64) -> Result<()> {
-    //     self.receipts.get_mut(receipt_index as usize).unwrap().actions.push(Action::CreateAccount);
-    //     Ok(())
-    // }
+    fn append_action_create_account(&mut self, receipt_index: u64) -> Result<()> {
+        self.receipts.get_mut(receipt_index as usize).unwrap().actions.push(Action::CreateAccount);
+        Ok(())
+    }
 
     fn append_action_deploy_contract(&mut self, receipt_index: u64, code: Vec<u8>) -> Result<()> {
         self.receipts
@@ -116,12 +117,81 @@ impl RuntimeExternal for MockedExternal {
         Ok(())
     }
 
+    fn append_action_transfer(&mut self, receipt_index: u64, amount: u128) -> Result<()> {
+        self.receipts
+            .get_mut(receipt_index as usize)
+            .unwrap()
+            .actions
+            .push(Action::Transfer(TransferAction { deposit: amount }));
+        Ok(())
+    }
+
+
+    fn append_action_add_key_with_full_access(
+        &mut self,
+        receipt_index: u64,
+        public_key: Vec<u8>,
+        nonce: u64,
+    ) -> Result<()> {
+        self.receipts
+            .get_mut(receipt_index as usize)
+            .unwrap()
+            .actions
+            .push(Action::AddKeyWithFullAccess(AddKeyWithFullAccessAction { public_key, nonce }));
+        Ok(())
+    }
+
+    fn append_action_add_key_with_function_call(
+        &mut self,
+        receipt_index: u64,
+        public_key: Vec<u8>,
+        nonce: u64,
+        allowance: Option<u128>,
+        receiver_id: AccountId,
+        method_names: Vec<Vec<u8>>,
+    ) -> Result<()> {
+        self.receipts.get_mut(receipt_index as usize).unwrap().actions.push(
+            Action::AddKeyWithFunctionCall(AddKeyWithFunctionCallAction {
+                public_key,
+                nonce,
+                allowance,
+                receiver_id,
+                method_names,
+            }),
+        );
+        Ok(())
+    }
+
+    fn append_action_delete_key(&mut self, receipt_index: u64, public_key: Vec<u8>) -> Result<()> {
+        self.receipts
+            .get_mut(receipt_index as usize)
+            .unwrap()
+            .actions
+            .push(Action::DeleteKey(DeleteKeyAction { public_key }));
+        Ok(())
+    }
+
+    fn append_action_delete_account(
+        &mut self,
+        receipt_index: u64,
+        beneficiary_id: AccountId,
+    ) -> Result<()> {
+        self.receipts
+            .get_mut(receipt_index as usize)
+            .unwrap()
+            .actions
+            .push(Action::DeleteAccount(DeleteAccountAction { beneficiary_id }));
+        Ok(())
+    }
+
     fn get_touched_nodes_count(&self) -> u64 {
         0
     }
 
     fn reset_touched_nodes_counter(&mut self) {}
 }
+
+
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Receipt {
@@ -132,10 +202,15 @@ pub struct Receipt {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Action {
+    CreateAccount,
     DeployContract(DeployContractAction),
     FunctionCall(FunctionCallAction),
+    Transfer(TransferAction),
+    AddKeyWithFullAccess(AddKeyWithFullAccessAction),
+    AddKeyWithFunctionCall(AddKeyWithFunctionCallAction),
+    DeleteKey(DeleteKeyAction),
+    DeleteAccount(DeleteAccountAction),
 }
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct DeployContractAction {
     pub code: Vec<u8>,
@@ -153,4 +228,37 @@ pub struct FunctionCallAction {
     args: Vec<u8>,
     gas: Gas,
     deposit: Balance,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TransferAction {
+    deposit: Balance,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AddKeyWithFullAccessAction {
+    #[serde(with = "crate::serde_with::bytes_as_base58")]
+    public_key: PublicKey,
+    nonce: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AddKeyWithFunctionCallAction {
+    #[serde(with = "crate::serde_with::bytes_as_base58")]
+    public_key: PublicKey,
+    nonce: u64,
+    allowance: Option<Balance>,
+    receiver_id: AccountId,
+    #[serde(with = "crate::serde_with::vec_bytes_as_str")]
+    method_names: Vec<Vec<u8>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct DeleteKeyAction {
+    #[serde(with = "crate::serde_with::bytes_as_base58")]
+    public_key: PublicKey,
+}
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct DeleteAccountAction {
+    beneficiary_id: AccountId,
 }

@@ -24,11 +24,6 @@ impl CrossContract {
         let promise_idx = env::promise_batch_create(&account_id);
         env::promise_batch_action_create_account(promise_idx);
         env::promise_batch_action_transfer(promise_idx, amount.0);
-        env::promise_batch_action_add_key_with_full_access(
-            promise_idx,
-            &env::signer_account_pk(),
-            0,
-        );
         let code: &[u8] = include_bytes!("../../status-message/res/status_message.wasm");
         env::promise_batch_action_deploy_contract(promise_idx, code);
     }

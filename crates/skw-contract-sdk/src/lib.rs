@@ -5,7 +5,7 @@
 #[cfg(test)]
 extern crate quickcheck;
 
-pub use skw_sdk_macros::{
+pub use skw_contract_macros::{
     callback, callback_vec, ext_contract, init, metadata, skw_bindgen, result_serializer,
     serializer, BorshStorageKey, PanicOnDefault,
 };
@@ -21,7 +21,7 @@ mod environment;
 pub use environment::env;
 
 #[cfg(feature = "unstable")]
-pub use skw_sys as sys;
+pub use skw_contract_sys as sys;
 
 mod promise;
 pub use promise::{Promise, PromiseOrValue};

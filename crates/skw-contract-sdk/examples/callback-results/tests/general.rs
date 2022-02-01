@@ -1,14 +1,15 @@
-use skw_sdk_sim::{call, deploy, init_simulator, ContractAccount, UserAccount};
+use skw_contract_sim::{call, deploy, init_simulator, ContractAccount, UserAccount};
 extern crate callback_results;
+
 // Note: the struct xxxxxxContract is created by #[near_bindgen] from near-sdk
 use callback_results::CallbackContract;
 
-skw_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
+skw_contract_sim::lazy_static_include::lazy_static_include_bytes! {
     CONTRACT_BYTES => "res/callback_results.wasm",
 }
 
 fn init() -> (UserAccount, ContractAccount<CallbackContract>) {
-    let mut genesis = skw_sdk_sim::runtime::GenesisConfig::default();
+    let mut genesis = skw_contract_sim::runtime::GenesisConfig::default();
     genesis.gas_limit = u64::MAX;
     genesis.gas_price = 0;
     let master_account = init_simulator(Some(genesis));

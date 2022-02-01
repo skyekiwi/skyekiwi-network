@@ -2,15 +2,18 @@ use crate::context::VMContext;
 use crate::dependencies::{RuntimeExternal, MemoryLike};
 use crate::gas_counter::{FastGasCounter, GasCounter};
 use crate::types::{PromiseIndex, PromiseResult, ReceiptIndex, ReturnData};
+use crate::utils::split_method_names;
 use crate::ValuePtr;
 use byteorder::ByteOrder;
 
-use near_crypto::Secp256K1Signature;
+use skw_vm_primitives::crypto::Secp256K1Signature;
 
 use skw_vm_primitives::config::ExtCosts::*;
 use skw_vm_primitives::config::{ActionCosts, ExtCosts, VMConfig, ViewConfig};
 use skw_vm_primitives::profile::ProfileData;
-use skw_vm_primitives::fees::{ RuntimeFeesConfig };
+use skw_vm_primitives::fees::{
+    transfer_exec_fee, transfer_send_fee, RuntimeFeesConfig,
+};
 use skw_vm_primitives::contract_runtime::{
     AccountId, Balance, Gas, StorageUsage,
 };
@@ -1233,6 +1236,40 @@ impl<'a> VMLogic<'a> {
         Ok((receipt_idx, sir))
     }
 
+    /// Appends `CreateAccount` action to the batch of actions for the given promise pointed by
+    /// `promise_idx`.
+    ///
+    /// # Errors
+    ///
+    /// * If `promise_idx` does not correspond to an existing promise returns `InvalidPromiseIndex`.
+    /// * If the promise pointed by the `promise_idx` is an ephemeral promise created by
+    /// `promise_and` returns `CannotAppendActionToJointPromise`.
+    /// * If called as view function returns `ProhibitedInView`.
+    ///
+    /// # Cost
+    ///
+    /// `burnt_gas := base + dispatch action fee`
+    /// `used_gas := burnt_gas + exec action fee`
+    pub fn promise_batch_action_create_account(&mut self, promise_idx: u64) -> Result<()> {
+        self.gas_counter.pay_base(base)?;
+        if self.context.is_view() {
+            return Err(HostError::ProhibitedInView {
+                method_name: "promise_batch_action_create_account".to_string(),
+            }
+            .into());
+        }
+        let (receipt_idx, sir) = self.promise_idx_to_receipt_idx_with_sir(promise_idx)?;
+
+        self.gas_counter.pay_action_base(
+            &self.fees_config.action_creation_config.create_account_cost,
+            sir,
+            ActionCosts::create_account,
+        )?;
+
+        self.ext.append_action_create_account(receipt_idx)?;
+        Ok(())
+    }
+
     /// Appends `DeployContract` action to the batch of actions for the given promise pointed by
     /// `promise_idx`.
     ///
@@ -1354,6 +1391,257 @@ impl<'a> VMLogic<'a> {
         self.deduct_balance(amount)?;
 
         self.ext.append_action_function_call(receipt_idx, method_name, arguments, amount, gas)?;
+        Ok(())
+    }
+
+    /// Appends `Transfer` action to the batch of actions for the given promise pointed by
+    /// `promise_idx`.
+    ///
+    /// # Errors
+    ///
+    /// * If `promise_idx` does not correspond to an existing promise returns `InvalidPromiseIndex`.
+    /// * If the promise pointed by the `promise_idx` is an ephemeral promise created by
+    /// `promise_and` returns `CannotAppendActionToJointPromise`.
+    /// * If `amount_ptr + 16` points outside the memory of the guest or host returns
+    /// `MemoryAccessViolation`.
+    /// * If called as view function returns `ProhibitedInView`.
+    ///
+    /// # Cost
+    ///
+    /// `burnt_gas := base + dispatch action base fee + dispatch action per byte fee * num bytes + cost of reading u128 from memory `
+    /// `used_gas := burnt_gas + exec action base fee + exec action per byte fee * num bytes`
+    pub fn promise_batch_action_transfer(
+        &mut self,
+        promise_idx: u64,
+        amount_ptr: u64,
+    ) -> Result<()> {
+        self.gas_counter.pay_base(base)?;
+        if self.context.is_view() {
+            return Err(HostError::ProhibitedInView {
+                method_name: "promise_batch_action_transfer".to_string(),
+            }
+            .into());
+        }
+        let amount = self.memory_get_u128(amount_ptr)?;
+
+        let (receipt_idx, sir) = self.promise_idx_to_receipt_idx_with_sir(promise_idx)?;
+
+        let send_fee =
+            transfer_send_fee(&self.fees_config.action_creation_config, sir);
+        let exec_fee =
+            transfer_exec_fee(&self.fees_config.action_creation_config);
+        let burn_gas = send_fee;
+        let use_gas = burn_gas.checked_add(exec_fee).ok_or(HostError::IntegerOverflow)?;
+        self.gas_counter.pay_action_accumulated(burn_gas, use_gas, ActionCosts::transfer)?;
+
+        self.deduct_balance(amount)?;
+
+        self.ext.append_action_transfer(receipt_idx, amount)?;
+        Ok(())
+    }
+
+     /// Appends `AddKey` action to the batch of actions for the given promise pointed by
+    /// `promise_idx`. The access key will have `FullAccess` permission.
+    ///
+    /// # Errors
+    ///
+    /// * If `promise_idx` does not correspond to an existing promise returns `InvalidPromiseIndex`.
+    /// * If the promise pointed by the `promise_idx` is an ephemeral promise created by
+    /// `promise_and` returns `CannotAppendActionToJointPromise`.
+    /// * If the given public key is not a valid (e.g. wrong length) returns `InvalidPublicKey`.
+    /// * If `public_key_len + public_key_ptr` points outside the memory of the guest or host
+    /// returns `MemoryAccessViolation`.
+    /// * If called as view function returns `ProhibitedInView`.
+    ///
+    /// # Cost
+    ///
+    /// `burnt_gas := base + dispatch action base fee + dispatch action per byte fee * num bytes + cost of reading public key from memory `
+    /// `used_gas := burnt_gas + exec action base fee + exec action per byte fee * num bytes`
+    pub fn promise_batch_action_add_key_with_full_access(
+        &mut self,
+        promise_idx: u64,
+        public_key_len: u64,
+        public_key_ptr: u64,
+        nonce: u64,
+    ) -> Result<()> {
+        self.gas_counter.pay_base(base)?;
+        if self.context.is_view() {
+            return Err(HostError::ProhibitedInView {
+                method_name: "promise_batch_action_add_key_with_full_access".to_string(),
+            }
+            .into());
+        }
+        let public_key = self.get_vec_from_memory_or_register(public_key_ptr, public_key_len)?;
+
+        let (receipt_idx, sir) = self.promise_idx_to_receipt_idx_with_sir(promise_idx)?;
+
+        self.gas_counter.pay_action_base(
+            &self.fees_config.action_creation_config.add_key_cost.full_access_cost,
+            sir,
+            ActionCosts::add_key,
+        )?;
+
+        self.ext.append_action_add_key_with_full_access(receipt_idx, public_key, nonce)?;
+        Ok(())
+    }
+
+    /// Appends `AddKey` action to the batch of actions for the given promise pointed by
+    /// `promise_idx`. The access key will have `FunctionCall` permission.
+    ///
+    /// # Errors
+    ///
+    /// * If `promise_idx` does not correspond to an existing promise returns `InvalidPromiseIndex`.
+    /// * If the promise pointed by the `promise_idx` is an ephemeral promise created by
+    /// `promise_and` returns `CannotAppendActionToJointPromise`.
+    /// * If the given public key is not a valid (e.g. wrong length) returns `InvalidPublicKey`.
+    /// * If `public_key_len + public_key_ptr`, `allowance_ptr + 16`,
+    /// `receiver_id_len + receiver_id_ptr` or `method_names_len + method_names_ptr` points outside
+    /// the memory of the guest or host returns `MemoryAccessViolation`.
+    /// * If called as view function returns `ProhibitedInView`.
+    ///
+    /// # Cost
+    ///
+    /// `burnt_gas := base + dispatch action base fee + dispatch action per byte fee * num bytes + cost of reading vector from memory
+    ///  + cost of reading u128, method_names and public key from the memory + cost of reading and parsing account name`
+    /// `used_gas := burnt_gas + exec action base fee + exec action per byte fee * num bytes`
+    pub fn promise_batch_action_add_key_with_function_call(
+        &mut self,
+        promise_idx: u64,
+        public_key_len: u64,
+        public_key_ptr: u64,
+        nonce: u64,
+        allowance_ptr: u64,
+        receiver_id_len: u64,
+        receiver_id_ptr: u64,
+        method_names_len: u64,
+        method_names_ptr: u64,
+    ) -> Result<()> {
+        self.gas_counter.pay_base(base)?;
+        if self.context.is_view() {
+            return Err(HostError::ProhibitedInView {
+                method_name: "promise_batch_action_add_key_with_function_call".to_string(),
+            }
+            .into());
+        }
+        let public_key = self.get_vec_from_memory_or_register(public_key_ptr, public_key_len)?;
+        let allowance = self.memory_get_u128(allowance_ptr)?;
+        let allowance = if allowance > 0 { Some(allowance) } else { None };
+        let receiver_id = self.read_and_parse_account_id(receiver_id_ptr, receiver_id_len)?;
+        let raw_method_names =
+            self.get_vec_from_memory_or_register(method_names_ptr, method_names_len)?;
+        let method_names = split_method_names(&raw_method_names)?;
+
+        let (receipt_idx, sir) = self.promise_idx_to_receipt_idx_with_sir(promise_idx)?;
+
+        // +1 is to account for null-terminating characters.
+        let num_bytes = method_names.iter().map(|v| v.len() as u64 + 1).sum::<u64>();
+        self.gas_counter.pay_action_base(
+            &self.fees_config.action_creation_config.add_key_cost.function_call_cost,
+            sir,
+            ActionCosts::function_call,
+        )?;
+        self.gas_counter.pay_action_per_byte(
+            &self.fees_config.action_creation_config.add_key_cost.function_call_cost_per_byte,
+            num_bytes,
+            sir,
+            ActionCosts::function_call,
+        )?;
+
+        self.ext.append_action_add_key_with_function_call(
+            receipt_idx,
+            public_key,
+            nonce,
+            allowance,
+            receiver_id,
+            method_names,
+        )?;
+        Ok(())
+    }
+
+    /// Appends `DeleteKey` action to the batch of actions for the given promise pointed by
+    /// `promise_idx`.
+    ///
+    /// # Errors
+    ///
+    /// * If `promise_idx` does not correspond to an existing promise returns `InvalidPromiseIndex`.
+    /// * If the promise pointed by the `promise_idx` is an ephemeral promise created by
+    /// `promise_and` returns `CannotAppendActionToJointPromise`.
+    /// * If the given public key is not a valid (e.g. wrong length) returns `InvalidPublicKey`.
+    /// * If `public_key_len + public_key_ptr` points outside the memory of the guest or host
+    /// returns `MemoryAccessViolation`.
+    /// * If called as view function returns `ProhibitedInView`.
+    ///
+    /// # Cost
+    ///
+    /// `burnt_gas := base + dispatch action base fee + dispatch action per byte fee * num bytes + cost of reading public key from memory `
+    /// `used_gas := burnt_gas + exec action base fee + exec action per byte fee * num bytes`
+    pub fn promise_batch_action_delete_key(
+        &mut self,
+        promise_idx: u64,
+        public_key_len: u64,
+        public_key_ptr: u64,
+    ) -> Result<()> {
+        self.gas_counter.pay_base(base)?;
+        if self.context.is_view() {
+            return Err(HostError::ProhibitedInView {
+                method_name: "promise_batch_action_delete_key".to_string(),
+            }
+            .into());
+        }
+        let public_key = self.get_vec_from_memory_or_register(public_key_ptr, public_key_len)?;
+
+        let (receipt_idx, sir) = self.promise_idx_to_receipt_idx_with_sir(promise_idx)?;
+
+        self.gas_counter.pay_action_base(
+            &self.fees_config.action_creation_config.delete_key_cost,
+            sir,
+            ActionCosts::delete_key,
+        )?;
+
+        self.ext.append_action_delete_key(receipt_idx, public_key)?;
+        Ok(())
+    }
+
+    /// Appends `DeleteAccount` action to the batch of actions for the given promise pointed by
+    /// `promise_idx`.
+    ///
+    /// # Errors
+    ///
+    /// * If `promise_idx` does not correspond to an existing promise returns `InvalidPromiseIndex`.
+    /// * If the promise pointed by the `promise_idx` is an ephemeral promise created by
+    /// `promise_and` returns `CannotAppendActionToJointPromise`.
+    /// * If `beneficiary_id_len + beneficiary_id_ptr` points outside the memory of the guest or
+    /// host returns `MemoryAccessViolation`.
+    /// * If called as view function returns `ProhibitedInView`.
+    ///
+    /// # Cost
+    ///
+    /// `burnt_gas := base + dispatch action base fee + dispatch action per byte fee * num bytes + cost of reading and parsing account id from memory `
+    /// `used_gas := burnt_gas + exec action base fee + exec action per byte fee * num bytes + fees for transferring funds to the beneficiary`
+    pub fn promise_batch_action_delete_account(
+        &mut self,
+        promise_idx: u64,
+        beneficiary_id_len: u64,
+        beneficiary_id_ptr: u64,
+    ) -> Result<()> {
+        self.gas_counter.pay_base(base)?;
+        if self.context.is_view() {
+            return Err(HostError::ProhibitedInView {
+                method_name: "promise_batch_action_delete_account".to_string(),
+            }
+            .into());
+        }
+        let beneficiary_id =
+            self.read_and_parse_account_id(beneficiary_id_ptr, beneficiary_id_len)?;
+
+        let (receipt_idx, sir) = self.promise_idx_to_receipt_idx_with_sir(promise_idx)?;
+        self.gas_counter.pay_action_base(
+            &self.fees_config.action_creation_config.delete_account_cost,
+            sir,
+            ActionCosts::delete_account,
+        )?;
+
+        self.ext.append_action_delete_account(receipt_idx, beneficiary_id)?;
         Ok(())
     }
 
@@ -1966,13 +2254,13 @@ impl std::fmt::Debug for VMOutcome {
             ReturnData::ReceiptIndex(_) => "Receipt".to_string(),
             ReturnData::Value(v) => format!("{:?}", v),
         };
-        write!(
-            f, "{}", return_data_str
-        )
         // write!(
-        //     f,
-        //     "VMOutcome: balance {} storage_usage {} return data {} burnt gas {} used gas {}",
-        //     self.balance, self.storage_usage, return_data_str, self.burnt_gas, self.used_gas
+        //     f, "{}", return_data_str
         // )
+        write!(
+            f,
+            "VMOutcome: balance {} storage_usage {} return data {} burnt gas {} used gas {}",
+            self.balance, self.storage_usage, return_data_str, self.burnt_gas, self.used_gas
+        )
     }
 }

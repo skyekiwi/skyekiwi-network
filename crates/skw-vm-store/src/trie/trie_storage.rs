@@ -2,13 +2,13 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use near_primitives::hash::CryptoHash;
+use skw_vm_primitives::contract_runtime::{CryptoHash};
 
-use crate::db::refcount::decode_value_with_rc;
+use crate::refcount::decode_value_with_rc;
 use crate::trie::POISONED_LOCK_ERR;
 use crate::{ColState, StorageError, Store};
 use lru::LruCache;
-use near_primitives::shard_layout::ShardUId;
+
 use std::cell::RefCell;
 use std::io::ErrorKind;
 
@@ -65,7 +65,6 @@ pub trait TrieStorage {
 /// Used for obtaining state parts (and challenges in the future).
 pub struct TrieRecordingStorage {
     pub(crate) store: Arc<Store>,
-    pub(crate) shard_uid: ShardUId,
     pub(crate) recorded: RefCell<HashMap<CryptoHash, Vec<u8>>>,
 }
 
@@ -74,7 +73,7 @@ impl TrieStorage for TrieRecordingStorage {
         if let Some(val) = self.recorded.borrow().get(hash) {
             return Ok(val.clone());
         }
-        let key = TrieCachingStorage::get_key_from_shard_uid_and_hash(self.shard_uid, hash);
+        let key = TrieCachingStorage::get_key_from_hash(hash);
         let val = self
             .store
             .get(ColState, key.as_ref())
@@ -134,32 +133,28 @@ const TRIE_LIMIT_CACHED_VALUE_SIZE: usize = 4000;
 pub struct TrieCachingStorage {
     pub(crate) store: Arc<Store>,
     pub(crate) cache: TrieCache,
-    pub(crate) shard_uid: ShardUId,
 }
 
 impl TrieCachingStorage {
-    pub fn new(store: Arc<Store>, cache: TrieCache, shard_uid: ShardUId) -> TrieCachingStorage {
-        TrieCachingStorage { store, cache, shard_uid }
+    pub fn new(store: Arc<Store>, cache: TrieCache) -> TrieCachingStorage {
+        TrieCachingStorage { store, cache }
     }
 
-    pub(crate) fn get_shard_uid_and_hash_from_key(
+    pub(crate) fn get_hash_from_key(
         key: &[u8],
-    ) -> Result<(ShardUId, CryptoHash), std::io::Error> {
-        if key.len() != 40 {
+    ) -> Result<CryptoHash, std::io::Error> {
+        if key.len() != 32 {
             return Err(std::io::Error::new(ErrorKind::Other, "Key is always shard_uid + hash"));
         }
-        let id = ShardUId::try_from(&key[..8]).unwrap();
-        let hash = CryptoHash::try_from(&key[8..]).unwrap();
-        Ok((id, hash))
+        let hash = CryptoHash::try_from(&key[..]).unwrap();
+        Ok(hash)
     }
 
-    pub(crate) fn get_key_from_shard_uid_and_hash(
-        shard_uid: ShardUId,
+    pub(crate) fn get_key_from_hash(
         hash: &CryptoHash,
-    ) -> [u8; 40] {
-        let mut key = [0; 40];
-        key[0..8].copy_from_slice(&shard_uid.to_bytes());
-        key[8..].copy_from_slice(hash.as_ref());
+    ) -> [u8; 32] {
+        let mut key = [0; 32];
+        key[..].copy_from_slice(&hash[..]);
         key
     }
 }
@@ -170,10 +165,9 @@ impl TrieStorage for TrieCachingStorage {
         if let Some(val) = guard.pop(hash) {
             Ok(val.clone())
         } else {
-            let key = Self::get_key_from_shard_uid_and_hash(self.shard_uid, hash);
             let val = self
                 .store
-                .get(ColState, key.as_ref())
+                .get(ColState, hash)
                 .map_err(|_| StorageError::StorageInternalError)?;
             if let Some(val) = val {
                 if val.len() < TRIE_LIMIT_CACHED_VALUE_SIZE {

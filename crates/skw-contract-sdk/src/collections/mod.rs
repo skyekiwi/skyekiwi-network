@@ -9,7 +9,7 @@
 //! ```
 //! # use std::collections::HashMap;
 //! # use borsh::{BorshSerialize, BorshDeserialize};
-//! # use skw_sdk_macros::skw_bindgen;
+//! # use skw_contract_macros::skw_bindgen;
 //!
 //! #[skw_bindgen]
 //! #[derive(BorshDeserialize, BorshSerialize)]
@@ -22,7 +22,7 @@
 //! read and will save it only when it is written/removed.
 //! ```
 //! # use borsh::{BorshSerialize, BorshDeserialize};
-//! # use skw_sdk_macros::skw_bindgen;
+//! # use skw_contract_macros::skw_bindgen;
 //! # use skw_contract_sdk::collections::LookupMap;
 //!
 //! #[skw_bindgen]

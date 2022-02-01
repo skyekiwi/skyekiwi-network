@@ -1,5 +1,5 @@
 [package]
-name = "skw-sdk-sim"
+name = "skw-contract-sim"
 version = '0.1.0'
 authors = ['SkyeKiwi <hello@skye.kiwi>', "Near Inc <max@nearprotocol.com>"]
 edition = '2018'
@@ -13,13 +13,13 @@ NEAR Simulator & cross-contract testing library
 
 [dependencies]
 skw-contract-sdk = { path = "../skw-contract-sdk" }
-skw-vm-host = { path = "../../mock-enclave/src/skw-vm-host" }
 
-near-crypto = "=0.1.0"
-
-near-primitives = "=0.1.0-pre.1"
-near-pool = "=0.1.0-pre.1"
-near-store = "=0.1.0-pre.1"
+skw-vm-host = { path = "../skw-vm-host" }
+skw-vm-store = { path = "../skw-vm-store" }
+skw-vm-primitives = { path = "../skw-vm-primitives" }
+skw-vm-runtime = { path = "../skw-vm-runtime" }
+skw-vm-pool = { path = "../skw-vm-pool" }
+skw-vm-genesis-configs = { path = "../skw-vm-genesis-configs" }
 
 lazy-static-include = "3"
 # Temporary workaround see https://github.com/bitvecto-rs/bitvec/issues/105
@@ -28,7 +28,7 @@ funty = "=1.1.0"
 [dev-dependencies]
 quickcheck = "0.9"
 quickcheck_macros = "0.9"
-fungible-token = { path="../examples/fungible-token/ft" }
+# fungible-token = { path="../skw-contract-sdk/examples/fungible-token/ft" }
 
 [features]
 default = []

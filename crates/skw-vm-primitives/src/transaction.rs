@@ -5,16 +5,14 @@ use std::hash::{Hash, Hasher};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use near_crypto::{PublicKey, Signature};
+use crate::crypto::{PublicKey, Signature};
 
 use crate::contract_runtime::{CryptoHash, hash_bytes, AccountId, Balance, Gas, Nonce};
 use crate::serialize::{base64_format, u128_dec_format_compatible};
 use crate::profile::ProfileData;
+use crate::account::AccessKey;
 
 use crate::errors::TxExecutionError;
-
-// // use crate::account::AccessKey;
-// // use crate::merkle::MerklePath;
 
 pub type LogEntry = String;
 
@@ -49,8 +47,13 @@ impl Transaction {
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub enum Action {
     /// Sets a Wasm code to a receiver_id
+    CreateAccount(CreateAccountAction),
+    Transfer(TransferAction),
     DeployContract(DeployContractAction),
+    AddKey(AddKeyAction),
+    DeleteKey(DeleteKeyAction),
     FunctionCall(FunctionCallAction),
+    DeleteAccount(DeleteAccountAction),
 }
 
 impl Action {
@@ -63,8 +66,44 @@ impl Action {
     pub fn get_deposit_balance(&self) -> Balance {
         match self {
             Action::FunctionCall(a) => a.deposit,
+            Action::Transfer(a) => a.deposit,
             _ => 0,
         }
+    }
+}
+
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct CreateAccountAction {}
+
+impl From<CreateAccountAction> for Action {
+    fn from(create_account_action: CreateAccountAction) -> Self {
+        Self::CreateAccount(create_account_action)
+    }
+}
+
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct DeleteAccountAction {
+    pub beneficiary_id: AccountId,
+}
+
+impl From<DeleteAccountAction> for Action {
+    fn from(delete_account_action: DeleteAccountAction) -> Self {
+        Self::DeleteAccount(delete_account_action)
+    }
+}
+
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct TransferAction {
+    #[serde(with = "u128_dec_format_compatible")]
+    pub deposit: Balance,
+}
+
+impl From<TransferAction> for Action {
+    fn from(transfer_action: TransferAction) -> Self {
+        Self::Transfer(transfer_action)
     }
 }
 
@@ -102,6 +141,33 @@ pub struct FunctionCallAction {
     pub deposit: Balance,
 }
 
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct AddKeyAction {
+    /// A public key which will be associated with an access_key
+    pub public_key: PublicKey,
+    /// An access key with the permission
+    pub access_key: AccessKey,
+}
+
+impl From<AddKeyAction> for Action {
+    fn from(add_key_action: AddKeyAction) -> Self {
+        Self::AddKey(add_key_action)
+    }
+}
+
+#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct DeleteKeyAction {
+    /// A public key associated with the access_key to be deleted.
+    pub public_key: PublicKey,
+}
+
+impl From<DeleteKeyAction> for Action {
+    fn from(delete_key_action: DeleteKeyAction) -> Self {
+        Self::DeleteKey(delete_key_action)
+    }
+}
 #[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(BorshSerialize, BorshDeserialize, Eq, Debug, Clone)]
 #[borsh_init(init)]
@@ -349,7 +415,7 @@ pub fn verify_transaction_signature(
 mod tests {
     use borsh::BorshDeserialize;
 
-    use near_crypto::{InMemorySigner, KeyType, Signature, Signer};
+    use crate::crypto::{InMemorySigner, KeyType, Signature, Signer};
     use crate::serialize::to_base;
 
     use super::*;
@@ -408,7 +474,7 @@ mod tests {
 
         assert_eq!(
             to_base(&new_signed_tx.get_hash()),
-            "46tFgAevuo14w8Voo9j2sYq1KED54D7rgbGs6P8GWNxV"
+            "Lg7phGrzH1upCaX5wYtAKV2ZStrNc1TppoivbMwZWZB"
         );
     }
 

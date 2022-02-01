@@ -1,6 +1,6 @@
 use crate::types::PublicKey;
 
-use skw_vm_primitives::contract_runtime::{AccountId, Balance, BlockHeight, Gas, StorageUsage};
+use skw_vm_primitives::contract_runtime::{AccountId, Balance, BlockNumber, Gas, StorageUsage};
 use skw_vm_primitives::config::ViewConfig;
 
 use serde::{Deserialize, Serialize};
@@ -26,9 +26,8 @@ pub struct VMContext {
     /// Encoded as base64 string to be able to pass input in borsh binary format.
     #[serde(with = "crate::serde_with::bytes_as_base64")]
     pub input: Vec<u8>,
-    /// The current block height.
-    // TODO #1903 rename to `block_height`
-    pub block_number: BlockHeight,
+    /// The current block number.
+    pub block_number: BlockNumber,
     /// The current block timestamp (number of non-leap-nanoseconds since January 1, 1970 0:00:00 UTC).
     #[serde(with = "crate::serde_with::u64_dec_format")]
     pub block_timestamp: u64,

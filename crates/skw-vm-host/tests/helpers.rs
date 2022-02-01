@@ -48,6 +48,29 @@ pub fn promise_batch_action_function_call(
     )
 }
 
+
+#[allow(dead_code)]
+pub fn promise_batch_action_add_key_with_function_call(
+    logic: &mut VMLogic<'_>,
+    promise_index: u64,
+    public_key: &[u8],
+    nonce: u64,
+    allowance: u128,
+    receiver_id: &[u8],
+    method_names: &[u8],
+) -> Result<()> {
+    logic.promise_batch_action_add_key_with_function_call(
+        promise_index,
+        public_key.len() as _,
+        public_key.as_ptr() as _,
+        nonce,
+        allowance.to_le_bytes().as_ptr() as _,
+        receiver_id.len() as _,
+        receiver_id.as_ptr() as _,
+        method_names.len() as _,
+        method_names.as_ptr() as _,
+    )
+}
 #[macro_export]
 macro_rules! map(
     { $($key:path: $value:expr,)+ } => {

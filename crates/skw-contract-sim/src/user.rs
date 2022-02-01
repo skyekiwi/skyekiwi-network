@@ -2,22 +2,20 @@ use std::cell::{Ref, RefCell, RefMut};
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
-use near_crypto::{InMemorySigner, KeyType, PublicKey, Signer};
+use skw_vm_primitives::crypto::{InMemorySigner, KeyType, Signer};
 
-use skw_contract_sdk::AccountId;
+use skw_vm_primitives::account_id::AccountId;
 use skw_contract_sdk::PendingContractTx;
 
+use crate::root_account;
 use crate::runtime::init_runtime;
 pub use crate::to_yocto;
-
-// TODO: these are primitives imports
 use crate::{
-    account::{AccessKey, Account},
-    hash::CryptoHash,
+    account::{Account},
+    contract_runtime::{CryptoHash, Balance, Gas},
     outcome_into_result,
-    runtime::{GenesisConfig, RuntimeStandalone},
+    runtime::{GenesisBlockConfig, RuntimeStandalone},
     transaction::Transaction,
-    types::{Balance, Gas},
     ExecutionResult, ViewResult,
 };
 
@@ -26,29 +24,6 @@ pub const STORAGE_AMOUNT: u128 = 50_000_000_000_000_000_000_000_000;
 
 type Runtime = Rc<RefCell<RuntimeStandalone>>;
 
-/// A transaction to be signed by the user which created it. Multiple actions can be chained together
-/// and then signed and sumited to be executed.
-///
-/// # Example:
-///
-/// ```
-/// use skw_sdk_sim::{to_yocto, account::AccessKey};
-/// use near_crypto::{InMemorySigner, KeyType, Signer};
-/// let master_account = skw_sdk_sim::init_simulator(None);
-/// let account_id = "alice";
-/// let transaction = master_account.create_transaction(account_id.parse().unwrap());
-/// // Creates a signer which contains a public key.
-/// let signer = InMemorySigner::from_seed(account_id, KeyType::ED25519, account_id);
-/// let res = transaction.create_account()
-///                      .add_key(signer.public_key(), AccessKey::full_access())
-///                      .transfer(to_yocto("10"))
-///                      .submit();
-/// ```
-///
-/// This creates an account for `alice`, and a new key pair for the account, adding the
-/// public key to the account, and finally transfering `10` NEAR to the account from the
-/// `master_account`.
-///
 pub struct UserTransaction {
     transaction: Transaction,
     signer: InMemorySigner,
@@ -62,6 +37,12 @@ impl UserTransaction {
             (*self.runtime).borrow_mut().resolve_tx(self.transaction.sign(&self.signer)).unwrap();
         (*self.runtime).borrow_mut().process_all().unwrap();
         outcome_into_result(res, &self.runtime)
+    }
+
+    /// Create account for the receiver of the transaction.
+    pub fn create_account(mut self) -> Self {
+        self.transaction = self.transaction.create_account();
+        self
     }
 
     /// Deploy Wasm binary
@@ -79,6 +60,18 @@ impl UserTransaction {
         deposit: Balance,
     ) -> Self {
         self.transaction = self.transaction.function_call(function_name, args, gas, deposit);
+        self
+    }
+
+    /// Transfer deposit to receiver
+    pub fn transfer(mut self, deposit: Balance) -> Self {
+        self.transaction = self.transaction.transfer(deposit);
+        self
+    }
+
+    /// Delete an account and send remaining balance to `beneficiary_id`
+    pub fn delete_account(mut self, beneficiary_id: AccountId) -> Self {
+        self.transaction = self.transaction.delete_account(beneficiary_id);
         self
     }
 }
@@ -113,13 +106,12 @@ impl UserAccount {
     }
     /// Look up the account information on chain.
     pub fn account(&self) -> Option<Account> {
-        (*self.runtime).borrow().view_account(self.account_id.as_str())
+        (*self.runtime).borrow().view_account(self.account_id.clone())
     }
-
-    // /// Transfer yoctoNear to another account
-    // pub fn transfer(&self, to: AccountId, deposit: Balance) -> ExecutionResult {
-    //     self.submit_transaction(self.transaction(to).transfer(deposit))
-    // }
+    /// Transfer yoctoNear to another account
+    pub fn transfer(&self, to: AccountId, deposit: Balance) -> ExecutionResult {
+        self.submit_transaction(self.transaction(to).transfer(deposit))
+    }
 
     /// Make a contract call.  `pending_tx` includes the receiver, the method to call as well as its arguments.
     /// Note: You will most likely not be using this method directly but rather the [`call!`](./macro.call.html) macro.
@@ -129,7 +121,9 @@ impl UserAccount {
         gas: Gas,
         deposit: Balance,
     ) -> ExecutionResult {
-        self.call(pending_tx.receiver_id, &pending_tx.method, &pending_tx.args, gas, deposit)
+        // TODO: account id conversion
+        let receiver_id = pending_tx.receiver_id.to_string().parse().unwrap();
+        self.call(receiver_id, &pending_tx.method, &pending_tx.args, gas, deposit)
     }
 
     pub fn call(
@@ -157,11 +151,10 @@ impl UserAccount {
         deposit: Balance,
     ) -> UserAccount {
         let signer =
-            InMemorySigner::from_seed(account_id.as_str(), KeyType::ED25519, account_id.as_str());
+            InMemorySigner::from_seed(account_id.clone(), KeyType::ED25519, &account_id.as_str());
         self.submit_transaction(
             self.transaction(account_id.clone())
                 .create_account()
-                .add_key(signer.public_key(), AccessKey::full_access())
                 .transfer(deposit)
                 .deploy_contract(wasm_bytes.to_vec()),
         )
@@ -178,9 +171,10 @@ impl UserAccount {
         deposit: Balance,
         gas: Gas,
     ) -> UserAccount {
+        let receiver_id = pending_tx.receiver_id.to_string().parse().unwrap();
         self.deploy_and_init(
             wasm_bytes,
-            pending_tx.receiver_id,
+            receiver_id,
             &pending_tx.method,
             &pending_tx.args,
             deposit,
@@ -198,11 +192,10 @@ impl UserAccount {
         gas: Gas,
     ) -> UserAccount {
         let signer =
-            InMemorySigner::from_seed(account_id.as_str(), KeyType::ED25519, account_id.as_str());
+            InMemorySigner::from_seed(account_id.clone(), KeyType::ED25519, &account_id.as_str());
         self.submit_transaction(
             self.transaction(account_id.clone())
                 .create_account()
-                .add_key(signer.public_key(), AccessKey::full_access())
                 .transfer(deposit)
                 .deploy_contract(wasm_bytes.to_vec())
                 .function_call(method.to_string(), args.to_vec(), gas, 0),
@@ -214,14 +207,14 @@ impl UserAccount {
     fn transaction(&self, receiver_id: AccountId) -> Transaction {
         let nonce = (*self.runtime)
             .borrow()
-            .view_access_key(self.account_id.as_str(), &self.signer.public_key())
+            .view_access_key(self.account_id.clone(), &self.signer.public_key())
             .unwrap()
             .nonce
             + 1;
         Transaction::new(
-            String::from(self.account_id()),
+            self.account_id(),
             self.signer.public_key(),
-            String::from(receiver_id),
+            receiver_id,
             nonce,
             CryptoHash::default(),
         )
@@ -243,11 +236,12 @@ impl UserAccount {
     /// Call a view method on a contract.
     /// Note: You will most likely not be using this method directly but rather the [`view!`](./macros.view.html) macro.
     pub fn view_method_call(&self, pending_tx: PendingContractTx) -> ViewResult {
-        self.view(pending_tx.receiver_id, &pending_tx.method, &pending_tx.args)
+        let receiver_id = pending_tx.receiver_id.to_string().parse().unwrap();
+        self.view(receiver_id, &pending_tx.method, &pending_tx.args)
     }
 
     pub fn view(&self, receiver_id: AccountId, method: &str, args: &[u8]) -> ViewResult {
-        (*self.runtime).borrow().view_method_call(receiver_id.as_str(), method, args)
+        (*self.runtime).borrow().view_method_call(&receiver_id, method, args)
     }
 
     /// Creates a user and is signed by the `signer_user`
@@ -258,13 +252,12 @@ impl UserAccount {
         amount: Balance,
     ) -> UserAccount {
         let signer =
-            InMemorySigner::from_seed(account_id.as_str(), KeyType::ED25519, account_id.as_str());
+            InMemorySigner::from_seed(account_id.clone(), KeyType::ED25519, &account_id.as_str());
         signer_user
             .submit_transaction(
                 signer_user
                     .transaction(account_id.clone())
                     .create_account()
-                    .add_key(signer.public_key(), AccessKey::full_access())
                     .transfer(amount),
             )
             .assert_success();
@@ -280,7 +273,7 @@ impl UserAccount {
     ///
     /// # Examples
     /// ```
-    /// let master_account = skw_sdk_sim::init_simulator(None);
+    /// let master_account = skw_contract_sim::init_simulator(None);
     /// let runtime = master_account.borrow_runtime();
     ///
     /// // with use
@@ -294,7 +287,7 @@ impl UserAccount {
     ///
     /// # Examples
     /// ```
-    /// let master_account = skw_sdk_sim::init_simulator(None);
+    /// let master_account = skw_contract_sim::init_simulator(None);
     /// let mut runtime = master_account.borrow_runtime_mut();
     ///
     /// // with use
@@ -323,77 +316,26 @@ impl<T> ContractAccount<T> {
 
 /// The simulator takes an optional GenesisConfig, which sets up the fees and other settings.
 /// It returns the `master_account` which can then create accounts and deploy contracts.
-pub fn init_simulator(genesis_config: Option<GenesisConfig>) -> UserAccount {
-    let (runtime, signer, root_account_id) = init_runtime(genesis_config);
-    UserAccount::new(&Rc::new(RefCell::new(runtime)), root_account_id, signer)
+pub fn init_simulator(genesis_config: Option<GenesisBlockConfig>) -> UserAccount {
+    let (runtime, signer) = init_runtime(&root_account(), genesis_config);
+    UserAccount::new(&Rc::new(RefCell::new(runtime)), root_account(), signer)
 }
 
-/// Deploys a contract. Will either deploy or deploy and initialize a contract.
-/// Returns a `ContractAccount<T>` where `T` is the first argument.
-///
-/// # Examples
-///
-/// The simplest example is deploying a contract without initializing it.
-///
-///
-///  This example deploys and initializes the contract.
-///
-/// ```
-/// # lazy_static_include::lazy_static_include_bytes! {
-/// #    TOKEN_WASM_BYTES => "../examples/fungible-token/res/fungible_token.wasm",
-/// # }
-/// use skw_sdk_sim::*;
-/// use fungible_token::ContractContract;
-/// use std::convert::TryInto;
-/// use skw_contract_sdk::AccountId;
-/// let master_account = skw_sdk_sim::init_simulator(None);
-/// let master_account_id: AccountId = master_account.account_id().try_into().unwrap();
-/// let initial_balance = skw_sdk_sim::to_yocto("35");
-/// let contract = deploy! {
-///   contract: ContractContract,
-///   contract_id: "contract",
-///   bytes: &TOKEN_WASM_BYTES,
-///   signer_account: master_account,
-///   init_method: new_default_meta(master_account_id, initial_balance.into())
-/// };
-/// ```
-/// This example used the default values for the initial deposit to the new contract's account and gas for the contract call.
-/// So it is the same as:
-/// ```
-/// # lazy_static_include::lazy_static_include_bytes! {
-/// #    TOKEN_WASM_BYTES => "../examples/fungible-token/res/fungible_token.wasm",
-/// # }
-/// use fungible_token::ContractContract;
-/// use skw_sdk_sim::*;
-/// use near_sdk::AccountId;
-/// let master_account = skw_sdk_sim::init_simulator(None);
-/// let master_account_id: AccountId = master_account.account_id();
-/// let initial_balance = skw_sdk_sim::to_yocto("35");
-/// let contract = deploy! {
-///   contract: ContractContract,
-///   contract_id: "contract",
-///   bytes: &TOKEN_WASM_BYTES,
-///   signer_account: master_account,
-///   deposit: skw_sdk_sim::STORAGE_AMOUNT, // Deposit required to cover contract storage.
-///   gas: skw_sdk_sim::DEFAULT_GAS,
-///   init_method: new_default_meta(master_account_id, initial_balance.into()),
-/// };
-/// ```
 #[macro_export]
 macro_rules! deploy {
     ($contract: ident, $account_id:expr, $wasm_bytes: expr, $user:expr $(,)?) => {
-        deploy!($contract, $account_id, $wasm_bytes, $user, skw_sdk_sim::STORAGE_AMOUNT)
+        deploy!($contract, $account_id, $wasm_bytes, $user, skw_contract_sim::STORAGE_AMOUNT)
     };
     ($contract: ident, $account_id:expr, $wasm_bytes: expr, $user:expr, $deposit: expr $(,)?) => {
-        skw_sdk_sim::ContractAccount {
-            user_account: $user.deploy($wasm_bytes, near_sdk::AccountId::new_unchecked($account_id.to_string()), $deposit),
-            contract: $contract { account_id: near_sdk::AccountId::new_unchecked($account_id.to_string()) },
+        skw_contract_sim::ContractAccount {
+            user_account: $user.deploy($wasm_bytes, skw_contract_sdk::AccountId::new_unchecked($account_id.to_string()), $deposit),
+            contract: $contract { account_id: skw_contract_sdk::AccountId::new_unchecked($account_id.to_string()) },
         }
     };
     ($contract: ident, $account_id:expr, $wasm_bytes: expr, $user_id:expr, $deposit:expr, $gas:expr, $method: ident, $($arg:expr),* $(,)?) => {
            {
-               let __contract = $contract { account_id: near_sdk::AccountId::new_unchecked($account_id.to_string()) };
-               skw_sdk_sim::ContractAccount {
+               let __contract = $contract { account_id: skw_contract_sdk::AccountId::new_unchecked($account_id.to_string()) };
+               skw_contract_sim::ContractAccount {
                    user_account: $user_id.deploy_and_initialize($wasm_bytes, __contract.$method($($arg),*), $deposit, $gas),
                    contract: __contract,
                }
@@ -409,66 +351,16 @@ macro_rules! deploy {
        deploy!($contract, $account_id, $wasm_bytes, $user, $deposit, $gas, $method, $($arg),*)
     };
     (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, gas: $gas:expr, init_method: $method: ident($($arg:expr),*) $(,)?) => {
-       deploy!($contract, $account_id, $wasm_bytes, $user, skw_sdk_sim::STORAGE_AMOUNT, $gas, $method, $($arg),*)
+       deploy!($contract, $account_id, $wasm_bytes, $user, skw_contract_sim::STORAGE_AMOUNT, $gas, $method, $($arg),*)
     };
     (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, deposit: $deposit: expr, init_method: $method: ident($($arg:expr),*) $(,)?) => {
-       deploy!($contract, $account_id, $wasm_bytes, $user, $deposit, skw_sdk_sim::DEFAULT_GAS, $method, $($arg),*)
+       deploy!($contract, $account_id, $wasm_bytes, $user, $deposit, skw_contract_sim::DEFAULT_GAS, $method, $($arg),*)
     };
     (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, init_method: $method: ident($($arg:expr),*) $(,)?) => {
-       deploy!($contract, $account_id, $wasm_bytes, $user, skw_sdk_sim::STORAGE_AMOUNT, skw_sdk_sim::DEFAULT_GAS, $method, $($arg),*)
+       deploy!($contract, $account_id, $wasm_bytes, $user, skw_contract_sim::STORAGE_AMOUNT, skw_contract_sim::DEFAULT_GAS, $method, $($arg),*)
     };
 }
 
-/// Makes a contract call to a [`ContractAccount`](./struct.ContractAccount.html) returning a [`ExecutionResult`](./struct.ExecutionResult.html).
-///
-///
-/// # Examples:
-///
-/// ```
-/// # lazy_static_include::lazy_static_include_bytes! {
-/// #    TOKEN_WASM_BYTES => "../examples/fungible-token/res/fungible_token.wasm",
-/// # }
-/// # use skw_sdk_sim::*;
-/// # use fungible_token::ContractContract;
-/// # use std::convert::TryInto;
-/// # use near_sdk::AccountId;
-/// # let master_account = skw_sdk_sim::init_simulator(None);
-/// # let master_account_id: AccountId = master_account.account_id().try_into().unwrap();
-/// # let initial_balance = skw_sdk_sim::to_yocto("35");
-/// # let contract = deploy! {
-/// # contract: ContractContract,
-/// # contract_id: "contract",
-/// # bytes: &TOKEN_WASM_BYTES,
-/// # signer_account: master_account,
-/// # deposit: skw_sdk_sim::STORAGE_AMOUNT, // Deposit required to cover contract storage.
-/// # gas: skw_sdk_sim::DEFAULT_GAS,
-/// # init_method: new_default_meta(master_account_id.clone(), initial_balance.into())
-/// # };
-/// use skw_sdk_sim::to_yocto;
-/// // Uses default values for gas and deposit.
-/// let res = call!(
-///      master_account,
-///      contract.ft_transfer(master_account_id.clone(), to_yocto("100").into(), None)
-///     );
-/// // Equivalent to
-/// let res = call!(
-///     master_account,
-///     contract.ft_transfer(master_account_id.clone(), to_yocto("100").into(), None),
-///     0,
-///     skw_sdk_sim::DEFAULT_GAS
-///    );
-/// // Can also specify either deposit or gas
-/// let res = call!(
-///     master_account,
-///     contract.ft_transfer(master_account_id.clone(), to_yocto("100").into(), None),
-///     deposit = 0
-///    );
-/// let res = call!(
-///     master_account,
-///     contract.ft_transfer(master_account_id.clone(), to_yocto("100").into(), None),
-///     gas = skw_sdk_sim::DEFAULT_GAS
-///    );
-/// ```
 #[macro_export]
 macro_rules! call {
     ($signer:expr, $deposit: expr, $gas: expr, $contract: ident, $method:ident, $($arg:expr),*) => {
@@ -478,42 +370,16 @@ macro_rules! call {
         call!($signer, $deposit, $gas, $contract, $method, $($arg),*)
     };
     ($signer:expr, $contract: ident.$method:ident($($arg:expr),*)) => {
-        call!($signer, 0, skw_sdk_sim::DEFAULT_GAS,  $contract, $method, $($arg),*)
+        call!($signer, 0, skw_contract_sim::DEFAULT_GAS,  $contract, $method, $($arg),*)
     };
     ($signer:expr, $contract: ident.$method:ident($($arg:expr),*), gas=$gas_or_deposit: expr) => {
         call!($signer, 0, $gas_or_deposit, $contract, $method, $($arg),*)
     };
     ($signer:expr, $contract: ident.$method:ident($($arg:expr),*), deposit=$gas_or_deposit: expr) => {
-        call!($signer, $gas_or_deposit, skw_sdk_sim::DEFAULT_GAS, $contract, $method, $($arg),*)
+        call!($signer, $gas_or_deposit, skw_contract_sim::DEFAULT_GAS, $contract, $method, $($arg),*)
     };
 }
 
-/// Calls a view method on the contract account.
-///
-/// Example:
-/// ```
-/// # lazy_static_include::lazy_static_include_bytes! {
-/// #    TOKEN_WASM_BYTES => "../examples/fungible-token/res/fungible_token.wasm",
-/// # }
-/// # use skw_sdk_sim::*;
-/// # use fungible_token::ContractContract;
-/// # use std::convert::TryInto;
-/// # use near_sdk::AccountId;
-/// # let master_account = skw_sdk_sim::init_simulator(None);
-/// # let master_account_id: AccountId = master_account.account_id().try_into().unwrap();
-/// # let initial_balance = skw_sdk_sim::to_yocto("35");
-/// # let contract = deploy! {
-/// # contract: ContractContract,
-/// # contract_id: "contract",
-/// # bytes: &TOKEN_WASM_BYTES,
-/// # signer_account: master_account,
-/// # deposit: skw_sdk_sim::STORAGE_AMOUNT, // Deposit required to cover contract storage.
-/// # gas: skw_sdk_sim::DEFAULT_GAS,
-/// # init_method: new_default_meta(master_account_id.clone(), initial_balance.into())
-/// # };
-/// let res = view!(contract.ft_balance_of(master_account_id));
-/// ```
-///
 #[macro_export]
 macro_rules! view {
     ($contract: ident.$method:ident($($arg:expr),*)) => {

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use near_primitives::hash::{hash, CryptoHash};
+use skw_vm_primitives::contract_runtime::{hash_bytes, CryptoHash};
 
 use crate::trie::nibble_slice::NibbleSlice;
 use crate::trie::{
@@ -621,7 +621,7 @@ impl Trie {
             };
             let raw_node_with_size = RawTrieNodeWithSize { node: raw_node, memory_usage };
             raw_node_with_size.encode_into(&mut buffer).expect("Encode can never fail");
-            let key = hash(&buffer);
+            let key = hash_bytes(&buffer);
 
             let (_value, rc) =
                 memory.refcount_changes.entry(key).or_insert_with(|| (buffer.clone(), 0));
@@ -639,7 +639,7 @@ impl Trie {
             ValueHandle::InMemory(value_handle) => {
                 let value = memory.value_ref(value_handle).clone();
                 let value_length = value.len() as u32;
-                let value_hash = hash(&value);
+                let value_hash = hash_bytes(&value);
                 let (_value, rc) =
                     memory.refcount_changes.entry(value_hash).or_insert_with(|| (value, 0));
                 *rc += 1;

@@ -5,10 +5,10 @@ use crate::non_fungible_token::token::{Token, TokenId};
 use crate::non_fungible_token::utils::{
     hash_account_id, refund_approved_account_ids, refund_deposit_to_account,
 };
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, TreeMap, UnorderedSet};
-use near_sdk::json_types::Base64VecU8;
-use near_sdk::{
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::collections::{LookupMap, TreeMap, UnorderedSet};
+use skw_contract_sdk::json_types::Base64VecU8;
+use skw_contract_sdk::{
     assert_one_yocto, env, ext_contract, log, require, AccountId, Balance, BorshStorageKey,
     CryptoHash, Gas, IntoStorageKey, PromiseOrValue, PromiseResult, StorageUsage,
 };
@@ -458,7 +458,7 @@ impl NonFungibleTokenResolver for NonFungibleToken {
         let must_revert = match env::promise_result(0) {
             PromiseResult::NotReady => env::abort(),
             PromiseResult::Successful(value) => {
-                if let Ok(yes_or_no) = near_sdk::serde_json::from_slice::<bool>(&value) {
+                if let Ok(yes_or_no) = skw_contract_sdk::serde_json::from_slice::<bool>(&value) {
                     yes_or_no
                 } else {
                     true

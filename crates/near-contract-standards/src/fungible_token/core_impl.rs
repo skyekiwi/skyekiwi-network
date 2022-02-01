@@ -1,9 +1,9 @@
 use crate::fungible_token::core::FungibleTokenCore;
 use crate::fungible_token::resolver::FungibleTokenResolver;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::LookupMap;
-use near_sdk::json_types::U128;
-use near_sdk::{
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::collections::LookupMap;
+use skw_contract_sdk::json_types::U128;
+use skw_contract_sdk::{
     assert_one_yocto, env, ext_contract, log, require, AccountId, Balance, Gas, IntoStorageKey,
     PromiseOrValue, PromiseResult, StorageUsage,
 };
@@ -219,7 +219,7 @@ impl FungibleToken {
         let unused_amount = match env::promise_result(0) {
             PromiseResult::NotReady => env::abort(),
             PromiseResult::Successful(value) => {
-                if let Ok(unused_amount) = near_sdk::serde_json::from_slice::<U128>(&value) {
+                if let Ok(unused_amount) = skw_contract_sdk::serde_json::from_slice::<U128>(&value) {
                     std::cmp::min(amount, unused_amount.0)
                 } else {
                     amount

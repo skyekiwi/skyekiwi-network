@@ -3,13 +3,13 @@ use defi::DeFiContract;
 // #[near_bindgen] token contract generated for simulation see near-sdk-sim for details 
 use fungible_token::ContractContract as FtContract;
 
-use near_sdk::AccountId;
-use near_sdk::json_types::U128;
-use near_sdk::serde_json::json;
-use near_sdk_sim::{deploy, init_simulator, to_yocto, ContractAccount, UserAccount, DEFAULT_GAS};
+use skw_contract_sdk::AccountId;
+use skw_contract_sdk::json_types::U128;
+use skw_contract_sdk::serde_json::json;
+use skw_contract_sim::{deploy, init_simulator, to_yocto, ContractAccount, UserAccount, DEFAULT_GAS};
 
 // Load in contract bytes at runtime
-near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
+skw_contract_sim::lazy_static_include::lazy_static_include_bytes! {
     FT_WASM_BYTES => "res/fungible_token.wasm",
     DEFI_WASM_BYTES => "res/defi.wasm",
 }
@@ -18,7 +18,7 @@ const FT_ID: &str = "ft";
 const DEFI_ID: &str = "defi";
 
 // Register the given `user` with FT contract
-pub fn register_user(user: &near_sdk_sim::UserAccount) {
+pub fn register_user(user: &skw_contract_sim::UserAccount) {
     user.call(
         FT_ID.parse().unwrap(),
         "storage_deposit",
@@ -27,8 +27,8 @@ pub fn register_user(user: &near_sdk_sim::UserAccount) {
         })
         .to_string()
         .into_bytes(),
-        near_sdk_sim::DEFAULT_GAS / 2,
-        near_sdk::env::storage_byte_cost() * 125, // attached deposit
+        skw_contract_sim::DEFAULT_GAS / 2,
+        skw_contract_sdk::env::storage_byte_cost() * 125, // attached deposit
     )
     .assert_success();
 }
@@ -52,7 +52,7 @@ pub fn init_no_macros(initial_balance: u128) -> (UserAccount, UserAccount, UserA
     )
     .assert_success();
 
-    let alice = root.create_user(AccountId::new_unchecked("alice".to_string()), to_yocto("100"));
+    let alice = root.create_user("alice".parse().unwrap(), to_yocto("100"));
     register_user(&alice);
 
     (root, ft, alice)

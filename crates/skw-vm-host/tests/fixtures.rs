@@ -11,7 +11,6 @@ pub fn get_context(input: Vec<u8>, is_view: bool) -> VMContext {
         input,
         block_number: 0,
         block_timestamp: 0,
-        // epoch_height: 0,
         account_balance: 100,
         storage_usage: 0,
         attached_deposit: 10,

@@ -1,4 +1,5 @@
 use crate::{ AccountId, Balance, Gas };
+use crate::types::{ PublicKey };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Receipt {
@@ -19,6 +20,20 @@ pub enum VmAction {
         args: Vec<u8>,
         gas: Gas,
         deposit: Balance,
+    },
+    AddKeyWithFullAccess {
+        public_key: PublicKey,
+        nonce: u64,
+    },
+    AddKeyWithFunctionCall {
+        public_key: PublicKey,
+        nonce: u64,
+        allowance: Option<Balance>,
+        receiver_id: AccountId,
+        function_names: Vec<String>,
+    },
+    DeleteKey {
+        public_key: PublicKey,
     },
     Transfer {
         deposit: Balance,

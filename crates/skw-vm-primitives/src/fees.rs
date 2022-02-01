@@ -1,11 +1,13 @@
 use num_rational::Rational;
+
 use crate::contract_runtime::Gas;
+use serde::{Serialize, Deserialize, };
 
 /// Costs associated with an object that can only be sent over the network (and executed
 /// by the receiver).
 /// NOTE: `send_sir` or `send_not_sir` fees are usually burned when the item is being created.
 /// And `execution` fee is burned when the item is being executed.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct Fee {
     /// Fee for sending an object from the sender to itself, guaranteeing that it does not leave
     /// the shard.
@@ -36,8 +38,7 @@ impl Fee {
     }
 }
 
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct RuntimeFeesConfig {
     /// Describes the cost of creating an action receipt, `ActionReceipt`, excluding the actual cost
     /// of actions.
@@ -59,9 +60,8 @@ pub struct RuntimeFeesConfig {
     pub pessimistic_gas_price_inflation_ratio: Rational,
 }
 
-
 /// Describes the cost of creating a data receipt, `DataReceipt`.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct DataReceiptCreationConfig {
     /// Base cost of creating a data receipt.
     /// Both `send` and `exec` costs are burned when a new receipt has input dependencies. The gas
@@ -79,7 +79,7 @@ pub struct DataReceiptCreationConfig {
 }
 
 /// Describes the cost of creating a specific action, `Action`. Includes all variants.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct ActionCreationConfig {
     /// Base cost of creating an account.
     pub create_account_cost: Fee,
@@ -97,12 +97,29 @@ pub struct ActionCreationConfig {
     /// Base cost of making a transfer.
     pub transfer_cost: Fee,
 
+    /// Base cost of adding a key.
+    pub add_key_cost: AccessKeyCreationConfig,
+
+    /// Base cost of deleting a key.
+    pub delete_key_cost: Fee,
+
     /// Base cost of deleting an account.
     pub delete_account_cost: Fee,
 }
 
+/// Describes the cost of creating an access key.
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
+pub struct AccessKeyCreationConfig {
+    /// Base cost of creating a full access access-key.
+    pub full_access_cost: Fee,
+    /// Base cost of creating an access-key restricted to specific functions.
+    pub function_call_cost: Fee,
+    /// Cost per byte of method_names of creating a restricted access-key.
+    pub function_call_cost_per_byte: Fee,
+}
+
 /// Describes cost of storage per block
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct StorageUsageConfig {
     /// Number of bytes for an account record, including rounding up for account id.
     pub num_bytes_account: u64,
@@ -162,6 +179,28 @@ impl RuntimeFeesConfig {
                     send_not_sir: 115123062500,
                     execution: 115123062500,
                 },
+                add_key_cost: AccessKeyCreationConfig {
+                    full_access_cost: Fee {
+                        send_sir: 101765125000,
+                        send_not_sir: 101765125000,
+                        execution: 101765125000,
+                    },
+                    function_call_cost: Fee {
+                        send_sir: 102217625000,
+                        send_not_sir: 102217625000,
+                        execution: 102217625000,
+                    },
+                    function_call_cost_per_byte: Fee {
+                        send_sir: 1925331,
+                        send_not_sir: 1925331,
+                        execution: 1925331,
+                    },
+                },
+                delete_key_cost: Fee {
+                    send_sir: 94946625000,
+                    send_not_sir: 94946625000,
+                    execution: 94946625000,
+                },
                 delete_account_cost: Fee {
                     send_sir: 147489000000,
                     send_not_sir: 147489000000,
@@ -194,6 +233,12 @@ impl RuntimeFeesConfig {
                 function_call_cost: free.clone(),
                 function_call_cost_per_byte: free.clone(),
                 transfer_cost: free.clone(),
+                add_key_cost: AccessKeyCreationConfig {
+                    full_access_cost: free.clone(),
+                    function_call_cost: free.clone(),
+                    function_call_cost_per_byte: free.clone(),
+                },
+                delete_key_cost: free.clone(),
                 delete_account_cost: free,
             },
             storage_usage_config: StorageUsageConfig {
@@ -219,24 +264,37 @@ impl RuntimeFeesConfig {
 /// In case of implicit account creation they always include extra fees for the CreateAccount and
 /// AddFullAccessKey actions that are implicit.
 /// We can assume that no overflow will happen here.
-pub fn transfer_exec_fee(cfg: &ActionCreationConfig, is_receiver_implicit: bool) -> Gas {
-    if is_receiver_implicit {
-        cfg.create_account_cost.exec_fee()
-            + cfg.transfer_cost.exec_fee()
-    } else {
-        cfg.transfer_cost.exec_fee()
-    }
+pub fn transfer_exec_fee(cfg: &ActionCreationConfig) -> Gas {
+    cfg.transfer_cost.exec_fee()
 }
 
 pub fn transfer_send_fee(
     cfg: &ActionCreationConfig,
     sender_is_receiver: bool,
-    is_receiver_implicit: bool,
 ) -> Gas {
-    if is_receiver_implicit {
-        cfg.create_account_cost.send_fee(sender_is_receiver)
-            + cfg.transfer_cost.send_fee(sender_is_receiver)
-    } else {
-        cfg.transfer_cost.send_fee(sender_is_receiver)
+    cfg.transfer_cost.send_fee(sender_is_receiver)
+}
+
+/// Serde serializer for u128 to integer.
+/// This is copy from core/primitives/src/serialize.rs
+/// It is required as this module doesn't depend on primitives.
+/// TODO(3384): move basic primitives into a separate module and use in runtime.
+pub mod u128_dec_format {
+    use serde::de;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(num: &u128, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&format!("{}", num))
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<u128, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        u128::from_str_radix(&s, 10).map_err(de::Error::custom)
     }
 }

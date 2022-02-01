@@ -1,6 +1,6 @@
-use near_sdk::json_types::U128;
-use near_sdk::AccountId;
-use near_sdk::PromiseOrValue;
+use skw_contract_sdk::json_types::U128;
+use skw_contract_sdk::AccountId;
+use skw_contract_sdk::PromiseOrValue;
 
 pub trait FungibleTokenCore {
     /// Transfers positive `amount` of tokens from the `env::predecessor_account_id` to `receiver_id`.

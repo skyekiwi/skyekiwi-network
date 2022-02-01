@@ -1,29 +1,23 @@
-use near_crypto::key_conversion::is_valid_staking_key;
-use near_primitives::runtime::get_insufficient_storage_stake;
-use near_primitives::{
-    account::AccessKeyPermission,
-    config::VMLimitConfig,
-    errors::{
-        ActionsValidationError, InvalidAccessKeyError, InvalidTxError, ReceiptValidationError,
-        RuntimeError,
-    },
+use skw_vm_primitives::{
+    contract_runtime::{Balance, AccountId},
+    config::{VMLimitConfig, RuntimeConfig},
     receipt::{ActionReceipt, DataReceipt, Receipt, ReceiptEnum},
     transaction::{
         Action, AddKeyAction, DeployContractAction, FunctionCallAction, SignedTransaction,
-        StakeAction,
     },
-    types::{AccountId, Balance},
-    version::ProtocolVersion,
+    errors::{
+        ActionsValidationError, InvalidTxError, ReceiptValidationError,
+        RuntimeError, InvalidAccessKeyError,
+    },
+    account::{AccessKeyPermission},
 };
+
 use skw_vm_store::{
-    get_access_key, get_account, set_access_key, set_account, StorageError, TrieUpdate,
+    get_access_key, get_account, set_access_key, set_account, TrieUpdate,
 };
 
 use crate::config::{total_prepaid_gas, tx_cost, TransactionCost};
 use crate::VerificationResult;
-use near_primitives::checked_feature;
-use near_primitives::runtime::config::RuntimeConfig;
-use near_primitives::types::BlockHeight;
 
 /// Validates the transaction without using the state. It allows any node to validate a
 /// transaction before forwarding it to the node that tracks the `signer_id` account.
@@ -32,7 +26,6 @@ pub fn validate_transaction(
     gas_price: Balance,
     signed_transaction: &SignedTransaction,
     verify_signature: bool,
-    // current_protocol_version: ProtocolVersion,
 ) -> Result<TransactionCost, RuntimeError> {
     let transaction = &signed_transaction.transaction;
     let signer_id = &transaction.signer_id;
@@ -65,7 +58,6 @@ pub fn validate_transaction(
         transaction,
         gas_price,
         sender_is_receiver,
-        current_protocol_version,
     )
     .map_err(|_| InvalidTxError::CostOverflow.into())
 }
@@ -78,8 +70,6 @@ pub fn verify_and_charge_transaction(
     gas_price: Balance,
     signed_transaction: &SignedTransaction,
     verify_signature: bool,
-    #[allow(unused)] block_height: Option<BlockHeight>,
-    current_protocol_version: ProtocolVersion,
 ) -> Result<VerificationResult, RuntimeError> {
     let TransactionCost { gas_burnt, gas_remaining, receipt_gas_price, total_cost, burnt_amount } =
         validate_transaction(
@@ -87,7 +77,6 @@ pub fn verify_and_charge_transaction(
             gas_price,
             signed_transaction,
             verify_signature,
-            current_protocol_version,
         )?;
     let transaction = &signed_transaction.transaction;
     let signer_id = &transaction.signer_id;
@@ -98,6 +87,7 @@ pub fn verify_and_charge_transaction(
             return Err(InvalidTxError::SignerDoesNotExist { signer_id: signer_id.clone() }.into());
         }
     };
+
     let mut access_key = match get_access_key(state_update, signer_id, &transaction.public_key)? {
         Some(access_key) => access_key,
         None => {
@@ -118,21 +108,9 @@ pub fn verify_and_charge_transaction(
         }
         .into());
     }
-    if checked_feature!("stable", AccessKeyNonceRange, current_protocol_version) {
-        if let Some(height) = block_height {
-            let upper_bound =
-                height * near_primitives::account::AccessKey::ACCESS_KEY_NONCE_RANGE_MULTIPLIER;
-            if transaction.nonce >= upper_bound {
-                return Err(InvalidTxError::NonceTooLarge {
-                    tx_nonce: transaction.nonce,
-                    upper_bound,
-                }
-                .into());
-            }
-        }
-    };
 
     access_key.nonce = transaction.nonce;
+
 
     signer.set_amount(signer.amount().checked_sub(total_cost).ok_or_else(|| {
         InvalidTxError::NotEnoughBalance {
@@ -156,20 +134,6 @@ pub fn verify_and_charge_transaction(
             })?;
         }
     }
-
-    match get_insufficient_storage_stake(&signer, config) {
-        Ok(None) => {}
-        Ok(Some(amount)) => {
-            return Err(InvalidTxError::LackBalanceForState {
-                signer_id: signer_id.clone(),
-                amount,
-            }
-            .into())
-        }
-        Err(err) => {
-            return Err(RuntimeError::StorageError(StorageError::StorageInconsistentState(err)))
-        }
-    };
 
     if let AccessKeyPermission::FunctionCall(ref function_call_permission) = access_key.permission {
         if transaction.actions.len() != 1 {
@@ -325,9 +289,6 @@ pub fn validate_action(
         Action::DeployContract(a) => validate_deploy_contract_action(limit_config, a),
         Action::FunctionCall(a) => validate_function_call_action(limit_config, a),
         Action::Transfer(_) => Ok(()),
-        Action::Stake(a) => validate_stake_action(a),
-        #[cfg(feature = "protocol_feature_chunk_only_producers")]
-        Action::StakeChunkOnly(a) => validate_stake_action(a),
         Action::AddKey(a) => validate_add_key_action(limit_config, a),
         Action::DeleteKey(_) => Ok(()),
         Action::DeleteAccount(_) => Ok(()),
@@ -376,16 +337,6 @@ fn validate_function_call_action(
     Ok(())
 }
 
-/// Validates `StakeAction`. Checks that the `public_key` is a valid staking key.
-fn validate_stake_action(action: &StakeAction) -> Result<(), ActionsValidationError> {
-    if !is_valid_staking_key(&action.public_key) {
-        return Err(ActionsValidationError::UnsuitableStakingKey {
-            public_key: action.public_key.clone(),
-        });
-    }
-
-    Ok(())
-}
 
 /// Validates `AddKeyAction`. If the access key permission is `FunctionCall`, checks that the
 /// total number of bytes of the method names doesn't exceed the limit and
@@ -418,25 +369,32 @@ fn validate_add_key_action(
 
     Ok(())
 }
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
-    use near_crypto::{InMemorySigner, KeyType, PublicKey, Signer};
-    use near_primitives::account::{AccessKey, Account, FunctionCallPermission};
-    use near_primitives::hash::{hash, CryptoHash};
-    use near_primitives::test_utils::account_new;
-    use near_primitives::transaction::{
-        CreateAccountAction, DeleteAccountAction, DeleteKeyAction, StakeAction, TransferAction,
+    use skw_vm_primitives::crypto::{InMemorySigner, KeyType, PublicKey, Signer};
+    use skw_vm_primitives::test_utils::account_new;
+    use skw_vm_primitives::transaction::{
+        CreateAccountAction, DeleteAccountAction, TransferAction,
     };
-    use near_primitives::types::{AccountId, Balance, MerkleHash, StateChangeCause};
-    use near_primitives::version::PROTOCOL_VERSION;
+    use skw_vm_primitives::contract_runtime::{
+        AccountId, Balance, MerkleHash, StateChangeCause, hash_bytes, CryptoHash
+    };
     use skw_vm_store::test_utils::create_tries;
-    use testlib::runtime_utils::{alice_account, bob_account, eve_dot_alice_account};
+    use skw_vm_primitives::account::{AccessKey, FunctionCallPermission};
 
+    pub fn alice_account() -> AccountId {
+        "alice.near".parse().unwrap()
+    }
+    pub fn bob_account() -> AccountId {
+        "bob.near".parse().unwrap()
+    }
+    pub fn eve_dot_alice_account() -> AccountId {
+        "eve.alice.near".parse().unwrap()
+    }    
+    
     use super::*;
-    use crate::near_primitives::shard_layout::ShardUId;
 
     /// Initial balance used in tests.
     const TESTING_INIT_BALANCE: Balance = 1_000_000_000 * NEAR_BASE;
@@ -465,9 +423,9 @@ mod tests {
             account_id.as_ref(),
         ));
 
-        let mut initial_state = tries.new_trie_update(ShardUId::single_shard(), root);
+        let mut initial_state = tries.new_trie_update(root);
         for (account_id, initial_balance, initial_locked, access_key) in accounts {
-            let mut initial_account = account_new(initial_balance, hash(&[]));
+            let mut initial_account = account_new(initial_balance, hash_bytes(&[]));
             initial_account.set_locked(initial_locked);
             set_account(&mut initial_state, account_id.clone(), &initial_account);
             if let Some(access_key) = access_key {
@@ -482,10 +440,10 @@ mod tests {
         initial_state.commit(StateChangeCause::InitialState);
         let trie_changes = initial_state.finalize().unwrap().0;
         let (store_update, root) =
-            tries.apply_all(&trie_changes, ShardUId::single_shard()).unwrap();
+            tries.apply_all(&trie_changes).unwrap();
         store_update.commit().unwrap();
 
-        (signer, tries.new_trie_update(ShardUId::single_shard(), root), 100)
+        (signer, tries.new_trie_update(root), 100)
     }
 
     fn assert_err_both_validations(
@@ -496,7 +454,7 @@ mod tests {
         expected_err: RuntimeError,
     ) {
         assert_eq!(
-            validate_transaction(config, gas_price, signed_transaction, true, PROTOCOL_VERSION)
+            validate_transaction(config, gas_price, signed_transaction, true)
                 .expect_err("expected an error"),
             expected_err,
         );
@@ -507,8 +465,6 @@ mod tests {
                 gas_price,
                 signed_transaction,
                 true,
-                None,
-                PROTOCOL_VERSION,
             )
             .expect_err("expected an error"),
             expected_err,
@@ -532,7 +488,7 @@ mod tests {
             deposit,
             CryptoHash::default(),
         );
-        validate_transaction(&config, gas_price, &transaction, true, PROTOCOL_VERSION)
+        validate_transaction(&config, gas_price, &transaction, true)
             .expect("valid transaction");
         let verification_result = verify_and_charge_transaction(
             &config,
@@ -540,8 +496,6 @@ mod tests {
             gas_price,
             &transaction,
             true,
-            None,
-            PROTOCOL_VERSION,
         )
         .expect("valid transaction");
         // Should not be free. Burning for sending
@@ -612,8 +566,6 @@ mod tests {
                     CryptoHash::default(),
                 ),
                 false,
-                None,
-                PROTOCOL_VERSION,
             )
             .expect_err("expected an error"),
             RuntimeError::InvalidTxError(InvalidTxError::InvalidAccessKeyError(
@@ -679,8 +631,6 @@ mod tests {
                     CryptoHash::default(),
                 ),
                 true,
-                None,
-                PROTOCOL_VERSION,
             )
             .expect_err("expected an error"),
             RuntimeError::InvalidTxError(InvalidTxError::SignerDoesNotExist {
@@ -712,8 +662,6 @@ mod tests {
                     CryptoHash::default(),
                 ),
                 true,
-                None,
-                PROTOCOL_VERSION,
             )
             .expect_err("expected an error"),
             RuntimeError::InvalidTxError(InvalidTxError::InvalidNonce { tx_nonce: 1, ak_nonce: 2 }),
@@ -761,8 +709,6 @@ mod tests {
                 CryptoHash::default(),
             ),
             true,
-            None,
-            PROTOCOL_VERSION,
         )
         .expect_err("expected an error");
         if let RuntimeError::InvalidTxError(InvalidTxError::NotEnoughBalance {
@@ -813,8 +759,6 @@ mod tests {
                 CryptoHash::default(),
             ),
             true,
-            None,
-            PROTOCOL_VERSION,
         )
         .expect_err("expected an error");
         if let RuntimeError::InvalidTxError(InvalidTxError::InvalidAccessKeyError(
@@ -830,43 +774,41 @@ mod tests {
         }
     }
 
-    /// Setup: account has 1B yoctoN and is 180 bytes. Storage requirement is 1M per byte.
-    /// Test that such account can not send 950M yoctoN out as that will leave it under storage requirements.
-    #[test]
-    fn test_validate_transaction_invalid_low_balance() {
-        let mut config = RuntimeConfig::free();
-        config.storage_amount_per_byte = 10_000_000;
-        let initial_balance = 1_000_000_000;
-        let transfer_amount = 950_000_000;
-        let (signer, mut state_update, gas_price) =
-            setup_common(initial_balance, 0, Some(AccessKey::full_access()));
+    // Setup: account has 1B yoctoN and is 180 bytes. Storage requirement is 1M per byte.
+    // Test that such account can not send 950M yoctoN out as that will leave it under storage requirements.
+    // #[test]
+    // fn test_validate_transaction_invalid_low_balance() {
+    //     let mut config = RuntimeConfig::free();
+    //     config.storage_amount_per_byte = 10_000_000;
+    //     let initial_balance = 1_000_000_000;
+    //     let transfer_amount = 950_000_000;
+    //     let (signer, mut state_update, gas_price) =
+    //         setup_common(initial_balance, 0, Some(AccessKey::full_access()));
 
-        assert_eq!(
-            verify_and_charge_transaction(
-                &config,
-                &mut state_update,
-                gas_price,
-                &SignedTransaction::send_money(
-                    1,
-                    alice_account(),
-                    bob_account(),
-                    &*signer,
-                    transfer_amount,
-                    CryptoHash::default(),
-                ),
-                true,
-                None,
-                PROTOCOL_VERSION,
-            )
-            .expect_err("expected an error"),
-            RuntimeError::InvalidTxError(InvalidTxError::LackBalanceForState {
-                signer_id: alice_account(),
-                amount: Balance::from(std::mem::size_of::<Account>() as u64)
-                    * config.storage_amount_per_byte
-                    - (initial_balance - transfer_amount)
-            })
-        );
-    }
+    //     assert_eq!(
+    //         verify_and_charge_transaction(
+    //             &config,
+    //             &mut state_update,
+    //             gas_price,
+    //             &SignedTransaction::send_money(
+    //                 1,
+    //                 alice_account(),
+    //                 bob_account(),
+    //                 &*signer,
+    //                 transfer_amount,
+    //                 CryptoHash::default(),
+    //             ),
+    //             true,
+    //         )
+    //         .expect_err("expected an error"),
+    //         RuntimeError::InvalidTxError(InvalidTxError::LackBalanceForState {
+    //             signer_id: alice_account(),
+    //             amount: Balance::from(std::mem::size_of::<Account>() as u64)
+    //                 * config.storage_amount_per_byte
+    //                 - (initial_balance - transfer_amount)
+    //         })
+    //     );
+    // }
 
     #[test]
     fn test_validate_transaction_invalid_actions_for_function_call() {
@@ -906,8 +848,6 @@ mod tests {
                     CryptoHash::default(),
                 ),
                 true,
-                None,
-                PROTOCOL_VERSION,
             )
             .expect_err("expected an error"),
             RuntimeError::InvalidTxError(InvalidTxError::InvalidAccessKeyError(
@@ -929,8 +869,6 @@ mod tests {
                     CryptoHash::default(),
                 ),
                 true,
-                None,
-                PROTOCOL_VERSION,
             )
             .expect_err("expected an error"),
             RuntimeError::InvalidTxError(InvalidTxError::InvalidAccessKeyError(
@@ -952,8 +890,6 @@ mod tests {
                     CryptoHash::default(),
                 ),
                 true,
-                None,
-                PROTOCOL_VERSION,
             )
             .expect_err("expected an error"),
             RuntimeError::InvalidTxError(InvalidTxError::InvalidAccessKeyError(
@@ -997,8 +933,6 @@ mod tests {
                     CryptoHash::default(),
                 ),
                 true,
-                None,
-                PROTOCOL_VERSION,
             )
             .expect_err("expected an error"),
             RuntimeError::InvalidTxError(InvalidTxError::InvalidAccessKeyError(
@@ -1025,7 +959,6 @@ mod tests {
                 }),
             }),
         );
-
         assert_eq!(
             verify_and_charge_transaction(
                 &config,
@@ -1045,8 +978,6 @@ mod tests {
                     CryptoHash::default(),
                 ),
                 true,
-                None,
-                PROTOCOL_VERSION,
             )
             .expect_err("expected an error"),
             RuntimeError::InvalidTxError(InvalidTxError::InvalidAccessKeyError(
@@ -1090,10 +1021,7 @@ mod tests {
                     CryptoHash::default(),
                 ),
                 true,
-                None,
-                PROTOCOL_VERSION,
-            )
-            .expect_err("expected an error"),
+            ).expect_err("expected an error"),
             RuntimeError::InvalidTxError(InvalidTxError::InvalidAccessKeyError(
                 InvalidAccessKeyError::DepositWithFunctionCall,
             )),
@@ -1126,8 +1054,6 @@ mod tests {
                 gas_price,
                 &transaction,
                 false,
-                None,
-                PROTOCOL_VERSION,
             )
             .expect_err("expected an error"),
             RuntimeError::InvalidTxError(InvalidTxError::TransactionSizeExceeded {
@@ -1143,14 +1069,11 @@ mod tests {
             gas_price,
             &transaction,
             false,
-            None,
-            PROTOCOL_VERSION,
         )
         .expect("valid transaction");
     }
 
     // Receipts
-
     #[test]
     fn test_validate_receipt_valid() {
         let limit_config = VMLimitConfig::test();
@@ -1395,75 +1318,6 @@ mod tests {
     fn test_validate_action_valid_transfer() {
         validate_action(&VMLimitConfig::test(), &Action::Transfer(TransferAction { deposit: 10 }))
             .expect("valid action");
-    }
-
-    #[test]
-    fn test_validate_action_valid_stake() {
-        validate_action(
-            &VMLimitConfig::test(),
-            &Action::Stake(StakeAction {
-                stake: 100,
-                public_key: "ed25519:KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".parse().unwrap(),
-            }),
-        )
-        .expect("valid action");
-    }
-
-    #[test]
-    fn test_validate_action_invalid_staking_key() {
-        assert_eq!(
-            validate_action(
-                &VMLimitConfig::test(),
-                &Action::Stake(StakeAction {
-                    stake: 100,
-                    public_key: PublicKey::empty(KeyType::ED25519),
-                }),
-            )
-            .expect_err("Expected an error"),
-            ActionsValidationError::UnsuitableStakingKey {
-                public_key: PublicKey::empty(KeyType::ED25519),
-            },
-        );
-    }
-
-    #[test]
-    fn test_validate_action_valid_add_key_full_permission() {
-        validate_action(
-            &VMLimitConfig::test(),
-            &Action::AddKey(AddKeyAction {
-                public_key: PublicKey::empty(KeyType::ED25519),
-                access_key: AccessKey::full_access(),
-            }),
-        )
-        .expect("valid action");
-    }
-
-    #[test]
-    fn test_validate_action_valid_add_key_function_call() {
-        validate_action(
-            &VMLimitConfig::test(),
-            &Action::AddKey(AddKeyAction {
-                public_key: PublicKey::empty(KeyType::ED25519),
-                access_key: AccessKey {
-                    nonce: 0,
-                    permission: AccessKeyPermission::FunctionCall(FunctionCallPermission {
-                        allowance: Some(1000),
-                        receiver_id: alice_account().into(),
-                        method_names: vec!["hello".to_string(), "world".to_string()],
-                    }),
-                },
-            }),
-        )
-        .expect("valid action");
-    }
-
-    #[test]
-    fn test_validate_action_valid_delete_key() {
-        validate_action(
-            &VMLimitConfig::test(),
-            &Action::DeleteKey(DeleteKeyAction { public_key: PublicKey::empty(KeyType::ED25519) }),
-        )
-        .expect("valid action");
     }
 
     #[test]

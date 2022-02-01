@@ -6,11 +6,10 @@ use rand::Rng;
 
 use crate::db::TestDB;
 use crate::{ShardTries, Store};
-use near_primitives::account::id::AccountId;
-use near_primitives::hash::CryptoHash;
-use near_primitives::receipt::{DataReceipt, Receipt, ReceiptEnum};
-use near_primitives::shard_layout::{ShardUId, ShardVersion};
-use near_primitives::types::NumShards;
+use skw_vm_primitives::account_id::AccountId;
+use skw_vm_primitives::contract_runtime::CryptoHash;
+use skw_vm_primitives::receipt::{DataReceipt, Receipt, ReceiptEnum};
+// use skw_vm_primitives::shard_layout::{ShardUId, ShardVersion};
 use std::str::from_utf8;
 
 /// Creates an in-memory database.
@@ -22,24 +21,22 @@ pub fn create_test_store() -> Arc<Store> {
 /// Creates a Trie using an in-memory database.
 pub fn create_tries() -> ShardTries {
     let store = create_test_store();
-    ShardTries::new(store, 0, 1)
-}
-
-pub fn create_tries_complex(shard_version: ShardVersion, num_shards: NumShards) -> ShardTries {
-    let store = create_test_store();
-    ShardTries::new(store, shard_version, num_shards)
+    ShardTries::new(store)
 }
 
 pub fn test_populate_trie(
     tries: &ShardTries,
     root: &CryptoHash,
-    shard_uid: ShardUId,
     changes: Vec<(Vec<u8>, Option<Vec<u8>>)>,
 ) -> CryptoHash {
-    let trie = tries.get_trie_for_shard(shard_uid);
-    assert_eq!(trie.storage.as_caching_storage().unwrap().shard_uid.shard_id, 0);
+    let trie = tries.get_trie();
+
+    // TODO: this sounds wrong??
+    // assert_eq!(trie.storage.as_caching_storage().unwrap(), 0);
+    
     let trie_changes = trie.update(root, changes.iter().cloned()).unwrap();
-    let (store_update, root) = tries.apply_all(&trie_changes, shard_uid).unwrap();
+    let (store_update, root) = tries.apply_all(&trie_changes).unwrap();
+    
     store_update.commit().unwrap();
     let deduped = simplify_changes(&changes);
     for (key, value) in deduped {

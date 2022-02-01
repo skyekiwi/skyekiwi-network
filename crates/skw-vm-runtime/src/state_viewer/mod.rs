@@ -1,28 +1,24 @@
-use crate::near_primitives::version::PROTOCOL_VERSION;
 use crate::{actions::execute_function_call, ext::RuntimeExt};
 use log::debug;
-use near_crypto::{KeyType, PublicKey};
-use near_primitives::runtime::config_store::RuntimeConfigStore;
-use near_primitives::{
-    account::{AccessKey, Account},
-    borsh::BorshDeserialize,
-    contract::ContractCode,
-    hash::CryptoHash,
+use borsh::BorshDeserialize;
+
+use skw_vm_primitives::crypto::{KeyType, PublicKey};
+use skw_vm_primitives::config::RuntimeConfig;
+use skw_vm_primitives::{
     receipt::ActionReceipt,
-    runtime::{
-        apply_state::ApplyState,
-        migration_data::{MigrationData, MigrationFlags},
-    },
+    apply_state::ApplyState,
     serialize::to_base64,
     transaction::FunctionCallAction,
     trie_key::trie_key_parsers,
-    types::{AccountId, EpochInfoProvider, Gas},
+    account::{Account, AccessKey},
+    contract_runtime::{AccountId, Gas, CryptoHash, ContractCode},
     views::{StateItem, ViewApplyState, ViewStateResult},
 };
-use skw_vm_store::{get_access_key, get_account, get_code, TrieUpdate};
-use near_vm_logic::{ReturnData, ViewConfig};
-use std::{str, sync::Arc, time::Instant};
 
+use skw_vm_store::{get_account, get_code, get_access_key, TrieUpdate};
+use skw_vm_host::{ReturnData, ViewConfig};
+use std::{str, time::Instant};
+use std::sync::Arc;
 pub mod errors;
 
 pub struct TrieViewer {
@@ -34,9 +30,10 @@ pub struct TrieViewer {
 
 impl Default for TrieViewer {
     fn default() -> Self {
-        let config_store = RuntimeConfigStore::new(None);
-        let latest_runtime_config = config_store.get_config(PROTOCOL_VERSION);
-        let max_gas_burnt = latest_runtime_config.wasm_config.limit_config.max_gas_burnt;
+        // let config_store = RuntimeConfigStore::new(None);
+        // let latest_runtime_config = config_store.get_config(PROTOCOL_VERSION);
+        let runtime_config = RuntimeConfig::test();
+        let max_gas_burnt = runtime_config.wasm_config.limit_config.max_gas_burnt;
         Self { state_size_limit: None, max_gas_burnt_view: max_gas_burnt }
     }
 }
@@ -97,7 +94,7 @@ impl TrieViewer {
                 .map(|key| {
                     let key = key?;
                     let public_key = &key[raw_prefix.len()..];
-                    let access_key = near_store::get_access_key_raw(state_update, &key)?
+                    let access_key = skw_vm_store::get_access_key_raw(state_update, &key)?
                         .ok_or_else(|| errors::ViewAccessKeyError::InternalError {
                             error_message: "Unexpected missing key from iterator".to_string(),
                         })?;
@@ -123,7 +120,7 @@ impl TrieViewer {
         match get_account(state_update, account_id)? {
             Some(account) => {
                 let code_len = get_code(state_update, account_id, Some(account.code_hash()))?
-                    .map(|c| c.code().len() as u64)
+                    .map(|c| c.code.len() as u64)
                     .unwrap_or_default();
                 if let Some(limit) = self.state_size_limit {
                     if account.storage_usage().saturating_sub(code_len) > limit {
@@ -168,7 +165,6 @@ impl TrieViewer {
         method_name: &str,
         args: &[u8],
         logs: &mut Vec<String>,
-        epoch_info_provider: &dyn EpochInfoProvider,
     ) -> Result<Vec<u8>, errors::CallFunctionError> {
         let now = Instant::now();
         let root = state_update.get_root();
@@ -188,32 +184,21 @@ impl TrieViewer {
             &public_key,
             0,
             &empty_hash,
-            &view_state.epoch_id,
-            &view_state.prev_block_hash,
-            &view_state.block_hash,
-            epoch_info_provider,
-            view_state.current_protocol_version,
         );
-        let config_store = RuntimeConfigStore::new(None);
-        let config = config_store.get_config(PROTOCOL_VERSION);
+        
+        let config = RuntimeConfig::test();
         let apply_state = ApplyState {
-            block_index: view_state.block_height,
+            block_number: view_state.block_number,
             // Used for legacy reasons
             prev_block_hash: view_state.prev_block_hash,
             block_hash: view_state.block_hash,
-            epoch_id: view_state.epoch_id.clone(),
-            epoch_height: view_state.epoch_height,
             gas_price: 0,
             block_timestamp: view_state.block_timestamp,
             gas_limit: None,
             random_seed: root,
-            current_protocol_version: view_state.current_protocol_version,
-            config: config.clone(),
-            cache: view_state.cache,
-            is_new_chunk: false,
-            migration_data: Arc::new(MigrationData::default()),
-            migration_flags: MigrationFlags::default(),
+            config: Arc::new(config.clone()),
         };
+
         let action_receipt = ActionReceipt {
             signer_id: originator_id.clone(),
             signer_public_key: public_key.clone(),
@@ -237,7 +222,7 @@ impl TrieViewer {
             &[],
             &function_call,
             &empty_hash,
-            config,
+            &config,
             true,
             Some(ViewConfig { max_gas_burnt: self.max_gas_burnt_view }),
         );

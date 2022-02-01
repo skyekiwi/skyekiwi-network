@@ -1,6 +1,5 @@
 #[cfg(not(feature = "single_thread_rocksdb"))]
 use std::cmp;
-use std::collections::HashMap;
 use std::io;
 use std::marker::PhantomPinned;
 use std::sync::RwLock;
@@ -13,15 +12,14 @@ use rocksdb::{
 use strum::EnumIter;
 use tracing::warn;
 
-use near_primitives::version::DbVersion;
+use skw_vm_primitives::version::DbVersion;
 
-use crate::db::refcount::merge_refcounted_records;
+use crate::refcount::merge_refcounted_records;
 
 use std::path::Path;
 use std::sync::atomic::Ordering;
 
-pub(crate) mod refcount;
-pub(crate) mod v6_to_v7;
+// pub(crate) mod v6_to_v7;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DBError(rocksdb::Error);
@@ -55,6 +53,7 @@ pub enum DBCol {
     /// - *Rows*: single row [VERSION_KEY]
     /// - *Content type*: The version of the database (u32), serialized as JSON.
     ColDbVersion = 0,
+
     /// Column that store Misc cells.
     /// - *Rows*: multiple, for example "GENESIS_JSON_HASH", "HEAD_KEY", [LATEST_KNOWN_KEY] etc.
     /// - *Content type*: cell specific.
@@ -389,7 +388,7 @@ unsafe impl Sync for RocksDB {}
 /// Options for configuring [`RocksDB`](RocksDB).
 ///
 /// ```rust
-/// use near_store::db::RocksDBOptions;
+/// use skw_vm_store::db::RocksDBOptions;
 ///
 /// let rocksdb = RocksDBOptions::default()
 ///     .check_free_space_interval(256)

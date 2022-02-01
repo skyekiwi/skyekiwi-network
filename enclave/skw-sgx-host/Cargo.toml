@@ -5,7 +5,7 @@ authors = ["SkyeKiwi <hello@skye.kiwi>"]
 build = "build.rs"
 
 [dependencies]
-skw_ipfs = { path = "../../crates/skw-sgx-ipfs" }
+skw_sgx_ipfs = { path = "../../crates/skw-sgx-ipfs" }
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 

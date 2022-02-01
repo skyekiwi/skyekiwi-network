@@ -1,17 +1,17 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::U128;
-use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::AccountId;
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::json_types::U128;
+use skw_contract_sdk::serde::{Deserialize, Serialize};
+use skw_contract_sdk::AccountId;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
+#[serde(crate = "skw_contract_sdk::serde")]
 pub struct StorageBalance {
     pub total: U128,
     pub available: U128,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
+#[serde(crate = "skw_contract_sdk::serde")]
 pub struct StorageBalanceBounds {
     pub min: U128,
     pub max: Option<U128>,

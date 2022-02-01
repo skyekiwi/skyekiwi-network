@@ -1,14 +1,12 @@
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
+use std::ops::Deref;
 
 use borsh::BorshSerialize;
-use near_primitives::borsh::maybestd::collections::HashMap;
-use near_primitives::hash::CryptoHash;
-use near_primitives::shard_layout;
-use near_primitives::shard_layout::{ShardUId, ShardVersion};
-use near_primitives::trie_key::TrieKey;
-use near_primitives::types::{
-    NumShards, RawStateChange, RawStateChangesWithTrieKey, StateChangeCause, StateRoot,
+// use skw_vm_primitives::borsh::maybestd::collections::HashMap;
+use skw_vm_primitives::trie_key::TrieKey;
+use skw_vm_primitives::contract_runtime::{
+    CryptoHash, RawStateChange, RawStateChangesWithTrieKey, StateChangeCause, StateRoot,
 };
 
 use crate::db::{DBCol, DBOp, DBTransaction};
@@ -19,28 +17,24 @@ use crate::{StorageError, Store, StoreUpdate, Trie, TrieChanges, TrieUpdate};
 struct ShardTriesInner {
     store: Arc<Store>,
     /// Cache reserved for client actor to use
-    caches: RwLock<HashMap<ShardUId, TrieCache>>,
+    caches: RwLock<TrieCache>,
     /// Cache for readers.
-    view_caches: RwLock<HashMap<ShardUId, TrieCache>>,
+    view_caches: RwLock<TrieCache>,
 }
 
 #[derive(Clone)]
 pub struct ShardTries(Arc<ShardTriesInner>);
 
 impl ShardTries {
-    fn get_new_cache(shards: &[ShardUId]) -> HashMap<ShardUId, TrieCache> {
-        shards.iter().map(|&shard_id| (shard_id, TrieCache::new())).collect()
+    fn get_new_cache() -> TrieCache {
+        TrieCache::new()
     }
 
-    pub fn new(store: Arc<Store>, shard_version: ShardVersion, num_shards: NumShards) -> Self {
-        assert_ne!(num_shards, 0);
-        let shards: Vec<_> = (0..num_shards)
-            .map(|shard_id| ShardUId { version: shard_version, shard_id: shard_id as u32 })
-            .collect();
+    pub fn new(store: Arc<Store>) -> Self {
         ShardTries(Arc::new(ShardTriesInner {
             store,
-            caches: RwLock::new(Self::get_new_cache(&shards)),
-            view_caches: RwLock::new(Self::get_new_cache(&shards)),
+            caches: RwLock::new(Self::get_new_cache()),
+            view_caches: RwLock::new(Self::get_new_cache()),
         }))
     }
 
@@ -48,30 +42,29 @@ impl ShardTries {
         Arc::ptr_eq(&self.0, &other.0)
     }
 
-    pub fn new_trie_update(&self, shard_uid: ShardUId, state_root: CryptoHash) -> TrieUpdate {
-        TrieUpdate::new(Rc::new(self.get_trie_for_shard(shard_uid)), state_root)
+    pub fn new_trie_update(&self, state_root: CryptoHash) -> TrieUpdate {
+        TrieUpdate::new(Rc::new(self.get_trie()), state_root)
     }
 
-    pub fn new_trie_update_view(&self, shard_uid: ShardUId, state_root: CryptoHash) -> TrieUpdate {
-        TrieUpdate::new(Rc::new(self.get_view_trie_for_shard(shard_uid)), state_root)
+    pub fn new_trie_update_view(&self, state_root: CryptoHash) -> TrieUpdate {
+        TrieUpdate::new(Rc::new(self.get_view_trie()), state_root)
     }
 
-    fn get_trie_for_shard_internal(&self, shard_uid: ShardUId, is_view: bool) -> Trie {
+    fn get_trie_internal(&self, is_view: bool) -> Trie {
         let caches_to_use = if is_view { &self.0.view_caches } else { &self.0.caches };
-        let cache = {
-            let mut caches = caches_to_use.write().expect(POISONED_LOCK_ERR);
-            caches.entry(shard_uid).or_insert_with(TrieCache::new).clone()
-        };
-        let store = Box::new(TrieCachingStorage::new(self.0.store.clone(), cache, shard_uid));
-        Trie::new(store, shard_uid)
+        let cache = caches_to_use.write().expect(POISONED_LOCK_ERR);
+        let store = Box::new(
+            TrieCachingStorage::new(self.0.store.clone(), (* cache.deref()).clone())
+        );
+        Trie::new(store)
     }
 
-    pub fn get_trie_for_shard(&self, shard_uid: ShardUId) -> Trie {
-        self.get_trie_for_shard_internal(shard_uid, false)
+    pub fn get_trie(&self) -> Trie {
+        self.get_trie_internal(false)
     }
 
-    pub fn get_view_trie_for_shard(&self, shard_uid: ShardUId) -> Trie {
-        self.get_trie_for_shard_internal(shard_uid, true)
+    pub fn get_view_trie(&self) -> Trie {
+        self.get_trie_internal(true)
     }
 
     pub fn get_store(&self) -> Arc<Store> {
@@ -79,50 +72,40 @@ impl ShardTries {
     }
 
     pub fn update_cache(&self, transaction: &DBTransaction) -> std::io::Result<()> {
-        let mut caches = self.0.caches.write().expect(POISONED_LOCK_ERR);
-        let mut shards = HashMap::new();
+        let mut cache = self.0.caches.write().expect(POISONED_LOCK_ERR);
+        
+        let mut all_ops: Vec<(CryptoHash, Option<&Vec<u8>>)> = vec![];
         for op in &transaction.ops {
             match op {
-                DBOp::UpdateRefcount { col, ref key, ref value } if *col == DBCol::ColState => {
-                    let (shard_uid, hash) =
-                        TrieCachingStorage::get_shard_uid_and_hash_from_key(key)?;
-                    shards.entry(shard_uid).or_insert(vec![]).push((hash, Some(value)));
+                DBOp::UpdateRefcount { col, ref key, ref value } if *col == DBCol::ColState => {    
+                    let hash = TrieCachingStorage::get_hash_from_key(key)?;
+                    all_ops.push(  (hash, Some(value) ) );
                 }
                 DBOp::Insert { col, .. } if *col == DBCol::ColState => unreachable!(),
                 DBOp::Delete { col, .. } if *col == DBCol::ColState => unreachable!(),
                 DBOp::DeleteAll { col } if *col == DBCol::ColState => {
                     // Delete is possible in reset_data_pre_state_sync
-                    for (_, cache) in caches.iter() {
-                        cache.clear();
-                    }
+                    * cache = Self::get_new_cache();
                 }
                 _ => {}
             }
         }
-        for (shard_uid, ops) in shards {
-            let cache = caches.entry(shard_uid).or_insert_with(TrieCache::new).clone();
-            cache.update_cache(ops);
-        }
+        cache.update_cache(all_ops);
         Ok(())
     }
 
     fn apply_deletions_inner(
         deletions: &Vec<TrieRefcountChange>,
         tries: ShardTries,
-        shard_uid: ShardUId,
         store_update: &mut StoreUpdate,
     ) -> Result<(), StorageError> {
         store_update.tries = Some(tries);
         for TrieRefcountChange { trie_node_or_value_hash, trie_node_or_value, rc } in
             deletions.iter()
         {
-            let key = TrieCachingStorage::get_key_from_shard_uid_and_hash(
-                shard_uid,
-                trie_node_or_value_hash,
-            );
             store_update.update_refcount(
                 DBCol::ColState,
-                key.as_ref(),
+                trie_node_or_value_hash,
                 trie_node_or_value,
                 -(*rc as i64),
             );
@@ -133,20 +116,15 @@ impl ShardTries {
     fn apply_insertions_inner(
         insertions: &Vec<TrieRefcountChange>,
         tries: ShardTries,
-        shard_uid: ShardUId,
         store_update: &mut StoreUpdate,
     ) -> Result<(), StorageError> {
         store_update.tries = Some(tries);
         for TrieRefcountChange { trie_node_or_value_hash, trie_node_or_value, rc } in
             insertions.iter()
         {
-            let key = TrieCachingStorage::get_key_from_shard_uid_and_hash(
-                shard_uid,
-                trie_node_or_value_hash,
-            );
             store_update.update_refcount(
                 DBCol::ColState,
-                key.as_ref(),
+                trie_node_or_value_hash,
                 trie_node_or_value,
                 *rc as i64,
             );
@@ -157,21 +135,18 @@ impl ShardTries {
     fn apply_all_inner(
         trie_changes: &TrieChanges,
         tries: ShardTries,
-        shard_uid: ShardUId,
         apply_deletions: bool,
     ) -> Result<(StoreUpdate, StateRoot), StorageError> {
         let mut store_update = StoreUpdate::new_with_tries(tries.clone());
         ShardTries::apply_insertions_inner(
             &trie_changes.insertions,
             tries.clone(),
-            shard_uid,
             &mut store_update,
         )?;
         if apply_deletions {
             ShardTries::apply_deletions_inner(
                 &trie_changes.deletions,
                 tries,
-                shard_uid,
                 &mut store_update,
             )?;
         }
@@ -181,13 +156,11 @@ impl ShardTries {
     pub fn apply_insertions(
         &self,
         trie_changes: &TrieChanges,
-        shard_uid: ShardUId,
         store_update: &mut StoreUpdate,
     ) -> Result<(), StorageError> {
         ShardTries::apply_insertions_inner(
             &trie_changes.insertions,
             self.clone(),
-            shard_uid,
             store_update,
         )
     }
@@ -195,13 +168,11 @@ impl ShardTries {
     pub fn apply_deletions(
         &self,
         trie_changes: &TrieChanges,
-        shard_uid: ShardUId,
         store_update: &mut StoreUpdate,
     ) -> Result<(), StorageError> {
         ShardTries::apply_deletions_inner(
             &trie_changes.deletions,
             self.clone(),
-            shard_uid,
             store_update,
         )
     }
@@ -209,13 +180,11 @@ impl ShardTries {
     pub fn revert_insertions(
         &self,
         trie_changes: &TrieChanges,
-        shard_uid: ShardUId,
         store_update: &mut StoreUpdate,
     ) -> Result<(), StorageError> {
         ShardTries::apply_deletions_inner(
             &trie_changes.insertions,
             self.clone(),
-            shard_uid,
             store_update,
         )
     }
@@ -223,16 +192,14 @@ impl ShardTries {
     pub fn apply_all(
         &self,
         trie_changes: &TrieChanges,
-        shard_uid: ShardUId,
     ) -> Result<(StoreUpdate, StateRoot), StorageError> {
-        ShardTries::apply_all_inner(trie_changes, self.clone(), shard_uid, true)
+        ShardTries::apply_all_inner(trie_changes, self.clone(), true)
     }
 
     // apply_all with less memory overhead
     pub fn apply_genesis(
         &self,
         trie_changes: TrieChanges,
-        shard_uid: ShardUId,
     ) -> (StoreUpdate, StateRoot) {
         assert_eq!(trie_changes.old_root, CryptoHash::default());
         assert!(trie_changes.deletions.is_empty());
@@ -241,13 +208,9 @@ impl ShardTries {
         for TrieRefcountChange { trie_node_or_value_hash, trie_node_or_value, rc } in
             trie_changes.insertions.into_iter()
         {
-            let key = TrieCachingStorage::get_key_from_shard_uid_and_hash(
-                shard_uid,
-                &trie_node_or_value_hash,
-            );
             store_update.update_refcount(
                 DBCol::ColState,
-                key.as_ref(),
+                &trie_node_or_value_hash,
                 &trie_node_or_value,
                 rc as i64,
             );
@@ -258,7 +221,6 @@ impl ShardTries {
 
 pub struct WrappedTrieChanges {
     tries: ShardTries,
-    shard_uid: ShardUId,
     trie_changes: TrieChanges,
     state_changes: Vec<RawStateChangesWithTrieKey>,
     block_hash: CryptoHash,
@@ -267,12 +229,11 @@ pub struct WrappedTrieChanges {
 impl WrappedTrieChanges {
     pub fn new(
         tries: ShardTries,
-        shard_uid: ShardUId,
         trie_changes: TrieChanges,
         state_changes: Vec<RawStateChangesWithTrieKey>,
         block_hash: CryptoHash,
     ) -> Self {
-        WrappedTrieChanges { tries, shard_uid, trie_changes, state_changes, block_hash }
+        WrappedTrieChanges { tries, trie_changes, state_changes, block_hash }
     }
 
     pub fn state_changes(&self) -> &[RawStateChangesWithTrieKey] {
@@ -280,7 +241,7 @@ impl WrappedTrieChanges {
     }
 
     pub fn insertions_into(&self, store_update: &mut StoreUpdate) -> Result<(), StorageError> {
-        self.tries.apply_insertions(&self.trie_changes, self.shard_uid, store_update)
+        self.tries.apply_insertions(&self.trie_changes, store_update)
     }
 
     /// Save state changes into Store.
@@ -296,6 +257,7 @@ impl WrappedTrieChanges {
                 "NotWritableToDisk changes must never be finalized."
             );
 
+            // TODO: remove!
             assert!(
                 !change_with_trie_key.changes.iter().any(|RawStateChange { cause, .. }| matches!(
                     cause,
@@ -334,7 +296,7 @@ impl WrappedTrieChanges {
         self.state_changes_into(store_update);
         store_update.set_ser(
             DBCol::ColTrieChanges,
-            &shard_layout::get_block_shard_uid(&self.block_hash, &self.shard_uid),
+            &self.block_hash,
             &self.trie_changes,
         )?;
         Ok(())

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use near_primitives::contract::ContractCode;
-use near_primitives::hash::CryptoHash;
+use skw_vm_primitives::contract_runtime::{ContractCode, CryptoHash};
 use skw_vm_store::StorageError;
 
 pub(crate) fn get_code(
@@ -10,7 +9,7 @@ pub(crate) fn get_code(
 ) -> Result<Option<Arc<ContractCode>>, StorageError> {
     let code = f()?;
     Ok(code.map(|code| {
-        assert_eq!(code_hash, *code.hash());
+        assert_eq!(code_hash, code.hash);
         Arc::new(code)
     }))
 }

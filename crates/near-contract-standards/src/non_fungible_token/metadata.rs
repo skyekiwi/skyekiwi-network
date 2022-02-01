@@ -1,14 +1,14 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::Base64VecU8;
-use near_sdk::require;
-use near_sdk::serde::{Deserialize, Serialize};
+use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use skw_contract_sdk::json_types::Base64VecU8;
+use skw_contract_sdk::require;
+use skw_contract_sdk::serde::{Deserialize, Serialize};
 
 /// This spec can be treated like a version of the standard.
 pub const NFT_METADATA_SPEC: &str = "nft-1.0.0";
 
 /// Metadata for the NFT contract itself.
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(crate = "near_sdk::serde")]
+#[serde(crate = "skw_contract_sdk::serde")]
 pub struct NFTContractMetadata {
     pub spec: String,              // required, essentially a version like "nft-1.0.0"
     pub name: String,              // required, ex. "Mosaics"
@@ -21,7 +21,7 @@ pub struct NFTContractMetadata {
 
 /// Metadata on the individual token level.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, BorshDeserialize, BorshSerialize)]
-#[serde(crate = "near_sdk::serde")]
+#[serde(crate = "skw_contract_sdk::serde")]
 pub struct TokenMetadata {
     pub title: Option<String>, // ex. "Arch Nemesis: Mail Carrier" or "Parcel #5055"
     pub description: Option<String>, // free-form description
