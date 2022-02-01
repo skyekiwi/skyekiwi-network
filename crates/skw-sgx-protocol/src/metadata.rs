@@ -5,7 +5,7 @@
 use std::{vec::Vec, convert::TryInto};
 use crate::types::{
 	metadata::*,
-	crypto::{BoxKeyPair, BoxCipher, BoxPublicKey, CryptoError}
+	crypto::{BoxSecretKey, BoxCipher, BoxPublicKey, CryptoError, SecretboxCipher},
 };
 use crate::crypto::NaClBox;
 
@@ -79,7 +79,7 @@ pub fn decode_sealed_metadata(encoded_sealed: &Vec<u8>) -> Result<SealedMetadata
 	Ok(sealed)
 }
 
-pub fn decrypt_recovered_cipher(keys: &[BoxKeyPair], cipher: &Vec<u8>) -> Result<Vec<u8>, CryptoError> {
+pub fn decrypt_recovered_cipher(keys: &[BoxSecretKey], cipher: &Vec<u8>) -> Result<Vec<u8>, CryptoError> {
 	let mut offset = 0;
 	let len = cipher.len();
 
@@ -102,6 +102,22 @@ pub fn decrypt_recovered_cipher(keys: &[BoxKeyPair], cipher: &Vec<u8>) -> Result
 	Err(CryptoError::NaClBoxDecryptionFailed)
 }
 
+pub fn encode_secretbox_cipher(cipher: &SecretboxCipher) -> Vec<u8> {
+	[
+		&cipher.0[..],
+		&cipher.1[..],
+	].concat()
+}
+
+
+pub fn decode_secretbox_cipher(cipher: &[u8]) -> SecretboxCipher {
+	// assert!(cipher.len() == PRESEAL_ENCRYPTED_SIZE, MetadataError::SealedParseError);
+	(
+		cipher[0..24].try_into().expect("unexpected public key len"),
+		cipher[24..].try_into().expect("unexpected nonce len"),
+	)
+}
+
 pub fn encode_box_cipher(box_cipher: &BoxCipher) -> Vec<u8> {
 	[
 		&box_cipher.0[..],
@@ -111,7 +127,7 @@ pub fn encode_box_cipher(box_cipher: &BoxCipher) -> Vec<u8> {
 }
 
 pub fn decode_box_cipher(cipher: &[u8]) -> BoxCipher {
-	assert!(cipher.len() == PRESEAL_ENCRYPTED_SIZE, MetadataError::SealedParseError);
+	// assert!(cipher.len() == PRESEAL_ENCRYPTED_SIZE, MetadataError::SealedParseError);
 	(
 		cipher[0..32].try_into().expect("unexpected public key len"),
 		cipher[32..56].try_into().expect("unexpected nonce len"),
@@ -128,14 +144,14 @@ pub fn seal(
 		is_public: encryption_schema.get_is_public(),
 		cipher: Vec::new(),
 		members_count: encryption_schema.get_members_count(),
-		pre_seal.version,
+		version: pre_seal.version,
 	};
 
 	let pre_seal_encoded = encode_pre_seal(pre_seal)?;
 
 	for receiver in encryption_schema.get_members() {
 		sealed.cipher.append(
-			&eocode_box_cipher(NaClBox::encrypt(&pre_seal_encoded, &receiver)?)
+			&mut encode_box_cipher(&NaClBox::encrypt(&pre_seal_encoded, * receiver).map_err(|e| MetadataError::CryptoError(e))?)
 		);
 	}
 
@@ -144,9 +160,9 @@ pub fn seal(
 
 pub fn unseal(
 	sealed: &SealedMetadata, 
-	keys: &[BoxKeyPair],
+	keys: &[BoxSecretKey],
 ) -> Result<PreSeal, MetadataError> {
-	let encoded_pre_seal = decrypt_recovered_cipher(keys, &sealed.cipher)?;
+	let encoded_pre_seal = decrypt_recovered_cipher(keys, &sealed.cipher).map_err(|e| MetadataError::CryptoError(e))?;
 	let pre_seal = decode_pre_seal(&encoded_pre_seal)?;
 
 	Ok(pre_seal)

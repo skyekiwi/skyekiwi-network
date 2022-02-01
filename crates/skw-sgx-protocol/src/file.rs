@@ -4,30 +4,38 @@
 #![no_std]
 use sgx_tstd::{vec::Vec, io::{Read, Write}, path::PathBuf};
 use libflate::zlib::{Encoder, Decoder};
-use std::SgxFile;
+use std::sgxfs::SgxFile;
 use crate::types::{
-	file::{FileHandleError, ReadOutput},
-}
+	file::{FileError, ReadOutput},
+};
 
-pub struct FileHandle(path: PathBuf);
+pub struct FileHandle{
+	path: PathBuf
+}
 
 impl FileHandle {
 
-	// this is only used for testing
-	pub fn read_to_end(&self, buf: &[u8]) -> Result<usize, FileHandleError> {
-		let len = SgxFile::read(self.0, buf).map_err(|_| FileHandleError::FileNotFound)?;
+	pub fn new(path: PathBuf) -> Self {
+		FileHandle {
+			path
+		}
+	}
+
+	// // this is only used for testing
+	// pub fn read_to_end(&self, buf: &[u8]) -> Result<usize, FileError> {
+	// 	let len = SgxFile::read(self.path, buf).map_err(|_| FileError::FileNotFound)?;
+	// 	Ok( len )
+	// }
+
+	pub fn read(&self, buf: &mut [u8]) -> Result<usize, FileError> {
+		let mut file = SgxFile::open(&self.path).map_err(|_| FileError::FileNotFound)?;
+		let len = file.read(buf).map_err(|_| FileError::FileNotFound)?;
 		Ok( len )
 	}
 
-	pub fn read_exact(&self, buf: &[u8]) -> Result<usize, FileHandleError> {
-		let mut file = SgxFile::open(&self.0);
-		let len = file.read_exact(buf).map_err(|_| FileHandleError::FileNotFound)?;
-		Ok( len )
-	}
-
-	pub fn write(&self, buf: &[u8]) -> Result<usize, FileHandleError> {
-		let mut file = SgxFile::create(&self.0);
-		let len = file.write(buf).map_err(|_| FileHandleError::FileNotFound)?;
+	pub fn write(&self, buf: &[u8]) -> Result<usize, FileError> {
+		let mut file = SgxFile::create(&self.path).map_err(|_| FileError::FileNotFound)?;
+		let len = file.write(buf).map_err(|_| FileError::FileNotFound)?;
 		Ok( len )
 	}
 

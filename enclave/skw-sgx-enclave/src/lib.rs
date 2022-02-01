@@ -9,31 +9,48 @@
 #![feature(rustc_private)]
 
 extern crate sgx_types;
+extern crate skw_sgx_protocol;
+extern crate sgx_tstd as std;
+
+use std::println;
+use std::slice;
+use std::path::PathBuf;
+use skw_sgx_protocol::random_bytes;
+
 use sgx_types::{sgx_status_t};
+#[macro_use] use skw_sgx_protocol::crypto;
+use skw_sgx_protocol::{
+    types::{
+        driver::{Chunks},
+        ipfs::{CID},
+    },
+    file::FileHandle,
+};
 
 #[no_mangle]
-pub extern "C" fn say_something() -> sgx_status_t {
-
-    env_logger::init();
+pub extern "C" fn unit_test() -> sgx_status_t {
     skw_sgx_protocol::test::skw_unit_test();
+    
+    sgx_status_t::SGX_SUCCESS
+}
 
-    // let msg = random_bytes!(100);
-    // let seed1 = random_bytes!(32);
-    // let seed2 = random_bytes!(32);
+#[no_mangle]
+pub extern "C" fn integration_test() -> sgx_status_t {
 
-    // let keypair1 = skw_crypto::nacl::NaClBox::keypair_from_seed(seed1);
-    // let keypair2 = skw_crypto::nacl::NaClBox::keypair_from_seed(seed2);
+    // cid_ptr: *const u8, cid_len: usize
+    // let cid = unsafe { slice::from_raw_parts(cid_ptr, cid_len) };
 
-    // let mut cipher = skw_crypto::nacl::NaClBox::encrypt(
-    //     &keypair1, &msg, keypair2.public_key
-    // ).unwrap();
-            
-    // // let decrypted = skw_crypto::nacl::NaClBox::decrypt(
-    // //     &keypair2, &mut cipher, keypair1.public_key
-    // // ).unwrap();
+    // env_logger::init();
+    // SkyeKiwi Protocol integration Test
+    let path: PathBuf = PathBuf::from("./test_sgx_file");
+    let content = random_bytes!(1000);
 
-    // info!("{:?}", cipher);
-    // // info!("{:?}", decrypted);
+    let file = FileHandle::new(path);
+    file.write(&content);
+
+    let chunks = skw_sgx_protocol::driver::pre_upstream(&file);
+
+    println!("{:?}", chunks);
 
     sgx_status_t::SGX_SUCCESS
 }

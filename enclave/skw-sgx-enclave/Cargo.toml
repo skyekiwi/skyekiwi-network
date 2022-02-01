@@ -19,8 +19,13 @@ default = []
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 skw_sgx_protocol = { path = "../../crates/skw-sgx-protocol" }
 env_logger = { git = "https://github.com/mesalock-linux/env_logger-sgx" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tprotected_fs = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_tstd = { path = "../../teaclave-sgx-sdk/sgx_tstd" }
 sgx_alloc = { path = "../../teaclave-sgx-sdk/sgx_alloc" }
 sgx_types = { path = "../../teaclave-sgx-sdk/sgx_types" }
+sgx_rand = { path = "../../teaclave-sgx-sdk/sgx_rand" }
+sgx_tprotected_fs = { path = "../../teaclave-sgx-sdk/sgx_tprotected_fs" }

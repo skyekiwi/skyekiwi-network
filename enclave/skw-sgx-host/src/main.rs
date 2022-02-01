@@ -9,8 +9,8 @@ use sgx_urts::SgxEnclave;
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
 extern {
-    fn say_something(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
-                     some_string: *const u8, len: usize) -> sgx_status_t;
+    fn unit_test(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
+    fn integration_test(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
@@ -39,27 +39,42 @@ fn main() {
         },
     };
 
+    // IPFS Client Test
     const CONTENT: &str = "some random string ...";
     let result = skw_sgx_ipfs::IpfsClient::add(CONTENT.as_bytes().to_vec()).unwrap();
     let recovered = skw_sgx_ipfs::IpfsClient::cat(result.cid).unwrap();
     println!("{:?}", String::from_utf8(recovered));
 
-    let input_string = String::from("This is a normal world string passed into Enclave!\n");
-    let mut retval = sgx_status_t::SGX_SUCCESS;
-
-    let result = unsafe {
-        say_something(enclave.geteid(),
-                      &mut retval,
-                      input_string.as_ptr() as * const u8,
-                      input_string.len())
-    };
-    match result {
-        sgx_status_t::SGX_SUCCESS => {},
-        _ => {
-            println!("[-] ECALL Enclave Failed {}!", result.as_str());
-            return;
+    {
+        // unit_test
+        let mut retval = sgx_status_t::SGX_SUCCESS;
+        let result = unsafe {
+            unit_test(enclave.geteid(), &mut retval)
+        };
+        match result {
+            sgx_status_t::SGX_SUCCESS => {},
+            _ => {
+                println!("[-] ECALL Enclave Failed {}!", result.as_str());
+                return;
+            }
         }
     }
-    println!("[+] say_something success...");
+
+    {
+        // integration_test
+        let mut retval = sgx_status_t::SGX_SUCCESS;
+        let result = unsafe {
+            integration_test(enclave.geteid(), &mut retval)
+        };
+        match result {
+            sgx_status_t::SGX_SUCCESS => {},
+            _ => {
+                println!("[-] ECALL Enclave Failed {}!", result.as_str());
+                return;
+            }
+        }
+    }
+
+    println!("[+] unit_test success...");
     enclave.destroy();
 }

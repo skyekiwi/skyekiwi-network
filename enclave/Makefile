@@ -72,6 +72,7 @@ App_Rust_Flags := --release
 App_SRC_Files := $(shell find skw-sgx-host/ -type f -name '*.rs') $(shell find skw-sgx-host/ -type f -name 'Cargo.toml')
 App_Include_Paths := -I ./skw-sgx-host -I./include -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH)
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
+App_Link_Flags := $(SGX_COMMON_CFLAGS) -L$(SGX_LIBRARY_PATH) -lsgx_uprotected_fs  
 
 App_Rust_Path := ./skw-sgx-host/target/release
 App_Enclave_u_Object :=skw-sgx-host/libEnclave_u.a
@@ -97,13 +98,13 @@ RustEnclave_Include_Paths := -I$(CUSTOM_COMMON_PATH)/inc -I$(CUSTOM_EDL_PATH) -I
 RustEnclave_Link_Libs := -L$(CUSTOM_LIBRARY_PATH) -lenclave
 RustEnclave_Compile_Flags := $(SGX_COMMON_CFLAGS) $(ENCLAVE_CFLAGS) $(RustEnclave_Include_Paths)
 RustEnclave_Link_Flags := -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) \
-	-Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
-	-Wl,--start-group -lsgx_tstdc -l$(Service_Library_Name) -l$(Crypto_Library_Name) $(RustEnclave_Link_Libs) -Wl,--end-group \
+	-Wl,--whole-archive -l$(Trts_Library_Name) -lsgx_tprotected_fs -Wl,--no-whole-archive \
+	-Wl,--start-group -lsgx_tcxx -lsgx_tstdc -l$(Service_Library_Name) -l$(Crypto_Library_Name) $(RustEnclave_Link_Libs) -Wl,--end-group \
 	-Wl,--version-script=skw-sgx-enclave/Enclave.lds \
 	$(ENCLAVE_LDFLAGS)
 
 RustEnclave_Name := skw-sgx-enclave/enclave.so
-Signed_RustEnclave_Name := bin/enclave.signed.so
+Signed_RustEnclave_Name := bin/enclave.signed.sost
 
 .PHONY: all
 all: $(App_Name) $(Signed_RustEnclave_Name)
@@ -118,7 +119,7 @@ $(Enclave_EDL_Files): $(SGX_EDGER8R) skw-sgx-enclave/Enclave.edl
 ######## App Objects ########
 
 skw-sgx-host/Enclave_u.o: $(Enclave_EDL_Files)
-	@$(CC) $(App_C_Flags) -c skw-sgx-host/Enclave_u.c -o $@
+	@$(CC) $(App_C_Flags) -c skw-sgx-host/Enclave_u.c -o $@ $(App_Link_Flags)
 	@echo "CC   <=  $<"
 
 $(App_Enclave_u_Object): skw-sgx-host/Enclave_u.o

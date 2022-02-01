@@ -51,11 +51,11 @@ impl NaClBox {
 	}
 
 	pub fn decrypt(
-		key: &BoxKeyPair,
+		key: &BoxSecretKey,
 		cipher: BoxCipher,
 	) -> Result<Vec<u8>, CryptoError> {
 		let (sender, nonce, cipher_text) = cipher;
-		let ecdh = StaticSecret::from(key.secret_key);
+		let ecdh = StaticSecret::from(* key);
 		let shared_secret = ecdh.diffie_hellman(
 			&PublicKey::from(sender)
 		);

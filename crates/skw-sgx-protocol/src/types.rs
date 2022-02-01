@@ -68,10 +68,12 @@ pub mod metadata {
 	pub enum MetadataError {
 		PreSealLengthError,
 		SealedParseError,
+		CryptoError(super::crypto::CryptoError),
 	}
 
 	pub const PRESEAL_SIZE: usize = 114;
 	pub const PRESEAL_ENCRYPTED_SIZE: usize = 186;
+
 }
 
 pub mod ipfs {
@@ -92,27 +94,31 @@ pub mod ipfs {
 }
 
 pub mod file {
+	use std::vec::Vec;
+
 	pub type Hash = [u8; 32];
 	pub type ReadOutput = (Vec<u8>, usize);
 
-	pub const DEFAULT_CHUNK_SIZE = 1024 * 1024;
+	pub const DEFAULT_CHUNK_SIZE: usize = 1024 * 1024;
 
 	#[derive(Debug)]
 	pub enum FileError {
 		FileNotFound,
+		HashError,
 	}
 }
 
 pub mod driver {
+	use std::vec::Vec;
 
 	pub type Chunk = Vec<u8>;
 	pub type Chunks = Vec< Chunk >;
 
 	#[derive(Debug)]
 	pub enum ProtocolError {
-		MetadataError(metadata::MetadataError),
-		IpfsError(ipfs::IpfsError),
-		FileError(file::FileError),
-		CryptoError(crypto::CryptoError),
+		MetadataError(super::metadata::MetadataError),
+		IpfsError(super::ipfs::IpfsError),
+		FileError(super::file::FileError),
+		CryptoError(super::crypto::CryptoError),
 	}
 }
