@@ -58,15 +58,10 @@ pub mod metadata {
 
 	#[derive(Debug, PartialEq, Clone)]
 	pub struct SealedMetadata {
-		pub sealed: Sealed,
-		pub version: [u8; 4]
-	}
-
-	#[derive(Debug, PartialEq, Clone)]
-	pub struct Sealed {
 		pub is_public: bool,
 		pub cipher: Vec<u8>,
 		pub members_count: u64,
+		pub version: [u8; 4],
 	}
 
 	#[derive(Debug)]
@@ -98,9 +93,26 @@ pub mod ipfs {
 
 pub mod file {
 	pub type Hash = [u8; 32];
+	pub type ReadOutput = (Vec<u8>, usize);
+
+	pub const DEFAULT_CHUNK_SIZE = 1024 * 1024;
 
 	#[derive(Debug)]
 	pub enum FileError {
 		FileNotFound,
+	}
+}
+
+pub mod driver {
+
+	pub type Chunk = Vec<u8>;
+	pub type Chunks = Vec< Chunk >;
+
+	#[derive(Debug)]
+	pub enum ProtocolError {
+		MetadataError(metadata::MetadataError),
+		IpfsError(ipfs::IpfsError),
+		FileError(file::FileError),
+		CryptoError(crypto::CryptoError),
 	}
 }
