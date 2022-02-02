@@ -16,6 +16,10 @@ pub mod test;
 
 pub mod driver {
     use std::vec::Vec;
+    use std::path::PathBuf;
+    use std::io::Read;
+    use std::sgxfs::SgxFile;
+
     use crate::file::FileHandle;
     use crate::metadata::{EncryptionSchema, encode_secretbox_cipher};
     use crate::types::{
@@ -25,9 +29,12 @@ pub mod driver {
         driver::{ProtocolError, Chunks},
         metadata::{
             PreSeal, SealedMetadata, MetadataError,
+            PROTECTED_FILE_PATH,
         }
     };
     use crate::crypto;
+    use crate::utils::{pad_usize, encode_hex};
+    use crate::metadata::RecordStore;
 
     fn file_error(error: FileError) -> ProtocolError {
         ProtocolError::FileError(error)
@@ -41,22 +48,33 @@ pub mod driver {
         ProtocolError::MetadataError(error)
     }
 
+    fn read_bytes<R>(reader: R, limit: u64) -> Result<(Vec<u8>, usize), FileError>
+    where 
+        R:Read
+    {
+        let mut buf = Vec::new();
+        let mut chunk = reader.take(limit);
+        let n = chunk.read_to_end(&mut buf).map_err(|_| FileError::FileNotFound)?;
+        Ok((buf, n))
+    }
+
     // generate processed & encrypted chunks 
-    pub fn pre_upstream(file: &FileHandle) -> Result<(SecretboxKey ,Chunks), ProtocolError> {
+    pub fn pre_upstream(path: &PathBuf, id: &Hash, output_path: &PathBuf, records: &mut RecordStore) -> Result<(), ProtocolError> {
         
         let sealing_key = random_bytes!(32);
-        
-        let mut buf = [0u8; DEFAULT_CHUNK_SIZE];
         let mut hash: Option<Hash> = None;
         let mut chunks: Chunks = Vec::new();
 
+        let mut file = SgxFile::open(&path).map_err(|_| ProtocolError::FileError(FileError::FileNotFound))?;
+        
         loop {
             // read current chunk
-            let len = file.read(&mut buf).map_err(file_error)?;
+            let (buf, len) = read_bytes(&mut file, DEFAULT_CHUNK_SIZE as u64).map_err(file_error)?;
+
             if len == 0 {
                 break;
             }
-
+            
             hash = match hash {
                 None => Some(FileHandle::sha256_checksum(&buf)),
                 Some(h) => {
@@ -68,22 +86,37 @@ pub mod driver {
 
             let mut chunk = FileHandle::deflate_chunk(&buf);
             chunk = encode_secretbox_cipher(&crypto::NaClSecretBox::encrypt(&sealing_key, &chunk).map_err(crypto_error)?);
-            chunks.push(chunk);
+            // chunks.push(chunk);
+            
+            // record the chunk
+            FileHandle::unstrusted_write(
+                output_path, 
+                &[&pad_usize(chunk.len())[..], &chunk[..]].concat(),
+                true //append
+            );
         };
-        Ok((sealing_key, chunks))
+        records.push(&id, &hash.unwrap(), &sealing_key);
+        Ok(())
     }
 
     // take in IPFS upload response and return the serialized form of sealedMetadata
     pub fn post_upstream(
-        cid_list: CID,
-        hash: Hash,
-        sealing_key: SecretboxKey,
-        encryption_schema: EncryptionSchema,
-    ) -> Result<Vec<u8>, ProtocolError> {
+        cid_list: &CID,
+        records: &RecordStore,
+        id: &Hash,
+        encryption_schema: &EncryptionSchema,
+        output_path: &PathBuf,
+    ) -> Result<(), ProtocolError> {
+        
+        let record = match records.get(&id) {
+            Some(r) => r,
+            None => return Err(ProtocolError::RecordError)
+        };
+
         let pre_seal = PreSeal {
-            chunk_cid: cid_list,
-            hash: hash,
-            sealing_key: sealing_key,
+            chunk_cid: * cid_list,
+            hash: record.hash,
+            sealing_key: record.sealing_key,
             
             // version code as of @skyekiwi/metadata v0.5.2-10
 		    version: [0x0, 0x0, 0x1, 0x1],
@@ -91,7 +124,11 @@ pub mod driver {
 
         let sealed = crate::metadata::seal(&pre_seal, &encryption_schema).map_err(metadata_error)?;
         let encoded_sealed = crate::metadata::encode_sealed_metadata(&sealed).map_err(metadata_error)?;
-        Ok(encoded_sealed)
+        
+        // write to hex encoded string!
+        FileHandle::unstrusted_write(&output_path, &encoded_sealed, false);
+        
+        Ok(())
     }
 
     pub fn pre_downstream(
@@ -105,7 +142,7 @@ pub mod driver {
     }
 
     pub fn post_downstream(
-        file: &FileHandle,
+        path: &PathBuf,
         chunks: &Chunks,
         sealing_key: SecretboxKey,
         original_hash: Hash,
@@ -128,7 +165,7 @@ pub mod driver {
                 }
             };
 
-            file.write(&buf).map_err(file_error)?;
+            FileHandle::write(&path, &buf).map_err(file_error)?;
         }
 
         if hash.is_some() && hash == Some(original_hash) {

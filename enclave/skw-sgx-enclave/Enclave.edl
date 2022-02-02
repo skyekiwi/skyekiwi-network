@@ -26,6 +26,18 @@ enclave {
 
     trusted {
         public sgx_status_t unit_test();
-        public sgx_status_t integration_test();
+        public sgx_status_t ecall_protocol_upstream_pre(
+            [out] uint8_t hash[32]
+        );
+        public sgx_status_t ecall_protocol_upstream_cid_list(
+            [in, size = cid_len] const uint8_t * cid_ptr, size_t cid_len,
+            [in] uint8_t id[32],
+            [in, size = output_path_len] const uint8_t * output_path_ptr, size_t output_path_len
+        );
+        public sgx_status_t ecall_protocol_upstream_seal(
+            [in, size = cid_len] const uint8_t * cid_ptr, size_t cid_len,
+            [in] uint8_t id[32],
+            [in, size = encryption_schema_len] const uint8_t * encryption_schema_ptr, size_t encryption_schema_len
+        );
     };
 };

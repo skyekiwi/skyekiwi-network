@@ -3,11 +3,18 @@
 
 #![no_std]
 use std::{vec::Vec, convert::TryInto};
+use std::path::PathBuf;
+use std::collections::HashMap;
+use std::string::String;
+
 use crate::types::{
 	metadata::*,
-	crypto::{BoxSecretKey, BoxCipher, BoxPublicKey, CryptoError, SecretboxCipher},
+	crypto::{BoxSecretKey, BoxCipher, BoxPublicKey, CryptoError, SecretboxCipher, SecretboxKey},
+	ipfs::CID,
+	file::Hash,
 };
 use crate::crypto::NaClBox;
+use crate::file::FileHandle;
 
 fn validate_pre_seal(_pre_seal: &PreSeal) -> Result<(), MetadataError> {
 	Ok(())
@@ -168,12 +175,120 @@ pub fn unseal(
 	Ok(pre_seal)
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct SecretRecord {
+	pub id: Hash,
+	pub hash: Hash, 
+	pub sealing_key: SecretboxKey,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct RecordStore{
+	pub store: HashMap<String, SecretRecord>,
+}
+
+impl RecordStore {
+	pub fn new() -> Self {
+		Self{
+			store: HashMap::<String, SecretRecord>::new()
+		}
+	}
+
+	pub fn init(&mut self, path: &PathBuf) {
+		let records = FileHandle::read_all(path).unwrap_or(Vec::new());
+		let records_len = records.len();
+		let mut offset = 0;
+
+		while offset < records_len && offset + 96 <= records_len{
+			let cur_records = &records[offset..offset + 96];
+
+			let id = &cur_records[0..32];
+			let hash = &cur_records[32..64];
+			let sealing_key = &cur_records[64..96];
+
+			self.store.insert(
+				crate::utils::encode_hex(id).unwrap(),
+				SecretRecord {
+					id: id.try_into().unwrap(), 
+					hash: hash.try_into().unwrap(), 
+					sealing_key: sealing_key.try_into().unwrap(),
+				}
+			);
+
+			offset += 96;
+		}
+	}
+
+	pub fn get(&self, id: &Hash) -> Option<&SecretRecord> {
+		self.store.get(&crate::utils::encode_hex(id).unwrap())
+	}
+
+	pub fn push(&mut self, id: &Hash, hash: &Hash, sealing_key: &SecretboxKey) {
+		self.store.insert(
+			crate::utils::encode_hex(id).unwrap(),
+			SecretRecord {
+				id: id.clone(), 
+				hash: hash.clone(), 
+				sealing_key: sealing_key.clone(),
+			}
+		);
+	}
+
+	pub fn write(&self, path: &PathBuf) {
+		let mut records = Vec::new();
+		for (id_str, record) in &self.store {
+			let record = [  record.id, record.hash, record.sealing_key ].concat();
+			records = [&records[..], &record[..]].concat();
+		}
+
+		FileHandle::write(&path, &records).expect("writing secret records cannot fail");
+	}
+}
+
 pub struct EncryptionSchema {
 	is_public: bool,
 	members: Vec<BoxPublicKey>,
 }
 
 impl EncryptionSchema {
+	pub fn from_raw(schema: &[u8]) -> Self {
+		
+		let is_public = match schema[0..2] {
+			[0x0, 0x0] => false,
+			[0x1, 0x1] => true,
+			_ => unreachable!()
+		};
+
+		let len = schema.len();
+		let mut offset = 2;
+		let mut members: Vec<BoxPublicKey> = Vec::new();
+
+		while offset < len && offset +  32 <= len {
+			let m: BoxPublicKey = schema[offset..offset + 32].try_into().unwrap();
+			members.push(m);
+			offset += 32;
+		}
+
+		Self {
+			is_public,
+			members,
+		}
+	}
+
+	pub fn to_vec(&self) -> Vec<u8> {
+		let mut result = Vec::new();
+		match self.is_public {
+			true => { result.push(0x1); result.push(0x1); },
+			false => { result.push(0x0); result.push(0x0); }
+		}
+
+		for member in &self.members {
+			result = [ &result[..], &member[..] ].concat().to_vec();
+		}
+
+		result
+	}
+
 	pub fn new(is_public: bool, members: Vec<BoxPublicKey>) -> Self {
 		Self {
 			is_public,

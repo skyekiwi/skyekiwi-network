@@ -104,7 +104,7 @@ RustEnclave_Link_Flags := -Wl,--no-undefined -nostdlib -nodefaultlibs -nostartfi
 	$(ENCLAVE_LDFLAGS)
 
 RustEnclave_Name := skw-sgx-enclave/enclave.so
-Signed_RustEnclave_Name := bin/enclave.signed.sost
+Signed_RustEnclave_Name := bin/enclave.signed.so
 
 .PHONY: all
 all: $(App_Name) $(Signed_RustEnclave_Name)

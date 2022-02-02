@@ -74,8 +74,6 @@ impl IpfsClient {
     let cid: Cid = result.Hash.as_bytes().into();
     let size = result.Size.parse::<u64>().unwrap();
 
-    println!("{:?} - {:?}", std::str::from_utf8(&cid)?, size);
-
     let mut map = std::collections::HashMap::new();
     map.insert("cid", std::str::from_utf8(&cid)?);
     let pin = client.post("https://pin.crustcode.com/psa/pins")

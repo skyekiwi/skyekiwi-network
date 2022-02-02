@@ -21,6 +21,7 @@ pub fn skw_unit_test() {
 
 		// utils
 		utils_test::encode_decode_hex,
+		utils_test::pad_uszie,
 
 		// file
 		file_test::inflate_client_side,
@@ -95,8 +96,10 @@ pub mod file_test {
 }
   
 pub mod utils_test {
-	use crate::utils::{encode_hex, decode_hex};
+	use crate::utils::{encode_hex, decode_hex, padded_slice_to_usize, pad_usize};
 	use super::*;
+
+	use std::println;
 
 	const TEST: &str = "010203040a0b";
 	const ANSWER: &[u8] = &[1, 2, 3, 4, 10, 11];
@@ -114,6 +117,16 @@ pub mod utils_test {
 		let result = encode_hex(&bytes).unwrap();
 		let re_decoded = decode_hex(&result[..]).unwrap();
 		assert_eq!(re_decoded, bytes);
+	}
+
+	pub fn pad_uszie() {
+		// a random len
+		let len: usize = 1023 * 1023 * 19;
+		let padded_slice = pad_usize(len);
+		let recovered = padded_slice_to_usize(&padded_slice);
+
+		assert_eq!(padded_slice.len(), 4);
+		assert_eq!(recovered, len);
 	}
 }
 
