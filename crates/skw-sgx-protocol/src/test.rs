@@ -1,7 +1,6 @@
 // Copyright 2021 @skyekiwi authors & contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#![no_std]
 use sgx_tunittest::*;
 use crate::random_bytes;
 

@@ -19,6 +19,7 @@ pub mod driver {
     use std::path::PathBuf;
     use std::io::Read;
     use std::sgxfs::SgxFile;
+    use std::untrusted::fs::File;
 
     use crate::file::FileHandle;
     use crate::metadata::{EncryptionSchema, encode_secretbox_cipher};
@@ -95,6 +96,7 @@ pub mod driver {
                 true //append
             );
         };
+        
         records.push(&id, &hash.unwrap(), &sealing_key);
         Ok(())
     }
@@ -125,35 +127,56 @@ pub mod driver {
         let sealed = crate::metadata::seal(&pre_seal, &encryption_schema).map_err(metadata_error)?;
         let encoded_sealed = crate::metadata::encode_sealed_metadata(&sealed).map_err(metadata_error)?;
         
-        // write to hex encoded string!
         FileHandle::unstrusted_write(&output_path, &encoded_sealed, false);
-        
         Ok(())
     }
 
     pub fn pre_downstream(
-        encoded_sealed: &Vec<u8>,
-        keys: &[BoxSecretKey]
-    ) -> Result<(SecretboxKey, CID), ProtocolError> {
+        encoded_sealed: &[u8],
+        keys: &[BoxSecretKey],
+        id: &Hash,
+        records: &mut RecordStore,
+    ) -> Result<CID, ProtocolError> {
         let sealed = crate::metadata::decode_sealed_metadata(encoded_sealed).map_err(metadata_error)?;
         let pre_seal = crate::metadata::unseal(&sealed, keys).map_err(metadata_error)?;
         
-        Ok((pre_seal.sealing_key, pre_seal.chunk_cid))
+        records.push(&id, &pre_seal.hash, &pre_seal.sealing_key);
+        Ok(pre_seal.chunk_cid)
     }
 
     pub fn post_downstream(
-        path: &PathBuf,
-        chunks: &Chunks,
-        sealing_key: SecretboxKey,
-        original_hash: Hash,
+        input_path: &PathBuf,
+        output_path: &PathBuf,
+        id: &Hash,
+        records: &RecordStore,
     ) -> Result<(), ProtocolError> {
+        let record = match records.get(&id) {
+            Some(r) => r,
+            None => return Err(ProtocolError::RecordError)
+        };
 
         let mut hash: Option<Hash> = None;
 
-        for chunk in chunks {
+        let mut all_chunks = Vec::new();
+        let mut chunks = File::open(input_path).expect("chunk file must exist");
+        let len = chunks.read_to_end(&mut all_chunks).unwrap_or(0);
+
+        let mut offset = 0;
+        while offset < len && offset + 4 <= len {
+            let size_buf = &all_chunks[offset..offset + 4];
+            let size = crate::utils::padded_slice_to_usize(size_buf);
+
+            if offset + 4 + size > len {
+                // something is wrong. We should never get in here
+                break;
+            }
+
+            let chunk = &all_chunks[offset + 4..offset + 4 + size];
+            offset += 4 + size;
+
             let mut buf = crypto::NaClSecretBox::decrypt(
-                &sealing_key, crate::metadata::decode_secretbox_cipher(&chunk),
-            ).map_err(crypto_error)?;
+                &record.sealing_key, crate::metadata::decode_secretbox_cipher(&chunk),
+            ).map_err(crypto_error).unwrap();
             buf = FileHandle::inflate_chunk(&buf);
 
             hash = match hash {
@@ -165,10 +188,10 @@ pub mod driver {
                 }
             };
 
-            FileHandle::write(&path, &buf).map_err(file_error)?;
+            FileHandle::write(&output_path, &buf).map_err(file_error);
         }
-
-        if hash.is_some() && hash == Some(original_hash) {
+        
+        if hash.is_some() && hash == Some(record.hash) {
             Ok(())
         } else {
             Err(ProtocolError::FileError(FileError::HashError))

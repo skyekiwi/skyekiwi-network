@@ -1,7 +1,6 @@
 // Copyright 2021 @skyekiwi authors & contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#![no_std]
 use std::{vec::Vec, convert::TryInto};
 use std::path::PathBuf;
 use std::collections::HashMap;
@@ -64,7 +63,7 @@ pub fn encode_sealed_metadata(sealed_metadata: &SealedMetadata) -> Result<Vec<u8
 	}
 }
 
-pub fn decode_sealed_metadata(encoded_sealed: &Vec<u8>) -> Result<SealedMetadata, MetadataError> {
+pub fn decode_sealed_metadata(encoded_sealed: &[u8]) -> Result<SealedMetadata, MetadataError> {
 	let is_public = match encoded_sealed[0] {
 		0 => false,
 		1 => true,
@@ -237,7 +236,7 @@ impl RecordStore {
 	pub fn write(&self, path: &PathBuf) {
 		let mut records = Vec::new();
 		for (id_str, record) in &self.store {
-			let record = [  record.id, record.hash, record.sealing_key ].concat();
+			let record = [  record.id, record.hash, record.sealing_key].concat();
 			records = [&records[..], &record[..]].concat();
 		}
 
