@@ -45,11 +45,6 @@ pub mod crypto {
 
 pub mod metadata {
 	use std::vec::Vec;
-	use std::path::PathBuf;
-	use std::collections::HashMap;
-	use std::string::String;
-	use super::file::Hash;
-	use super::crypto::SecretboxKey;
 
 	#[derive(Debug, PartialEq, Clone)]
 	pub struct PreSeal {
@@ -76,7 +71,7 @@ pub mod metadata {
 
 	pub const PRESEAL_SIZE: usize = 114;
 	pub const PRESEAL_ENCRYPTED_SIZE: usize = 186;
-	pub const PROTECTED_FILE_PATH: &str = "./skyekiwi_protoccol_file";
+	pub const PROTECTED_FILE_PATH: &str = "./skyekiwi_protoccol_cache";
 }
 
 pub mod ipfs {
@@ -84,8 +79,7 @@ pub mod ipfs {
 	
 	#[derive(Debug, Clone)]
 	pub struct IpfsResult {
-		cid: CID, 
-		size: u64
+		cid: CID, size: u64,
 	}
 
 	#[derive(Debug)]
@@ -115,7 +109,6 @@ pub mod driver {
 	use std::vec::Vec;
 
 	pub type Chunk = Vec<u8>;
-	pub type Chunks = Vec< Chunk >;
 
 	#[derive(Debug)]
 	pub enum ProtocolError {

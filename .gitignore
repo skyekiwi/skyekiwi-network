@@ -25,6 +25,8 @@ enclave/bin/app
 enclave/bin/enclave.signed.so
 enclave/enclave/enclave.so
 
+enclave/bin/skyekiwi_protoccol_cache
+enclave/bin/tmp/*
 **/*.c
 **/*.a
 **/*.h

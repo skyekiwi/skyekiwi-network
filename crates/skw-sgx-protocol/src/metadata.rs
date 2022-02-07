@@ -9,7 +9,6 @@ use std::string::String;
 use crate::types::{
 	metadata::*,
 	crypto::{BoxSecretKey, BoxCipher, BoxPublicKey, CryptoError, SecretboxCipher, SecretboxKey},
-	ipfs::CID,
 	file::Hash,
 };
 use crate::crypto::NaClBox;
@@ -235,7 +234,7 @@ impl RecordStore {
 
 	pub fn write(&self, path: &PathBuf) {
 		let mut records = Vec::new();
-		for (id_str, record) in &self.store {
+		for (_, record) in &self.store {
 			let record = [  record.id, record.hash, record.sealing_key].concat();
 			records = [&records[..], &record[..]].concat();
 		}

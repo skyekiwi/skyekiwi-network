@@ -24,17 +24,16 @@ pub mod driver {
     use crate::file::FileHandle;
     use crate::metadata::{EncryptionSchema, encode_secretbox_cipher};
     use crate::types::{
-        crypto::{SecretboxKey, BoxSecretKey, CryptoError},
+        crypto::{BoxSecretKey, CryptoError},
         ipfs::{CID},
         file::{DEFAULT_CHUNK_SIZE, Hash, FileError},
-        driver::{ProtocolError, Chunks},
+        driver::{ProtocolError},
         metadata::{
-            PreSeal, SealedMetadata, MetadataError,
-            PROTECTED_FILE_PATH,
+            PreSeal, MetadataError,
         }
     };
     use crate::crypto;
-    use crate::utils::{pad_usize, encode_hex};
+    use crate::utils::{pad_usize};
     use crate::metadata::RecordStore;
 
     fn file_error(error: FileError) -> ProtocolError {
@@ -64,8 +63,6 @@ pub mod driver {
         
         let sealing_key = random_bytes!(32);
         let mut hash: Option<Hash> = None;
-        let mut chunks: Chunks = Vec::new();
-
         let mut file = SgxFile::open(&path).map_err(|_| ProtocolError::FileError(FileError::FileNotFound))?;
         
         loop {
@@ -90,6 +87,7 @@ pub mod driver {
             // chunks.push(chunk);
             
             // record the chunk
+            // TODO: handle err for this
             FileHandle::unstrusted_write(
                 output_path, 
                 &[&pad_usize(chunk.len())[..], &chunk[..]].concat(),
@@ -127,6 +125,7 @@ pub mod driver {
         let sealed = crate::metadata::seal(&pre_seal, &encryption_schema).map_err(metadata_error)?;
         let encoded_sealed = crate::metadata::encode_sealed_metadata(&sealed).map_err(metadata_error)?;
         
+        // TODO: handle err for this
         FileHandle::unstrusted_write(&output_path, &encoded_sealed, false);
         Ok(())
     }
@@ -188,6 +187,7 @@ pub mod driver {
                 }
             };
 
+            // TODO: handle err for this
             FileHandle::write(&output_path, &buf).map_err(file_error);
         }
         

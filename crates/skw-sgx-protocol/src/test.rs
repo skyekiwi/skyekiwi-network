@@ -30,8 +30,6 @@ pub fn skw_unit_test() {
 }
 
 pub mod file_test {
-
-	use super::*;
 	use crate::file::FileHandle;
 	pub fn inflate_deflat() {
 	  
@@ -97,8 +95,6 @@ pub mod file_test {
 pub mod utils_test {
 	use crate::utils::{encode_hex, decode_hex, padded_slice_to_usize, pad_usize};
 	use super::*;
-
-	use std::println;
 
 	const TEST: &str = "010203040a0b";
 	const ANSWER: &[u8] = &[1, 2, 3, 4, 10, 11];
@@ -169,12 +165,11 @@ pub mod crypto_test {
 
 pub mod metadata_test {
 	
-	use super::*;
 	use crate::metadata::{
 		encode_pre_seal, encode_box_cipher, encode_sealed_metadata,
 		decrypt_recovered_cipher, decode_sealed_metadata, };
 	use crate::utils::{decode_hex};
-	use crate::crypto::{NaClBox, NaClSecretBox};
+	use crate::crypto::{NaClBox};
 	use crate::types::metadata::*;
 
 	use std::{convert::TryInto, vec::Vec};

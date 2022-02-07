@@ -13,27 +13,27 @@ extern crate skw_sgx_protocol;
 extern crate sgx_tstd as std;
 use core::convert::TryInto;
 use std::slice;
-use std::vec::Vec;
 use std::path::PathBuf;
 use std::format;
 
 use skw_sgx_protocol::random_bytes;
 
 use sgx_types::{sgx_status_t};
-#[macro_use] use skw_sgx_protocol::crypto;
 use skw_sgx_protocol::{
     types::{
-        driver::{Chunks},
-        ipfs::{CID},
-        file::Hash,
         metadata::{PROTECTED_FILE_PATH},
-        crypto::{BoxSecretKey, BoxPublicKey},
+        crypto::{BoxSecretKey},
     },
     file::FileHandle,
     metadata::{EncryptionSchema, RecordStore},
-    utils::encode_hex,
 };
 
+macro_rules! get_path{
+	($id:expr, $path:expr) => ({
+		let id_str = skw_sgx_protocol::utils::encode_hex(&$id[..]).unwrap();
+        PathBuf::from(format!("./tmp/{}.{}", id_str, $path))
+	})
+}
 
 #[no_mangle]
 pub extern "C" fn unit_test() -> sgx_status_t {
@@ -45,7 +45,9 @@ pub extern "C" fn unit_test() -> sgx_status_t {
 pub extern "C" fn integration_test_generate_file() -> sgx_status_t {
     // SkyeKiwi Protocol integration Test
     let path: PathBuf = PathBuf::from("./tmp/test_sgx_file");
-    let mut content = random_bytes!(10000);
+    let content = random_bytes!(10000);
+    
+    // TODO: handle this err
     FileHandle::write(&path, &content);
 
     std::println!("File Generated!");
@@ -58,8 +60,8 @@ pub extern "C" fn integration_test_compare_file() -> sgx_status_t {
     let input_path: PathBuf = PathBuf::from("./tmp/test_sgx_file");
     let output_path: PathBuf = PathBuf::from("./tmp/test_sgx_file.down");
 
-    let mut input = std::sgxfs::read(&input_path).unwrap();
-    let mut output = std::sgxfs::read(&output_path).unwrap();
+    let input = std::sgxfs::read(&input_path).unwrap();
+    let output = std::sgxfs::read(&output_path).unwrap();
 
     if input.len() != output.len() {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
@@ -85,20 +87,21 @@ pub extern "C" fn ecall_protocol_upstream_pre(
     id: &mut [u8; 32]
 ) -> sgx_status_t {
     let new_id = random_bytes!(32);
-    let id_str = skw_sgx_protocol::utils::encode_hex(&new_id[..]).unwrap();
-    let id_path: PathBuf = PathBuf::from(format!("./tmp/{}.up", id_str));
+
+    let id_path = get_path!(new_id, "up");
     let path: PathBuf = PathBuf::from("./tmp/test_sgx_file");
 
     let mut records = RecordStore::new();
     records.init(&PathBuf::from(PROTECTED_FILE_PATH));
 
+    // TODO: handle this err
     skw_sgx_protocol::driver::pre_upstream(&path, &new_id, &id_path, &mut records);
     records.write(&PathBuf::from(PROTECTED_FILE_PATH));
 
     * id = new_id;
 
     sgx_status_t::SGX_SUCCESS
-}
+} 
 
 #[no_mangle]
 pub extern "C" fn ecall_protocol_upstream_cid_list(
@@ -115,8 +118,7 @@ pub extern "C" fn ecall_protocol_upstream_cid_list(
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
-    let id_str = skw_sgx_protocol::utils::encode_hex(&id[..]).unwrap();
-    let output_path: PathBuf = PathBuf::from(format!("./tmp/{}.up.cid", id_str));
+    let output_path: PathBuf = get_path!(id, "up.cid");
 
     let mut records = RecordStore::new();
     records.init(&PathBuf::from(&PROTECTED_FILE_PATH));
@@ -128,7 +130,7 @@ pub extern "C" fn ecall_protocol_upstream_cid_list(
     let cid_list_encrypted_raw = skw_sgx_protocol::crypto::NaClSecretBox::encrypt(&sealing_key, &cids).unwrap();
     let cid_list_encrypted = skw_sgx_protocol::metadata::encode_secretbox_cipher(&cid_list_encrypted_raw);
 
-    std::println!("encrypted cid cipher {:?}", cid_list_encrypted);
+    // TODO: handle this err
     FileHandle::unstrusted_write( &output_path, &cid_list_encrypted, false );
     sgx_status_t::SGX_SUCCESS
 }
@@ -154,12 +156,8 @@ pub extern "C" fn ecall_protocol_upstream_seal(
     let mut records = RecordStore::new();
     records.init(&PathBuf::from(PROTECTED_FILE_PATH));
 
-    let (hash, sealing_key) = match records.get(id) {
-        Some(r) => (r.hash, r.sealing_key),
-        None => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
-    };
+    let output_path: PathBuf = get_path!(id, "up.output");
 
-    let output_path = PathBuf::from(format!("./tmp/{}.up.output", encode_hex(id).unwrap()));
     skw_sgx_protocol::driver::post_upstream(
         &cid_list.try_into().unwrap(), &mut records, id, 
         &EncryptionSchema::from_raw(&encryption_schema_raw),
@@ -213,9 +211,8 @@ pub extern "C" fn ecall_protocol_downstream_cid_list(
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
-    let id_str = skw_sgx_protocol::utils::encode_hex(&id[..]).unwrap();
-    let output_path: PathBuf = PathBuf::from(format!("./tmp/{}.down.cid", id_str));
-
+    let output_path: PathBuf = get_path!(id, "down.cid");
+    
     let mut records = RecordStore::new();
     records.init(&PathBuf::from(&PROTECTED_FILE_PATH));
 
@@ -224,11 +221,11 @@ pub extern "C" fn ecall_protocol_downstream_cid_list(
         None => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
 
-    std::println!("encrypted cid cipher {:?}", encrypted_cid);
     let cid_list = skw_sgx_protocol::crypto::NaClSecretBox::decrypt(
         &sealing_key, skw_sgx_protocol::metadata::decode_secretbox_cipher(encrypted_cid),
     ).unwrap();
 
+    // TODO: handle this err
     FileHandle::unstrusted_write( &output_path, &cid_list, false );
     sgx_status_t::SGX_SUCCESS
 }
@@ -238,12 +235,13 @@ pub extern "C" fn ecall_protocol_downstream_unseal(
     id: &[u8; 32]
 ) -> sgx_status_t {
 
-    let id_str = skw_sgx_protocol::utils::encode_hex(&id[..]).unwrap();
-    let input_path: PathBuf = PathBuf::from(format!("./tmp/{}.down", id_str));
+    let input_path: PathBuf = get_path!(id, "down");
     let output_path: PathBuf = PathBuf::from("./tmp/test_sgx_file.down");
 
     let mut records = RecordStore::new();
     records.init(&PathBuf::from(PROTECTED_FILE_PATH));
+    
+    // TODO: handle this err
     skw_sgx_protocol::driver::post_downstream(
         &input_path, &output_path, 
         &id, &mut records

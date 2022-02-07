@@ -6,7 +6,6 @@ use sgx_tstd::{
 	io::{Read, Write}, 
 	path::PathBuf,
 	sgxfs::SgxFile,
-	untrusted::fs::File,
 };
 use libflate::zlib::{Encoder, Decoder};
 use crate::types::{
@@ -35,6 +34,8 @@ impl FileHandle {
 	pub fn write(path: &PathBuf, buf: &[u8]) -> Result<usize, FileError> {
 		let mut file = SgxFile::create(&path).map_err(|_| FileError::FileNotFound)?;
 		file.write_all(buf).map_err(|_| FileError::FileNotFound)?;
+		
+		// TODO: handle this 
 		file.flush();
 		Ok( buf.len() )
 	}
@@ -47,6 +48,8 @@ impl FileHandle {
 			.open(&path).map_err(|_| FileError::FileNotFound)?;
 
 		file.write_all(buf).map_err(|_| FileError::FileNotFound)?;
+		
+		// TODO: handle this 
 		file.flush();
 		Ok( buf.len() )
 	}
