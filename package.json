@@ -15,6 +15,8 @@
     "main:ci": "node ./skw-tools-scripts/main-ci.cjs",
     "main:test": "node ./skw-tools-scripts/main-test.cjs",
 
+    "docker:build": "node ./skw-tools-scripts/docker-build.cjs",
+
     "mock-enclave:start": "cd mock-enclave && yarn start",
     "mock-enclave:vm": "cd mock-enclave && yarn vm",
     "mock-enclave:serve": "cd mock-enclave && yarn serve",
