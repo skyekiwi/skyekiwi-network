@@ -21,9 +21,38 @@ enclave {
     from "sgx_backtrace.edl" import *;
     from "sgx_tstdc.edl" import *;
     from "sgx_env.edl" import *;
-    trusted {
-        /* define ECALLs here. */
+    from "sgx_tprotected_fs.edl" import *;
+    from "sgx_fs.edl" import *;
 
-        public sgx_status_t say_something([in, size=len] const uint8_t* some_string, size_t len);
+    trusted {
+        public sgx_status_t unit_test();
+        public sgx_status_t integration_test_generate_file();
+        public sgx_status_t integration_test_compare_file();
+
+        public sgx_status_t ecall_protocol_upstream_pre(
+            [out] uint8_t id[32]
+        );
+        public sgx_status_t ecall_protocol_upstream_cid_list(
+            [in, size = cid_len] const uint8_t * cid_ptr, size_t cid_len,
+            [in] uint8_t id[32]
+        );
+        public sgx_status_t ecall_protocol_upstream_seal(
+            [in, size = cid_len] const uint8_t * cid_ptr, size_t cid_len,
+            [in] uint8_t id[32],
+            [in, size = encryption_schema_len] const uint8_t * encryption_schema_ptr, size_t encryption_schema_len
+        );
+
+        public sgx_status_t ecall_protocol_downstream_pre(
+            [in, size = encoded_sealed_len] const uint8_t * encoded_sealed_ptr, size_t encoded_sealed_len,
+            [out] uint8_t id[32],
+            [out] uint8_t cid[46]
+        );
+        public sgx_status_t ecall_protocol_downstream_cid_list(
+            [in, size = encrypted_cid_len] const uint8_t * encrypted_cid_ptr, size_t encrypted_cid_len,
+            [in] uint8_t id[32]
+        );
+        public sgx_status_t ecall_protocol_downstream_unseal(
+            [in] uint8_t id[32]
+        );
     };
 };

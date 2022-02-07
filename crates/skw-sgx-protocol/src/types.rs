@@ -1,8 +1,6 @@
 // Copyright 2021 @skyekiwi authors & contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#![no_std]
-
 /* Types/Consts for SKW-CRYPTO */
 pub mod crypto {
 	use std::vec::Vec;
@@ -58,25 +56,22 @@ pub mod metadata {
 
 	#[derive(Debug, PartialEq, Clone)]
 	pub struct SealedMetadata {
-		pub sealed: Sealed,
-		pub version: [u8; 4]
-	}
-
-	#[derive(Debug, PartialEq, Clone)]
-	pub struct Sealed {
 		pub is_public: bool,
 		pub cipher: Vec<u8>,
 		pub members_count: u64,
+		pub version: [u8; 4],
 	}
 
 	#[derive(Debug)]
 	pub enum MetadataError {
 		PreSealLengthError,
 		SealedParseError,
+		CryptoError(super::crypto::CryptoError),
 	}
 
 	pub const PRESEAL_SIZE: usize = 114;
 	pub const PRESEAL_ENCRYPTED_SIZE: usize = 186;
+	pub const PROTECTED_FILE_PATH: &str = "./skyekiwi_protoccol_cache";
 }
 
 pub mod ipfs {
@@ -84,8 +79,7 @@ pub mod ipfs {
 	
 	#[derive(Debug, Clone)]
 	pub struct IpfsResult {
-		cid: CID, 
-		size: u64
+		cid: CID, size: u64,
 	}
 
 	#[derive(Debug)]
@@ -97,10 +91,31 @@ pub mod ipfs {
 }
 
 pub mod file {
+	use std::vec::Vec;
+
 	pub type Hash = [u8; 32];
+	pub type ReadOutput = (Vec<u8>, usize);
+
+	pub const DEFAULT_CHUNK_SIZE: usize = 1024 * 1024;
 
 	#[derive(Debug)]
 	pub enum FileError {
 		FileNotFound,
+		HashError,
+	}
+}
+
+pub mod driver {
+	use std::vec::Vec;
+
+	pub type Chunk = Vec<u8>;
+
+	#[derive(Debug)]
+	pub enum ProtocolError {
+		RecordError,
+		MetadataError(super::metadata::MetadataError),
+		IpfsError(super::ipfs::IpfsError),
+		FileError(super::file::FileError),
+		CryptoError(super::crypto::CryptoError),
 	}
 }

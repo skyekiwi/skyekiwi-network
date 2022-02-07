@@ -1,7 +1,6 @@
 // Copyright 2021 @skyekiwi authors & contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#![no_std]
 use sgx_tunittest::*;
 use crate::random_bytes;
 
@@ -21,6 +20,7 @@ pub fn skw_unit_test() {
 
 		// utils
 		utils_test::encode_decode_hex,
+		utils_test::pad_uszie,
 
 		// file
 		file_test::inflate_client_side,
@@ -30,10 +30,7 @@ pub fn skw_unit_test() {
 }
 
 pub mod file_test {
-
-	use super::*;
 	use crate::file::FileHandle;
-  
 	pub fn inflate_deflat() {
 	  
 		let source = [
@@ -43,8 +40,8 @@ pub mod file_test {
 			32, 108, 97, 122, 121, 95, 115, 116, 97, 116, 105, 99, 33
 		];
 
-		let deflated = FileHandle::deflate_chunk(source.to_vec());
-		let recovered = FileHandle::inflate_chunk(deflated);
+		let deflated = FileHandle::deflate_chunk(&source);
+		let recovered = FileHandle::inflate_chunk(&deflated);
 		assert_eq!(source.to_vec(), recovered)
 	}
   
@@ -66,7 +63,7 @@ pub mod file_test {
 			32, 108, 97, 122, 121, 95, 115, 116, 97, 116, 105, 99, 33
 		];
 
-		let recovered = FileHandle::inflate_chunk(deflated.to_vec());
+		let recovered = FileHandle::inflate_chunk(&deflated);
 		assert_eq!(source.to_vec(), recovered)
 	}
   
@@ -90,13 +87,13 @@ pub mod file_test {
 			209,  44, 216,  83
 		];
 
-		let hash = FileHandle::sha256_checksum(source.to_vec());
-		assert_eq!(hash, result)
+		let hash = FileHandle::sha256_checksum(&source);
+		assert_eq!(hash.to_vec(), result)
 	}
 }
   
 pub mod utils_test {
-	use crate::utils::{encode_hex, decode_hex};
+	use crate::utils::{encode_hex, decode_hex, padded_slice_to_usize, pad_usize};
 	use super::*;
 
 	const TEST: &str = "010203040a0b";
@@ -116,6 +113,16 @@ pub mod utils_test {
 		let re_decoded = decode_hex(&result[..]).unwrap();
 		assert_eq!(re_decoded, bytes);
 	}
+
+	pub fn pad_uszie() {
+		// a random len
+		let len: usize = 1023 * 1023 * 19;
+		let padded_slice = pad_usize(len);
+		let recovered = padded_slice_to_usize(&padded_slice);
+
+		assert_eq!(padded_slice.len(), 4);
+		assert_eq!(recovered, len);
+	}
 }
 
 pub mod crypto_test {
@@ -134,7 +141,7 @@ pub mod crypto_test {
 		).unwrap();
 
 		let decrypted = NaClBox::decrypt(
-			&keypair2, cipher
+			&keypair2.secret_key, cipher
 		).unwrap();
 
 		assert_eq!(&decrypted[..], &msg[..])
@@ -158,12 +165,11 @@ pub mod crypto_test {
 
 pub mod metadata_test {
 	
-	use super::*;
 	use crate::metadata::{
 		encode_pre_seal, encode_box_cipher, encode_sealed_metadata,
 		decrypt_recovered_cipher, decode_sealed_metadata, };
 	use crate::utils::{decode_hex};
-	use crate::crypto::{NaClBox, NaClSecretBox};
+	use crate::crypto::{NaClBox};
 	use crate::types::metadata::*;
 
 	use std::{convert::TryInto, vec::Vec};
@@ -184,7 +190,7 @@ pub mod metadata_test {
 		let slk = decode_hex(SLK).unwrap();
 		let version = decode_hex(VERSION).unwrap();
 
-		let encoded: Vec<u8> = encode_pre_seal(PreSeal {
+		let encoded: Vec<u8> = encode_pre_seal(&PreSeal {
 			chunk_cid: chunk_cid.try_into().unwrap(),
 			hash: hash.try_into().unwrap(),
 			sealing_key: slk.try_into().unwrap(),
@@ -201,20 +207,18 @@ pub mod metadata_test {
 		let version = decode_hex(VERSION).unwrap();
 
 		let cipher = NaClBox::encrypt(&pre_seal, keypair.public_key).unwrap();
-		let cipher_encoded = encode_box_cipher(cipher);
+		let cipher_encoded = encode_box_cipher(&cipher);
 
 		let original = SealedMetadata {
-			sealed: Sealed {
-				is_public: false,
-				cipher: cipher_encoded,
-				members_count: 1
-			},
+			is_public: false,
+			cipher: cipher_encoded,
+			members_count: 1,
 			version: version[..].try_into().expect("version code with incorrect length"),
 		};
 
-		let encoded: Vec<u8> = encode_sealed_metadata(original.clone()).unwrap();
-		let recovered = decode_sealed_metadata(encoded).unwrap();
-		let recoverd_preseal = decrypt_recovered_cipher(&[keypair], recovered.sealed.cipher.clone()).unwrap();
+		let encoded: Vec<u8> = encode_sealed_metadata(&original).unwrap();
+		let recovered = decode_sealed_metadata(&encoded).unwrap();
+		let recoverd_preseal = decrypt_recovered_cipher(&[keypair.secret_key], &recovered.cipher).unwrap();
 
 		assert_eq!(recovered, original);
 		assert_eq!(recoverd_preseal, pre_seal);
@@ -231,25 +235,23 @@ pub mod metadata_test {
 		let version = decode_hex(VERSION).unwrap();
 
 		let cipher = NaClBox::encrypt(&pre_seal, keypair.public_key).unwrap();
-		let cipher_encoded = encode_box_cipher(cipher);
+		let cipher_encoded = encode_box_cipher(&cipher);
 
 		let cipher2 = NaClBox::encrypt(&pre_seal, keypair2.public_key).unwrap();
-		let cipher2_encoded = encode_box_cipher(cipher2);
+		let cipher2_encoded = encode_box_cipher(&cipher2);
 
 		let original = SealedMetadata {
-		sealed: Sealed {
-			is_public: false,
-			cipher: [&cipher_encoded[..], &cipher2_encoded[..]].concat(),
-			members_count: 2
-		},
+		is_public: false,
+		cipher: [&cipher_encoded[..], &cipher2_encoded[..]].concat(),
+		members_count: 2,
 		version: version[..].try_into().expect("version code with incorrect length"),
 		};
 
-		let encoded: Vec<u8> = encode_sealed_metadata(original.clone()).unwrap();
-		let recovered = decode_sealed_metadata(encoded).unwrap();
+		let encoded: Vec<u8> = encode_sealed_metadata(&original).unwrap();
+		let recovered = decode_sealed_metadata(&encoded).unwrap();
 
-		let recoverd_preseal = decrypt_recovered_cipher(&[keypair], recovered.sealed.cipher.clone()).unwrap();
-		let recoverd_preseal_2 = decrypt_recovered_cipher(&[keypair2], recovered.sealed.cipher.clone()).unwrap();
+		let recoverd_preseal = decrypt_recovered_cipher(&[keypair.secret_key], &recovered.cipher).unwrap();
+		let recoverd_preseal_2 = decrypt_recovered_cipher(&[keypair2.secret_key], &recovered.cipher).unwrap();
 
 		assert_eq!(recovered, original);
 		assert_eq!(recoverd_preseal, pre_seal);
