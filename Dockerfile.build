@@ -14,7 +14,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Create app directory
-WORKDIR /usr/src/app
+WORKDIR /root/skyekiwi-network
 
 # Bundle app source
 COPY . .
@@ -22,5 +22,12 @@ COPY . .
 RUN rustup target add wasm32-unknown-unknown
 RUN yarn blockchain:build
 
+# COPY /root/skyekiwi-network/target/release/skyekiwi-node /usr/local/bin
+
+EXPOSE 30333 9933 9944 9615
+
+VOLUME ["/data"]
+
+# ENTRYPOINT ["/usr/local/bin/skyekiwi-node"]
 # Start
 # CMD [ "yarn railway:run" ]
