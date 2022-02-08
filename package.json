@@ -11,9 +11,13 @@
     "enclave:ci": "node ./skw-tools-scripts/enclave-ci.cjs",
 
     "setup-rust": "node ./skw-tools-scripts/setup-rust.cjs",
+    "blockchain:build": "node ./skw-tools-scripts/blockchain-build.cjs",
     "main:build": "node ./skw-tools-scripts/main-build.cjs",
     "main:ci": "node ./skw-tools-scripts/main-ci.cjs",
     "main:test": "node ./skw-tools-scripts/main-test.cjs",
+
+    "docker:build": "node ./skw-tools-scripts/docker-build.cjs",
+    "railway:run": "node ./skw-tools-scripts/railway-run.cjs",
 
     "mock-enclave:start": "cd mock-enclave && yarn start",
     "mock-enclave:vm": "cd mock-enclave && yarn vm",
