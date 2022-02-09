@@ -5,7 +5,7 @@ const execSync = require('./execSync.cjs');
 console.log('$ yarn main:build', process.argv.slice(2).join(' '));
 
 function mainBuild() {
-  execSync('cargo build -p skyekiwi-node --release');
+  execSync('cargo build --release');
 }
 
 mainBuild()

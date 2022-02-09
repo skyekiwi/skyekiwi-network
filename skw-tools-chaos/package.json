@@ -12,7 +12,7 @@
     "typescript": "^4.5.3"
   },
   "dependencies": {
-    "@skyekiwi/util": "0.5.2-7",
+    "@skyekiwi/util": "0.6.2-0",
     "pm2": "^5.1.2"
   }
 }

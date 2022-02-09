@@ -20,6 +20,7 @@ node_modules/
 /host/mock/*.wasm
 /host/mock/*.json
 
+mock-enclave/result.json
 enclave/lib/*.a
 enclave/bin/app
 enclave/bin/enclave.signed.so
