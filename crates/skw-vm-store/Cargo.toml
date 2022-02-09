@@ -11,7 +11,6 @@ byteorder = "1.2"
 bytesize = "1.1"
 derive_more = "0.99.3"
 elastic-array = "0.11"
-rocksdb = "0.16.0"
 serde_json = "1"
 num_cpus = "1.11"
 rand = "0.7"
@@ -39,9 +38,3 @@ harness = false
 
 [features]
 default = []
-no_cache = []
-single_thread_rocksdb = [] # Deactivate RocksDB IO background threads
-test_features = []
-protocol_feature_chunk_only_producers = []
-nightly_protocol = []
-nightly_protocol_features = ["nightly_protocol", "protocol_feature_chunk_only_producers"]

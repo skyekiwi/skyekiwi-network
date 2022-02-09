@@ -39,8 +39,7 @@ fn benchmark_write_then_read_successful(
 
 /// Create `Store` in a random folder.
 fn create_store_in_random_folder() -> Arc<Store> {
-    let tmp_dir = tempfile::Builder::new().prefix("_test_clear_column").tempdir().unwrap();
-    let store = create_store(tmp_dir.path());
+    let store = create_store();
     store
 }
 
@@ -63,9 +62,9 @@ fn read_from_db(store: &Store, keys: &Vec<Vec<u8>>, col: DBCol) -> usize {
         let r = rand::random::<u32>() % (keys.len() as u32);
         let key = &keys[r as usize];
 
-        let val = store.get(col, key.as_ref()).map_err(|_| StorageError::StorageInternalError);
+        let val = store.get(col, key.as_ref());
 
-        if let Ok(Some(x)) = val {
+        if let Some(x) = val {
             black_box(x);
             read += 1;
         }

@@ -76,8 +76,7 @@ impl TrieStorage for TrieRecordingStorage {
         let key = TrieCachingStorage::get_key_from_hash(hash);
         let val = self
             .store
-            .get(ColState, key.as_ref())
-            .map_err(|_| StorageError::StorageInternalError)?;
+            .get(ColState, key.as_ref());
         if let Some(val) = val {
             self.recorded.borrow_mut().insert(*hash, val.clone());
             Ok(val)
@@ -167,8 +166,7 @@ impl TrieStorage for TrieCachingStorage {
         } else {
             let val = self
                 .store
-                .get(ColState, hash)
-                .map_err(|_| StorageError::StorageInternalError)?;
+                .get(ColState, hash);
             if let Some(val) = val {
                 if val.len() < TRIE_LIMIT_CACHED_VALUE_SIZE {
                     guard.put(*hash, val.clone());

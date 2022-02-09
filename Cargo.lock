@@ -2809,7 +2809,7 @@ dependencies = [
  "parity-util-mem",
  "parking_lot",
  "regex",
- "rocksdb 0.17.0",
+ "rocksdb",
  "smallvec",
 ]
 
@@ -5376,16 +5376,6 @@ dependencies = [
 
 [[package]]
 name = "rocksdb"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c749134fda8bfc90d0de643d59bfc841dcb3ac8a1062e12b6754bd60235c48b3"
-dependencies = [
- "libc",
- "librocksdb-sys",
-]
-
-[[package]]
-name = "rocksdb"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a62eca5cacf2c8261128631bed9f045598d40bfbe4b29f5163f0f802f8f44a7"
@@ -6849,7 +6839,6 @@ dependencies = [
  "lru 0.6.6",
  "num_cpus",
  "rand 0.7.3",
- "rocksdb 0.16.0",
  "serde_json",
  "skw-vm-primitives",
  "strum 0.20.0",
