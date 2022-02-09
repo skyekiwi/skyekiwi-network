@@ -4,7 +4,7 @@ use std::sync::Arc;
 use rand::seq::SliceRandom;
 use rand::Rng;
 
-use crate::db::TestDB;
+use crate::db::FileDB;
 use crate::{ShardTries, Store};
 use skw_vm_primitives::account_id::AccountId;
 use skw_vm_primitives::contract_runtime::CryptoHash;
@@ -14,7 +14,7 @@ use std::str::from_utf8;
 
 /// Creates an in-memory database.
 pub fn create_test_store() -> Arc<Store> {
-    let db = Arc::pin(TestDB::new());
+    let db = Arc::pin(FileDB::new());
     Arc::new(Store::new(db))
 }
 

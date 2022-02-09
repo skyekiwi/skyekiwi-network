@@ -28,7 +28,7 @@ use skw_vm_primitives::trie_key::{trie_key_parsers, TrieKey};
 pub use crate::refcount::decode_value_with_rc;
 use crate::refcount::encode_value_with_rc;
 use crate::db::{
-    DBOp, DBTransaction, Database, RocksDB, GENESIS_JSON_HASH_KEY, GENESIS_STATE_ROOTS_KEY,
+    DBOp, DBTransaction, Database, FileDB, GENESIS_JSON_HASH_KEY, GENESIS_STATE_ROOTS_KEY,
 };
 pub use crate::trie::{
     iterator::TrieIterator, update::TrieUpdate, update::TrieUpdateIterator,
@@ -50,8 +50,8 @@ impl Store {
         Store { storage }
     }
 
-    pub fn get(&self, column: DBCol, key: &[u8]) -> Result<Option<Vec<u8>>, io::Error> {
-        self.storage.get(column, key).map_err(|e| e.into())
+    pub fn get(&self, column: DBCol, key: &[u8]) -> Option<Vec<u8>> {
+        self.storage.get(column, key)
     }
 
     pub fn get_ser<T: BorshDeserialize>(
@@ -60,17 +60,16 @@ impl Store {
         key: &[u8],
     ) -> Result<Option<T>, io::Error> {
         match self.storage.get(column, key) {
-            Ok(Some(bytes)) => match T::try_from_slice(bytes.as_ref()) {
+            Some(bytes) => match T::try_from_slice(bytes.as_ref()) {
                 Ok(result) => Ok(Some(result)),
                 Err(e) => Err(e),
             },
-            Ok(None) => Ok(None),
-            Err(e) => Err(e.into()),
+            None => Ok(None),
         }
     }
 
-    pub fn exists(&self, column: DBCol, key: &[u8]) -> Result<bool, io::Error> {
-        self.storage.get(column, key).map(|value| value.is_some()).map_err(|e| e.into())
+    pub fn exists(&self, column: DBCol, key: &[u8]) -> bool {
+        self.storage.get(column, key).is_some()
     }
 
     pub fn store_update(&self) -> StoreUpdate {
@@ -143,11 +142,8 @@ impl Store {
 
             transaction.put(column, &key, &value);
         }
-        self.storage.write(transaction).map_err(|e| e.into())
-    }
-
-    pub fn get_rocksdb(&self) -> Option<&RocksDB> {
-        self.storage.as_rocksdb()
+        self.storage.write(transaction);
+        Ok(())
     }
 }
 
@@ -255,7 +251,8 @@ impl StoreUpdate {
             );
             tries.update_cache(&self.transaction)?;
         }
-        self.storage.write(self.transaction).map_err(|e| e.into())
+        self.storage.write(self.transaction);
+        Ok(())
     }
 }
 
@@ -293,9 +290,8 @@ pub fn read_with_cache<'a, T: BorshDeserialize + 'a>(
     Ok(None)
 }
 
-pub fn create_store(path: &Path) -> Arc<Store> {
-    let db = Arc::pin(RocksDB::new(path).expect("Failed to open the database"));
-    // let db = Arc::pin(TestDB::new());
+pub fn create_store() -> Arc<Store> {
+    let db = Arc::pin(FileDB::new());
     Arc::new(Store::new(db))
 }
 
@@ -499,33 +495,4 @@ pub fn set_genesis_state_roots(store_update: &mut StoreUpdate, genesis_roots: &V
     store_update
         .set_ser::<Vec<StateRoot>>(DBCol::ColBlockMisc, GENESIS_STATE_ROOTS_KEY, genesis_roots)
         .expect("Borsh cannot fail");
-}
-
-// pub struct StoreCompiledContractCache {
-//     pub store: Arc<Store>,
-// }
-
-// /// Cache for compiled contracts code using Store for keeping data.
-// /// We store contracts in VM-specific format in DBCol::ColCachedContractCode.
-// /// Key must take into account VM being used and its configuration, so that
-// /// we don't cache non-gas metered binaries, for example.
-// impl CompiledContractCache for StoreCompiledContractCache {
-//     fn put(&self, key: &[u8], value: &[u8]) -> Result<(), std::io::Error> {
-//         let mut store_update = self.store.store_update();
-//         store_update.set(DBCol::ColCachedContractCode, key, value);
-//         store_update.commit()
-//     }
-
-//     fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, std::io::Error> {
-//         self.store.get(DBCol::ColCachedContractCode, key)
-//     }
-// }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_no_cache_disabled() {
-        #[cfg(feature = "no_cache")]
-        panic!("no cache is enabled");
-    }
 }

@@ -2,10 +2,8 @@ use std::cmp::Ordering;
 use std::io::{Cursor, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use rocksdb::compaction_filter::Decision;
-use rocksdb::MergeOperands;
 
-use crate::db::RocksDB;
+use crate::db::FileDB;
 use crate::DBCol;
 
 /// Refcounted columns store value with rc.
@@ -78,37 +76,24 @@ pub(crate) fn encode_value_with_rc(data: &[u8], rc: i64) -> Vec<u8> {
     cursor.into_inner()
 }
 
-impl RocksDB {
+impl FileDB {
     /// ColState has refcounted values.
     /// Merge adds refcounts, zero refcount becomes empty value.
     /// Empty values get filtered by get methods, and removed by compaction.
-    pub(crate) fn refcount_merge(
-        _new_key: &[u8],
-        existing_val: Option<&[u8]>,
-        operands: &mut MergeOperands,
-    ) -> Option<Vec<u8>> {
-        let mut result = vec![];
-        if let Some(val) = existing_val {
-            merge_refcounted_records(&mut result, val);
-        }
-        for val in operands {
-            merge_refcounted_records(&mut result, val);
-        }
-        Some(result)
-    }
-
-    /// Compaction filter for ColState
-    pub(crate) fn empty_value_compaction_filter(
-        _level: u32,
-        _key: &[u8],
-        value: &[u8],
-    ) -> Decision {
-        if value.is_empty() {
-            Decision::Remove
-        } else {
-            Decision::Keep
-        }
-    }
+    // pub(crate) fn refcount_merge(
+    //     _new_key: &[u8],
+    //     existing_val: Option<&[u8]>,
+    //     operands: &mut MergeOperands,
+    // ) -> Option<Vec<u8>> {
+    //     let mut result = vec![];
+    //     if let Some(val) = existing_val {
+    //         merge_refcounted_records(&mut result, val);
+    //     }
+    //     for val in operands {
+    //         merge_refcounted_records(&mut result, val);
+    //     }
+    //     Some(result)
+    // }
 
     /// Treats empty value as no value and strips refcount
     pub(crate) fn get_with_rc_logic(column: DBCol, value: Option<Vec<u8>>) -> Option<Vec<u8>> {

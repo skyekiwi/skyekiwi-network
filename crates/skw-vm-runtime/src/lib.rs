@@ -54,12 +54,10 @@ use crate::verifier::validate_receipt;
 pub use crate::verifier::{validate_transaction, verify_and_charge_transaction};
 
 mod actions;
-pub mod adapter;
 pub mod cache;
 pub mod config;
 pub mod ext;
 mod genesis;
-// mod metrics;
 pub mod state_viewer;
 mod verifier;
 
