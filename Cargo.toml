@@ -14,7 +14,6 @@ members = [
     'crates/skw-vm-engine',
     'crates/skw-vm-engine-cli',
     'crates/skw-vm-runtime',
-    'crates/skw-vm-genesis-configs',
     'crates/skw-vm-pool',
     'crates/near-test-contracts',
     'crates/skw-vm-store',

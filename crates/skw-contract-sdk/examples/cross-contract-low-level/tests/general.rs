@@ -1,5 +1,5 @@
 use skw_contract_sdk::AccountId;
-use skw_sdk_sim::{
+use skw_contract_sim::{
     call, deploy, init_simulator, to_yocto, view, ContractAccount, UserAccount, DEFAULT_GAS,
     STORAGE_AMOUNT,
 };
@@ -9,14 +9,14 @@ extern crate cross_contract_low_level;
 // near-sdk-sim
 use cross_contract_low_level::CrossContractContract;
 
-skw_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
+skw_contract_sim::lazy_static_include::lazy_static_include_bytes! {
     TOKEN_WASM_BYTES => "res/cross_contract_low_level.wasm",
 }
 
 fn init(
     initial_balance: u128,
 ) -> (UserAccount, ContractAccount<CrossContractContract>, UserAccount) {
-    let mut genesis = skw_sdk_sim::runtime::GenesisConfig::default();
+    let mut genesis = skw_contract_sim::runtime::GenesisBlockConfig::default();
     genesis.gas_price = 0;
     genesis.gas_limit = u64::MAX;
     let master_account = init_simulator(Some(genesis));

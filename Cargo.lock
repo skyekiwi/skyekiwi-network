@@ -807,7 +807,6 @@ dependencies = [
  "libc",
  "num-integer",
  "num-traits",
- "serde",
  "time",
  "winapi 0.3.9",
 ]
@@ -6632,7 +6631,6 @@ dependencies = [
  "quickcheck 0.9.2",
  "quickcheck_macros",
  "skw-contract-sdk",
- "skw-vm-genesis-configs",
  "skw-vm-host",
  "skw-vm-pool",
  "skw-vm-primitives",
@@ -6680,22 +6678,6 @@ dependencies = [
  "skw-vm-primitives",
  "strum 0.20.0",
  "tracing-span-tree",
-]
-
-[[package]]
-name = "skw-vm-genesis-configs"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "chrono",
- "derive_more",
- "num-rational 0.3.2",
- "serde",
- "serde_json",
- "sha2 0.9.9",
- "skw-vm-primitives",
- "smart-default",
- "tracing",
 ]
 
 [[package]]
@@ -6779,7 +6761,6 @@ dependencies = [
  "serde",
  "serde_json",
  "skw-vm-engine",
- "skw-vm-genesis-configs",
  "skw-vm-host",
  "skw-vm-primitives",
  "skw-vm-store",

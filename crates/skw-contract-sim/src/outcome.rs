@@ -1,12 +1,14 @@
-use crate::root_account;
 use crate::runtime::{init_runtime, RuntimeStandalone};
-use crate::transaction::{ExecutionOutcome, ExecutionStatus};
+
 use core::fmt;
 use skw_vm_primitives::profile::ProfileData;
 use skw_vm_primitives::transaction::{
     ExecutionStatus::{SuccessReceiptId, SuccessValue}
 };
-use skw_vm_primitives::contract_runtime::{AccountId, CryptoHash};
+use skw_vm_primitives::{
+    contract_runtime::{AccountId, CryptoHash},
+    transaction::{ExecutionOutcome, ExecutionStatus},
+};
 use skw_vm_runtime::state_viewer::errors::CallFunctionError;
 use skw_contract_sdk::borsh::BorshDeserialize;
 use skw_contract_sdk::serde::de::DeserializeOwned;
@@ -40,7 +42,7 @@ impl Default for ExecutionResult {
     fn default() -> Self {
         ExecutionResult::new(
             ExecutionOutcome::default(),
-            &Rc::new(RefCell::new(init_runtime(&root_account(),None).0)),
+            &Rc::new(RefCell::new(init_runtime(&"root",None).0)),
             CryptoHash::default(),
         )
     }
@@ -58,7 +60,7 @@ impl ExecutionResult {
 
     /// Interpret the SuccessValue as a JSON value
     pub fn unwrap_json_value(&self) -> Value {
-        use crate::transaction::ExecutionStatus::*;
+        use skw_vm_primitives::transaction::ExecutionStatus::*;
         match &(self.outcome).status {
             SuccessValue(s) => skw_contract_sdk::serde_json::from_slice(s).unwrap(),
             err => panic!("Expected Success value but got: {:#?}", err),
@@ -67,7 +69,7 @@ impl ExecutionResult {
 
     /// Deserialize SuccessValue from Borsh
     pub fn unwrap_borsh<T: BorshDeserialize>(&self) -> T {
-        use crate::transaction::ExecutionStatus::*;
+        use skw_vm_primitives::transaction::ExecutionStatus::*;
         match &(self.outcome).status {
             SuccessValue(s) => BorshDeserialize::try_from_slice(s).unwrap(),
             _ => panic!("Cannot get value of failed transaction"),
@@ -256,7 +258,7 @@ mod tests {
         let outcome = ExecutionOutcome { status, ..Default::default() };
         let result = outcome_into_result(
             (CryptoHash::default(), outcome),
-            &Rc::new(RefCell::new(init_runtime(&root_account(),None).0)),
+            &Rc::new(RefCell::new(init_runtime(&"root", None).0)),
         );
         assert_eq!(value, result.unwrap_json_value());
     }
