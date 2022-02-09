@@ -20,12 +20,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anyhow"
-version = "1.0.53"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94a45b455c14666b85fc40a019e8ab9eb75e3a124e05494f5397122bc9eb06e0"
-
-[[package]]
 name = "arrayref"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -196,20 +190,6 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
-
-[[package]]
-name = "chrono"
-version = "0.4.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "670ad68c9088c2a963aaa298cb369688cf3f9465ce5e2d4ca10e6e0098a1ce73"
-dependencies = [
- "libc",
- "num-integer",
- "num-traits",
- "serde",
- "time",
- "winapi",
-]
 
 [[package]]
 name = "cipher"
@@ -1058,7 +1038,6 @@ dependencies = [
  "funty",
  "lazy-static-include",
  "skw-contract-sdk",
- "skw-vm-genesis-configs",
  "skw-vm-host",
  "skw-vm-pool",
  "skw-vm-primitives",
@@ -1084,22 +1063,6 @@ dependencies = [
  "tracing",
  "wasmi",
  "wasmparser",
-]
-
-[[package]]
-name = "skw-vm-genesis-configs"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "chrono",
- "derive_more",
- "num-rational 0.3.2",
- "serde",
- "serde_json",
- "sha2",
- "skw-vm-primitives",
- "smart-default",
- "tracing",
 ]
 
 [[package]]
@@ -1175,7 +1138,6 @@ dependencies = [
  "serde",
  "serde_json",
  "skw-vm-engine",
- "skw-vm-genesis-configs",
  "skw-vm-host",
  "skw-vm-primitives",
  "skw-vm-store",
@@ -1295,16 +1257,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "time"
-version = "0.1.43"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca8a50ef2360fbd1eeb0ecd46795a87a19024eb4b53c5dc916ca1fd95fe62438"
-dependencies = [
- "libc",
- "winapi",
 ]
 
 [[package]]

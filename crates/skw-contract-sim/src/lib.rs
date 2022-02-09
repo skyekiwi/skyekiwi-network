@@ -15,6 +15,8 @@ pub use units::*;
 #[doc(inline)]
 pub use user::*;
 
+pub use skw_vm_primitives::transaction;
+
 #[doc(hidden)]
 pub use lazy_static_include;
 

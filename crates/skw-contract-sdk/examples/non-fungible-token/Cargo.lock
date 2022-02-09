@@ -20,6 +20,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "approval-receiver"
+version = "0.0.1"
+dependencies = [
+ "near-contract-standards",
+ "skw-contract-sdk",
+]
+
+[[package]]
 name = "arrayref"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -171,14 +179,6 @@ checksum = "d27dae93fe7b1e0424dc57179ac396908c26b035a87234809f5c4dfd1b47dc80"
 dependencies = [
  "cipher",
  "ppv-lite86",
-]
-
-[[package]]
-name = "callback-results"
-version = "0.1.0"
-dependencies = [
- "skw-contract-sdk",
- "skw-contract-sim",
 ]
 
 [[package]]
@@ -593,6 +593,33 @@ name = "memory_units"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8452105ba047068f40ff7093dd1d9da90898e63dd61736462e9cdda6a90ad3c3"
+
+[[package]]
+name = "near-contract-standards"
+version = "4.0.0-pre.5"
+dependencies = [
+ "skw-contract-sdk",
+]
+
+[[package]]
+name = "non-fungible-token"
+version = "1.1.0"
+dependencies = [
+ "near-contract-standards",
+ "skw-contract-sdk",
+]
+
+[[package]]
+name = "non-fungible-token-wrapper"
+version = "0.0.2"
+dependencies = [
+ "approval-receiver",
+ "near-contract-standards",
+ "non-fungible-token",
+ "skw-contract-sdk",
+ "skw-contract-sim",
+ "token-receiver",
+]
 
 [[package]]
 name = "num-bigint"
@@ -1257,6 +1284,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "token-receiver"
+version = "0.0.1"
+dependencies = [
+ "near-contract-standards",
+ "skw-contract-sdk",
 ]
 
 [[package]]

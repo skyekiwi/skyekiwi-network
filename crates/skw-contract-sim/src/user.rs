@@ -12,7 +12,7 @@ pub use crate::to_yocto;
 use crate::new_p_account;
 
 use skw_vm_primitives::{
-    account::{Account},
+    account::{Account, AccessKey},
     contract_runtime::{CryptoHash, Balance, Gas},
     transaction::Transaction,
 };
@@ -159,6 +159,7 @@ impl UserAccount {
         self.submit_transaction(
             self.transaction(account_id.clone())
                 .create_account()
+                .add_key(signer.public_key(), AccessKey::full_access())
                 .transfer(deposit)
                 .deploy_contract(wasm_bytes.to_vec()),
         )
@@ -200,6 +201,7 @@ impl UserAccount {
         self.submit_transaction(
             self.transaction(account_id.clone())
                 .create_account()
+                .add_key(signer.public_key(), AccessKey::full_access())
                 .transfer(deposit)
                 .deploy_contract(wasm_bytes.to_vec())
                 .function_call(method.to_string(), args.to_vec(), gas, 0),
@@ -261,6 +263,7 @@ impl UserAccount {
                 signer_user
                     .transaction(account_id.clone())
                     .create_account()
+                    .add_key(signer.public_key(), AccessKey::full_access())
                     .transfer(amount),
             )
             .assert_success();

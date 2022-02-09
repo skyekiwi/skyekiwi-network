@@ -34,6 +34,7 @@ pub fn init_runtime(
     cfg: Option<GenesisConfig>,
 ) -> (RuntimeStandalone, InMemorySigner) {
     let mut config = cfg.unwrap_or_default();
+    config.runtime_config.wasm_config.limit_config.max_total_prepaid_gas = config.gas_limit;
     let signer = InMemorySigner::from_seed(
         new_p_account(account_id),
         KeyType::ED25519, "test"
@@ -151,7 +152,6 @@ impl RuntimeStandalone {
         let runtime = Runtime::new();
         let tries = ShardTries::new(store);
 
-        std::println!("{:?}", genesis.runtime_config);
         let (s_update, state_root) = runtime.apply_genesis_state(
             tries.clone(),
             &genesis.state_records,

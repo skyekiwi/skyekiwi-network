@@ -1,5 +1,5 @@
 use skw_contract_sdk::{env, AccountId};
-use skw_contract_sim::{call, deploy, root_account, init_simulator, to_yocto, ContractAccount, UserAccount};
+use skw_contract_sim::{call, deploy, init_simulator, to_yocto, ContractAccount, UserAccount};
 
 use defi::*;
 /// Import the generated proxy contract
@@ -32,7 +32,7 @@ fn init(
         // init method
         init_method:
           new_default_meta(
-            root_account(),
+            AccountId::try_from("root".to_string()).unwrap(),
             initial_balance.into()
         )
     );

@@ -4,7 +4,7 @@ use crate::account::{Account, AccessKey, AccessKeyPermission};
 use crate::transaction::{
     Action, CreateAccountAction, DeleteAccountAction,
     DeployContractAction, FunctionCallAction, SignedTransaction, Transaction,
-    TransferAction, AddKeyAction,
+    TransferAction, AddKeyAction, DeleteKeyAction,
 };
 use crate::contract_runtime::{AccountId, Balance, CryptoHash, Gas, Nonce};
 
@@ -56,6 +56,16 @@ impl Transaction {
 
     pub fn transfer(mut self, deposit: Balance) -> Self {
         self.actions.push(Action::Transfer(TransferAction { deposit }));
+        self
+    }
+
+    pub fn add_key(mut self, public_key: PublicKey, access_key: AccessKey) -> Self {
+        self.actions.push(Action::AddKey(AddKeyAction { public_key, access_key }));
+        self
+    }
+
+    pub fn delete_key(mut self, public_key: PublicKey) -> Self {
+        self.actions.push(Action::DeleteKey(DeleteKeyAction { public_key }));
         self
     }
 

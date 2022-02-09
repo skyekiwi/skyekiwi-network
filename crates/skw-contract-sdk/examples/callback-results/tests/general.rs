@@ -9,7 +9,7 @@ skw_contract_sim::lazy_static_include::lazy_static_include_bytes! {
 }
 
 fn init() -> (UserAccount, ContractAccount<CallbackContract>) {
-    let mut genesis = skw_contract_sim::runtime::GenesisBlockConfig::default();
+    let mut genesis = skw_contract_sim::runtime::GenesisConfig::default();
     genesis.gas_limit = u64::MAX;
     genesis.gas_price = 0;
     let master_account = init_simulator(Some(genesis));
