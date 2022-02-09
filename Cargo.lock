@@ -3892,41 +3892,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "near-account-id"
-version = "0.0.0"
-source = "git+https://github.com/near/nearcore#b4b32ff459e41c79f6c735031be5b9a7f41d44ee"
-dependencies = [
- "borsh",
- "serde",
-]
-
-[[package]]
-name = "near-crypto"
-version = "0.0.0"
-source = "git+https://github.com/near/nearcore#b4b32ff459e41c79f6c735031be5b9a7f41d44ee"
-dependencies = [
- "arrayref",
- "blake2",
- "borsh",
- "bs58",
- "c2-chacha",
- "curve25519-dalek 3.2.0",
- "derive_more",
- "ed25519-dalek",
- "libc",
- "near-account-id",
- "once_cell",
- "parity-secp256k1",
- "primitive-types",
- "rand 0.7.3",
- "rand_core 0.5.1",
- "serde",
- "serde_json",
- "subtle",
- "thiserror",
-]
-
-[[package]]
 name = "near-test-contracts"
 version = "0.0.0"
 dependencies = [
@@ -6724,7 +6689,6 @@ dependencies = [
  "anyhow",
  "chrono",
  "derive_more",
- "near-crypto",
  "num-rational 0.3.2",
  "serde",
  "serde_json",

@@ -19,7 +19,6 @@ smart-default = "0.6"
 tracing = "0.1.13"
 anyhow = "1.0.51"
 
-near-crypto = { git = "https://github.com/near/nearcore" }
 skw-vm-primitives = { path = "../skw-vm-primitives" }
 
 [features]
