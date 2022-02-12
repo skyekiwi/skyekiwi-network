@@ -110,6 +110,18 @@ impl Store {
         )
     }
 
+    pub fn save_state_to_file(&self, filename_prefix: &str) -> Result<(), std::io::Error> {
+        self.save_to_file(DBCol::ColState,
+            Path::new(&format!("{}__state_dump__{:?}", filename_prefix, DBCol::ColState))
+        )
+    }
+
+    pub fn load_state_from_file(&self, filename_prefix: &str) -> Result<(), std::io::Error> {
+        self.load_from_file(DBCol::ColState,
+            Path::new(&format!("{}__state_dump__{:?}", filename_prefix, DBCol::ColState))
+        )
+    }
+
     pub fn save_to_file(&self, column: DBCol, filename: &Path) -> Result<(), std::io::Error> {
         let mut file = File::create(filename)?;
         for (key, value) in self.storage.iter_without_rc_logic(column) {
@@ -495,4 +507,36 @@ pub fn set_genesis_state_roots(store_update: &mut StoreUpdate, genesis_roots: &V
     store_update
         .set_ser::<Vec<StateRoot>>(DBCol::ColBlockMisc, GENESIS_STATE_ROOTS_KEY, genesis_roots)
         .expect("Borsh cannot fail");
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::db::DBCol::ColState;
+    use crate::{create_store};
+
+    #[test]
+    fn test_write_read_from_file() {
+
+        {
+            let store = create_store();
+            assert_eq!(store.get(ColState, &[1]), None);
+            {
+                let mut store_update = store.store_update();
+                store_update.update_refcount(ColState, &[1], &[1], 1);
+                store_update.update_refcount(ColState, &[2], &[2], 1);
+                store_update.update_refcount(ColState, &[3], &[3], 1);
+                store_update.commit().unwrap();
+            }
+            assert_eq!(store.get(ColState, &[1]), Some(vec![1]));
+
+            store.save_state_to_file("./mock/test").unwrap();
+        }
+
+        {
+            let store = create_store();
+            store.load_state_from_file("./mock/test").unwrap();
+            assert_eq!(store.get(ColState, &[1]), Some(vec![1]));
+        }
+    }
 }

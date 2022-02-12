@@ -1,22 +1,13 @@
 use skw_contract_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use skw_contract_sdk::{env, log, metadata, skw_bindgen, AccountId, collections::LookupMap};
+use skw_contract_sdk::{env, log, metadata, skw_bindgen, AccountId};
 
-// use std::collections::HashMap;
+use std::collections::HashMap;
 
 metadata! {
 #[skw_bindgen]
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(Default, BorshDeserialize, BorshSerialize)]
 pub struct StatusMessage {
-    records: LookupMap<String, String>,
-}
-
-
-impl Default for StatusMessage {
-  fn default() -> Self {
-    Self {
-      records: LookupMap::new(b"b".to_vec()),
-    }
-  }
+    records: HashMap<AccountId, String>,
 }
 
 #[skw_bindgen]
@@ -25,12 +16,12 @@ impl StatusMessage {
     pub fn set_status(&mut self, message: String) {
         let account_id = env::signer_account_id();
         log!("{} set_status with message {}", account_id, message);
-        self.records.insert(&account_id.as_str().to_string(), &message);
+        self.records.insert(account_id, message);
     }
 
     pub fn get_status(&self, account_id: AccountId) -> Option::<String> {
         log!("get_status for account_id {}", account_id);
-        self.records.get(&account_id.as_str().to_string())
+        self.records.get(&account_id).cloned()
     }
 }
 }

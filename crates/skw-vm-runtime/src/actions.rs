@@ -46,7 +46,6 @@ pub(crate) fn execute_function_call(
 ) -> (Option<VMOutcome>, Option<VMError>) {
     let account_id = runtime_ext.account_id();
 
-    // TODO: gotta think about how to extract code_has(); not from Account
     let code = match runtime_ext.get_code(account.code_hash()) {
         Ok(Some(code)) => code,
         Ok(None) => {

@@ -1,11 +1,9 @@
-// use near_chain_configs::{get_initial_supply, Genesis, GenesisConfig, GenesisRecords};
 use skw_vm_primitives::crypto::{InMemorySigner, KeyType};
-use skw_vm_genesis_configs::{Genesis, GenesisConfig, GenesisRecords, get_initial_supply};
 
 use skw_vm_primitives::account::{Account, AccessKey};
 use skw_vm_primitives::contract_runtime::{hash_bytes, CryptoHash, AccountId, AccountInfo, Balance};
 use skw_vm_primitives::receipt::Receipt;
-use skw_vm_primitives::state_record::{state_record_to_account_id, StateRecord};
+use skw_vm_primitives::state_record::{StateRecord};
 use skw_vm_primitives::transaction::{ExecutionOutcomeWithId, SignedTransaction};
 
 use skw_vm_store::test_utils::create_tries;
@@ -15,7 +13,7 @@ use skw_vm_runtime::{ApplyState, Runtime};
 
 use random_config::random_config;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
@@ -58,25 +56,13 @@ impl StandaloneRuntime {
             runtime_config.wasm_config.limit_config.max_total_prepaid_gas / 64;
 
         let runtime = Runtime::new();
-        let genesis = Genesis::new(
-            GenesisConfig {
-                total_supply: get_initial_supply(state_records),
-                ..Default::default()
-            },
-            GenesisRecords(state_records.to_vec()),
-        );
 
-        let mut account_ids: HashSet<AccountId> = HashSet::new();
-        genesis.for_each_record(|record: &StateRecord| {
-            account_ids.insert(state_record_to_account_id(record).clone());
-        });
-
-        let root = runtime.apply_genesis_state(
+        let (store_update, root) = runtime.apply_genesis_state(
             tries.clone(),
-            &genesis,
+            &state_records,
             &runtime_config,
-            account_ids,
         );
+        store_update.commit().unwrap();
 
         let apply_state = ApplyState {
             block_number: 1,
@@ -111,7 +97,6 @@ impl StandaloneRuntime {
                 &self.apply_state,
                 receipts,
                 transactions,
-                None,
             )
             .unwrap();
 

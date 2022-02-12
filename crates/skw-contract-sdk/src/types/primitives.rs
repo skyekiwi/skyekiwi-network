@@ -7,8 +7,6 @@ pub use skw_vm_primitives::fees::RuntimeFeesConfig;
 
 //* Type aliases from near_primitives_core
 
-
-// TODO: we might get the next three entries removed
 /// Hash used by a struct implementing the Merkle tree.
 #[cfg(not(target_arch = "wasm32"))]
 pub type MerkleHash = CryptoHash;

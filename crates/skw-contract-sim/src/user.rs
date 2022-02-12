@@ -1,21 +1,25 @@
 use std::cell::{Ref, RefCell, RefMut};
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
+use std::str::FromStr;
 
 use skw_vm_primitives::crypto::{InMemorySigner, KeyType, Signer};
 
-use skw_vm_primitives::account_id::AccountId;
-use skw_contract_sdk::PendingContractTx;
+use skw_contract_sdk::{PendingContractTx, AccountId};
 
-use crate::root_account;
 use crate::runtime::init_runtime;
 pub use crate::to_yocto;
-use crate::{
-    account::{Account},
+use crate::new_p_account;
+
+use skw_vm_primitives::{
+    account::{Account, AccessKey},
     contract_runtime::{CryptoHash, Balance, Gas},
-    outcome_into_result,
-    runtime::{GenesisBlockConfig, RuntimeStandalone},
     transaction::Transaction,
+};
+
+use crate::{
+    outcome_into_result,
+    runtime::{GenesisConfig, RuntimeStandalone},
     ExecutionResult, ViewResult,
 };
 
@@ -70,7 +74,8 @@ impl UserTransaction {
     }
 
     /// Delete an account and send remaining balance to `beneficiary_id`
-    pub fn delete_account(mut self, beneficiary_id: AccountId) -> Self {
+    pub fn delete_account(mut self, beneficiary_id: &str) -> Self {
+        let beneficiary_id = new_p_account(beneficiary_id);
         self.transaction = self.transaction.delete_account(beneficiary_id);
         self
     }
@@ -106,7 +111,7 @@ impl UserAccount {
     }
     /// Look up the account information on chain.
     pub fn account(&self) -> Option<Account> {
-        (*self.runtime).borrow().view_account(self.account_id.clone())
+        (*self.runtime).borrow().view_account(&self.account_id.as_str())
     }
     /// Transfer yoctoNear to another account
     pub fn transfer(&self, to: AccountId, deposit: Balance) -> ExecutionResult {
@@ -121,7 +126,6 @@ impl UserAccount {
         gas: Gas,
         deposit: Balance,
     ) -> ExecutionResult {
-        // TODO: account id conversion
         let receiver_id = pending_tx.receiver_id.to_string().parse().unwrap();
         self.call(receiver_id, &pending_tx.method, &pending_tx.args, gas, deposit)
     }
@@ -151,10 +155,11 @@ impl UserAccount {
         deposit: Balance,
     ) -> UserAccount {
         let signer =
-            InMemorySigner::from_seed(account_id.clone(), KeyType::ED25519, &account_id.as_str());
+            InMemorySigner::from_seed(new_p_account(&account_id.as_str()), KeyType::ED25519, &account_id.as_str());
         self.submit_transaction(
             self.transaction(account_id.clone())
                 .create_account()
+                .add_key(signer.public_key(), AccessKey::full_access())
                 .transfer(deposit)
                 .deploy_contract(wasm_bytes.to_vec()),
         )
@@ -192,10 +197,11 @@ impl UserAccount {
         gas: Gas,
     ) -> UserAccount {
         let signer =
-            InMemorySigner::from_seed(account_id.clone(), KeyType::ED25519, &account_id.as_str());
+            InMemorySigner::from_seed(new_p_account(&account_id.as_str()), KeyType::ED25519, &account_id.as_str());
         self.submit_transaction(
             self.transaction(account_id.clone())
                 .create_account()
+                .add_key(signer.public_key(), AccessKey::full_access())
                 .transfer(deposit)
                 .deploy_contract(wasm_bytes.to_vec())
                 .function_call(method.to_string(), args.to_vec(), gas, 0),
@@ -207,14 +213,13 @@ impl UserAccount {
     fn transaction(&self, receiver_id: AccountId) -> Transaction {
         let nonce = (*self.runtime)
             .borrow()
-            .view_access_key(self.account_id.clone(), &self.signer.public_key())
+            .view_access_key(&self.account_id.as_str(), &self.signer.public_key())
             .unwrap()
-            .nonce
-            + 1;
+            .nonce + 1;
         Transaction::new(
-            self.account_id(),
+            new_p_account(&self.account_id().as_str()),
             self.signer.public_key(),
-            receiver_id,
+            new_p_account(&receiver_id.as_str()),
             nonce,
             CryptoHash::default(),
         )
@@ -241,7 +246,7 @@ impl UserAccount {
     }
 
     pub fn view(&self, receiver_id: AccountId, method: &str, args: &[u8]) -> ViewResult {
-        (*self.runtime).borrow().view_method_call(&receiver_id, method, args)
+        (*self.runtime).borrow().view_method_call(&receiver_id.as_str(), method, args)
     }
 
     /// Creates a user and is signed by the `signer_user`
@@ -252,12 +257,13 @@ impl UserAccount {
         amount: Balance,
     ) -> UserAccount {
         let signer =
-            InMemorySigner::from_seed(account_id.clone(), KeyType::ED25519, &account_id.as_str());
+            InMemorySigner::from_seed(new_p_account(&account_id.as_str()), KeyType::ED25519, &account_id.as_str());
         signer_user
             .submit_transaction(
                 signer_user
                     .transaction(account_id.clone())
                     .create_account()
+                    .add_key(signer.public_key(), AccessKey::full_access())
                     .transfer(amount),
             )
             .assert_success();
@@ -316,9 +322,9 @@ impl<T> ContractAccount<T> {
 
 /// The simulator takes an optional GenesisConfig, which sets up the fees and other settings.
 /// It returns the `master_account` which can then create accounts and deploy contracts.
-pub fn init_simulator(genesis_config: Option<GenesisBlockConfig>) -> UserAccount {
-    let (runtime, signer) = init_runtime(&root_account(), genesis_config);
-    UserAccount::new(&Rc::new(RefCell::new(runtime)), root_account(), signer)
+pub fn init_simulator(genesis_config: Option<GenesisConfig>) -> UserAccount {
+    let (runtime, signer) = init_runtime(&"root", genesis_config);
+    UserAccount::new(&Rc::new(RefCell::new(runtime)), AccountId::from_str("root").unwrap(), signer)
 }
 
 #[macro_export]

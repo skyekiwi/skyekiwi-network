@@ -1,6 +1,6 @@
 use crate::utils::{init, TOKEN_ID};
 use near_contract_standards::non_fungible_token::Token;
-use skw_sdk_sim::{call, view};
+use skw_contract_sim::{call, view};
 
 #[test]
 fn simulate_simple_transfer() {

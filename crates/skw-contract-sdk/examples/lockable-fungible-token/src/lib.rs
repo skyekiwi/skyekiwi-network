@@ -249,9 +249,9 @@ impl FunToken {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod tests {
-    use near_sdk::test_utils::test_env::{alice, bob, carol};
-    use near_sdk::test_utils::VMContextBuilder;
-    use near_sdk::{testing_env, VMContext};
+    use skw_contract_sdk::test_utils::test_env::{alice, bob, carol};
+    use skw_contract_sdk::test_utils::VMContextBuilder;
+    use skw_contract_sdk::{testing_env, VMContext};
 
     use super::*;
 

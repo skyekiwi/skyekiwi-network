@@ -23,7 +23,6 @@ thiserror = "1.0"
 
 borsh = "0.9"
 
-skw-vm-genesis-configs = { path = "../skw-vm-genesis-configs" }
 skw-vm-store = { path = "../skw-vm-store" }
 skw-vm-host = { path = "../skw-vm-host" }
 skw-vm-engine = { path = "../skw-vm-engine" }

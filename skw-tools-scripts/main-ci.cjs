@@ -9,6 +9,7 @@ function mainCI() {
   execSync('SKIP_WASM_BUILD=1 cargo check --release');
   execSync('SKIP_WASM_BUILD=1 cargo check --features=runtime-benchmarks --release');
   execSync('SKIP_WASM_BUILD=1 cargo test --release');
+  execSync('./crates/skw-contract-sdk/examples/test_all.sh');
 }
 
 mainCI()

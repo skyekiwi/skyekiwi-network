@@ -3,7 +3,6 @@ extern crate bencher;
 
 use bencher::{black_box, Bencher};
 use skw_vm_primitives::borsh::maybestd::sync::Arc;
-use skw_vm_primitives::errors::StorageError;
 use skw_vm_store::db::DBCol::ColBlockMerkleTree;
 use skw_vm_store::{create_store, DBCol, Store};
 use std::time::{Duration, Instant};
