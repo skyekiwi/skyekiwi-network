@@ -34,3 +34,5 @@ enclave/bin/tmp/*
 **/*.o
 
 chaos/src/logs/*.log
+
+crates/**/mock/*ColState

@@ -42,7 +42,7 @@ impl Default for ExecutionResult {
     fn default() -> Self {
         ExecutionResult::new(
             ExecutionOutcome::default(),
-            &Rc::new(RefCell::new(init_runtime(&"root",None).0)),
+            &Rc::new(RefCell::new(init_runtime(&"root",None, None, None).0)),
             CryptoHash::default(),
         )
     }
@@ -258,7 +258,7 @@ mod tests {
         let outcome = ExecutionOutcome { status, ..Default::default() };
         let result = outcome_into_result(
             (CryptoHash::default(), outcome),
-            &Rc::new(RefCell::new(init_runtime(&"root", None).0)),
+            &Rc::new(RefCell::new(init_runtime(&"root", None, None, None).0)),
         );
         assert_eq!(value, result.unwrap_json_value());
     }

@@ -6,9 +6,6 @@ use log::debug;
 use borsh::BorshSerialize;
 pub use skw_vm_primitives::crypto;
 
-#[cfg(feature = "sandbox")]
-use skw_vm_primitives::contract_runtime::ContractCode;
-
 use skw_vm_primitives::profile::ProfileData;
 pub use skw_vm_primitives::apply_state::ApplyState;
 use skw_vm_primitives::fees::RuntimeFeesConfig;
@@ -884,13 +881,8 @@ impl Runtime {
         apply_state: &ApplyState,
         incoming_receipts: &[Receipt],
         transactions: &[SignedTransaction],
-        states_to_patch: Option<Vec<StateRecord>>,
     ) -> Result<ApplyResult, RuntimeError> {
         let _span = tracing::debug_span!(target: "runtime", "Runtime::apply").entered();
-
-        if states_to_patch.is_some() && !cfg!(feature = "sandbox") {
-            panic!("Can only patch state in sandbox mode");
-        }
 
         let trie = Rc::new(trie);
 
@@ -1029,11 +1021,6 @@ impl Runtime {
 
         state_update.commit(StateChangeCause::UpdatedDelayedReceipts);
 
-        #[cfg(feature = "sandbox")]
-        if let Some(patch) = states_to_patch {
-            self.apply_state_patches(&mut state_update, patch);
-        }
-
         let (trie_changes, state_changes) = state_update.finalize()?;
 
         let state_root = trie_changes.new_root;
@@ -1069,36 +1056,6 @@ impl Runtime {
                 )
             })?;
         Ok(())
-    }
-
-    #[cfg(feature = "sandbox")]
-    fn apply_state_patches(
-        &self,
-        state_update: &mut TrieUpdate,
-        states_to_patch: Vec<StateRecord>,
-    ) {
-        for record in states_to_patch {
-            match record {
-                StateRecord::Account { account_id, account } => {
-                    set_account(state_update, account_id, &account);
-                }
-                StateRecord::Data { account_id, data_key, value } => {
-                    state_update.set(TrieKey::ContractData { key: data_key, account_id }, value);
-                }
-                StateRecord::Contract { account_id, code } => {
-                    let acc = get_account(&state_update, &account_id).expect("Failed to read state").expect("Code state record should be preceded by the corresponding account record");
-                    // Recompute contract code hash.
-                    let code = ContractCode::new(code, None);
-                    set_code(state_update, account_id, &code);
-                    assert_eq!(*code.hash(), acc.code_hash());
-                }
-                StateRecord::AccessKey { account_id, public_key, access_key } => {
-                    set_access_key(state_update, account_id, public_key, &access_key);
-                }
-                _ => unimplemented!("patch_state can only patch Account, AccessKey, Contract and Data kind of StateRecord")
-            }
-        }
-        state_update.commit(StateChangeCause::Migration);
     }
 
     /// It's okay to use unsafe math here, because this method should only be called on the trusted
@@ -1394,7 +1351,6 @@ mod tests {
                 &apply_state,
                 &[],
                 &[],
-                None,
             )
             .unwrap();
     }
@@ -1421,7 +1377,6 @@ mod tests {
                     &apply_state,
                     prev_receipts,
                     &[],
-                    None,
                 )
                 .unwrap();
             let (store_update, new_root) =
@@ -1473,7 +1428,6 @@ mod tests {
                     &apply_state,
                     prev_receipts,
                     &[],
-                    None,
                 )
                 .unwrap();
             let (store_update, new_root) =
@@ -1522,7 +1476,6 @@ mod tests {
                     &apply_state,
                     prev_receipts,
                     &[],
-                    None,
                 )
                 .unwrap();
             let (store_update, new_root) =
@@ -1580,7 +1533,6 @@ mod tests {
                     &apply_state,
                     prev_receipts,
                     &[],
-                    None,
                 )
                 .unwrap();
             let (store_update, new_root) =
@@ -1671,7 +1623,6 @@ mod tests {
                 &apply_state,
                 &receipts[0..2],
                 &local_transactions[0..4],
-                None,
             )
             .unwrap();
         let (store_update, root) =
@@ -1709,7 +1660,6 @@ mod tests {
                 &apply_state,
                 &receipts[2..3],
                 &local_transactions[4..5],
-                None,
             )
             .unwrap();
         let (store_update, root) =
@@ -1742,7 +1692,6 @@ mod tests {
                 &apply_state,
                 &receipts[3..4],
                 &local_transactions[5..9],
-                None,
             )
             .unwrap();
         let (store_update, root) =
@@ -1780,7 +1729,6 @@ mod tests {
                 &apply_state,
                 &receipts[4..5],
                 &[],
-                None,
             )
             .unwrap();
         let (store_update, root) =
@@ -1809,7 +1757,6 @@ mod tests {
                 &apply_state,
                 &receipts[5..6],
                 &[],
-                None,
             )
             .unwrap();
 
@@ -1846,7 +1793,6 @@ mod tests {
                 &apply_state,
                 &receipts,
                 &[],
-                None,
             )
             .unwrap();
         assert_eq!(result.stats.gas_deficit_amount, result.stats.tx_burnt_amount * 9)
@@ -1903,7 +1849,6 @@ mod tests {
                 &apply_state,
                 &receipts,
                 &[],
-                None,
             )
             .unwrap();
         // We used part of the prepaid gas to paying extra fees.
@@ -1970,7 +1915,6 @@ mod tests {
                 &apply_state,
                 &receipts,
                 &[],
-                None,
             )
             .unwrap();
         // Used full prepaid gas, but it still not enough to cover deficit.
@@ -2005,7 +1949,6 @@ mod tests {
                 &apply_state,
                 &receipts,
                 &[],
-                None,
             )
             .unwrap();
         let (store_update, root) =
@@ -2046,7 +1989,6 @@ mod tests {
                 &apply_state,
                 &receipts,
                 &[],
-                None,
             )
             .unwrap();
         let (store_update, root) =

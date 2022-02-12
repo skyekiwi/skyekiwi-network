@@ -252,7 +252,6 @@ impl RuntimeStandalone {
             &apply_state,
             &self.pending_receipts,
             &Self::prepare_transactions(&mut self.tx_pool),
-            None,
         )?;
 
         self.pending_receipts = apply_result.outgoing_receipts;

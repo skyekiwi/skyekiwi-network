@@ -5,8 +5,8 @@ use crate::{ViewResult, new_p_account};
 
 use skw_vm_pool::{types::PoolIterator, TransactionPool};
 use skw_vm_primitives::{
-    crypto::{InMemorySigner, KeyType, PublicKey, Signer},
     account::{AccessKey, Account},
+    crypto::{InMemorySigner, KeyType, PublicKey, Signer},
     errors::RuntimeError,
     contract_runtime::{
         CryptoHash, Balance, BlockNumber, Gas, StateChangeCause,
@@ -25,13 +25,15 @@ use skw_vm_primitives::test_utils::account_new;
 use skw_vm_runtime::{state_viewer::TrieViewer, ApplyState, Runtime};
 use skw_contract_sdk::{Duration};
 use skw_vm_store::{
-    get_account, set_account, test_utils::create_test_store, ShardTries, Store, get_access_key,
+    get_account, set_account, create_store, ShardTries, Store, get_access_key,
 };
 
 const DEFAULT_BLOCK_PROD_TIME: Duration = 1_000_000_000;
 pub fn init_runtime(
     account_id: &str,
     cfg: Option<GenesisConfig>,
+    store: Option<&Arc<Store>>,
+    state_root: Option<CryptoHash>,
 ) -> (RuntimeStandalone, InMemorySigner) {
     let mut config = cfg.unwrap_or_default();
     config.runtime_config.wasm_config.limit_config.max_total_prepaid_gas = config.gas_limit;
@@ -52,8 +54,16 @@ pub fn init_runtime(
         access_key: AccessKey::full_access(),
     });
 
-    // genesis.config.wasm_config.limit_config.max_total_prepaid_gas = genesis.config.gas_limit;
-    let runtime = RuntimeStandalone::new_with_store(&config);
+    let store = match store {
+        None => create_store(),
+        Some(s) => s.clone(),
+    };
+    let state_root = match state_root {
+        None => CryptoHash::default(),
+        Some(sr) => sr
+    };
+
+    let runtime = RuntimeStandalone::new(&config, store, state_root);
     (runtime, signer)
 }
 
@@ -85,7 +95,7 @@ impl Default for GenesisConfig {
 #[derive(Debug, Default, Clone)]
 pub struct Block {
     prev_block: Option<Arc<Block>>,
-    state_root: CryptoHash,
+    pub state_root: CryptoHash,
     pub block_number: BlockNumber,
     pub block_timestamp: u64,
     pub gas_price: Balance,
@@ -145,22 +155,27 @@ pub struct RuntimeStandalone {
 }
 
 impl RuntimeStandalone {
-    pub fn new(genesis: &GenesisConfig, store: Arc<Store>) -> Self {
+    pub fn new(genesis: &GenesisConfig, store: Arc<Store>, state_root: CryptoHash) -> Self {
         let mut genesis_block = Block::genesis(&genesis);
+        
         let mut store_update = store.store_update();
-
         let runtime = Runtime::new();
         let tries = ShardTries::new(store);
 
-        let (s_update, state_root) = runtime.apply_genesis_state(
-            tries.clone(),
-            &genesis.state_records,
-            &genesis.runtime_config,
-        );
+        if state_root == CryptoHash::default() {
+            let (s_update, state_root) = runtime.apply_genesis_state(
+                tries.clone(),
+                &genesis.state_records,
+                &genesis.runtime_config,
+            );
 
-        store_update.merge(s_update);
-        store_update.commit().unwrap();
-        genesis_block.state_root = state_root;
+            store_update.merge(s_update);
+            store_update.commit().unwrap();
+
+            genesis_block.state_root = state_root;
+        } else {
+            genesis_block.state_root = state_root;
+        }
 
         Self {
             runtime_config: genesis.runtime_config.clone(),
@@ -177,7 +192,7 @@ impl RuntimeStandalone {
     }
 
     pub fn new_with_store(genesis: &GenesisConfig) -> Self {
-        RuntimeStandalone::new(genesis, create_test_store())
+        RuntimeStandalone::new(genesis, create_store(), CryptoHash::default())
     }
 
     /// Processes blocks until the final value is produced
@@ -252,7 +267,6 @@ impl RuntimeStandalone {
             &apply_state,
             &self.pending_receipts,
             &Self::prepare_transactions(&mut self.tx_pool),
-            None,
         )?;
 
         self.pending_receipts = apply_result.outgoing_receipts;
@@ -336,6 +350,10 @@ impl RuntimeStandalone {
         &self.cur_block
     }
 
+    pub fn state_root(&self) -> CryptoHash {
+        self.cur_block.state_root
+    }
+
     pub fn pending_receipts(&self) -> &[Receipt] {
         &self.pending_receipts
     }
@@ -359,7 +377,7 @@ mod tests {
 
     #[test]
     fn single_block() {
-        let (mut runtime, signer) = init_runtime(&"root", None);
+        let (mut runtime, signer) = init_runtime(&"root", None, None, None);
         let hash = runtime.send_tx(SignedTransaction::create_account(
             1,
             signer.account_id.clone(),
@@ -378,7 +396,7 @@ mod tests {
 
     #[test]
     fn process_all() {
-        let (mut runtime, signer) = init_runtime(&"root", None);
+        let (mut runtime, signer) = init_runtime(&"root", None, None, None);
         assert_eq!(runtime.view_account(&"bob"), None);
         let outcome = runtime.resolve_tx(SignedTransaction::create_account(
             1,
@@ -389,7 +407,6 @@ mod tests {
             &signer,
             CryptoHash::default(),
         ));
-        println!("{:?}", outcome);
         assert!(matches!(
             outcome,
             Ok((_, ExecutionOutcome { status: ExecutionStatus::SuccessValue(_), .. }))
@@ -402,7 +419,7 @@ mod tests {
 
     #[test]
     fn test_cross_contract_call() {
-        let (mut runtime, signer) = init_runtime(&"root", None);
+        let (mut runtime, signer) = init_runtime(&"root", None, None, None);
 
         assert!(matches!(
             runtime.resolve_tx(SignedTransaction::create_contract(
@@ -462,7 +479,7 @@ mod tests {
 
     #[test]
     fn test_force_update_account() {
-        let (mut runtime, _) = init_runtime(&"root", None);
+        let (mut runtime, _) = init_runtime(&"root", None, None, None);
         let mut account = runtime.view_account(&"root").unwrap();
         account.set_amount(10000);
         runtime.force_account_update(&"bob", &account);
@@ -471,7 +488,7 @@ mod tests {
 
     #[test]
     fn can_produce_many_blocks_without_stack_overflow() {
-        let (mut runtime, _) = init_runtime(&"root", None);
+        let (mut runtime, _) = init_runtime(&"root", None, None, None);
         runtime.produce_blocks(20_000).unwrap();
     }
 }
