@@ -25,28 +25,21 @@ struct CliArgs {
     signer: Option<String>,
 
     #[clap(long)]
-    transaction_action: Option<String>,
-    
-    #[clap(long)]
-    receiver: Option<String>,
-
-    #[clap(long)]
-    amount: Option<Balance>,
-    
-    #[clap(long)]
-    wasm_file: Option<PathBuf>,
-    
-    #[clap(long)]
-    method: Option<String>,
-
-    #[clap(long)]
-    args: Option<String>,
-
-    #[clap(long)]
-    to: Option<String>,
+    params: Option<String>,
     
     #[clap(long)]
     timings: bool,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+struct InputParams {
+    transaction_action: Option<String>,
+    receiver: Option<String>,
+    amount: Option<Balance>,
+    wasm_file: Option<PathBuf>,
+    method: Option<String>,
+    args: Option<String>,
+    to: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -59,9 +52,12 @@ struct InterfaceOutcome {
     pub outcome_tokens_burnt: Balance,
     pub outcome_executor_id: String,
     pub outcome_status: Option<Vec<u8>>,
-    pub new_state_root: CryptoHash,
 }
-
+#[derive(Serialize, Deserialize, Default)]
+struct Outputs {
+    ops: Vec<InterfaceOutcome>,
+    state_root: CryptoHash,
+}
 
 fn main() {
     let cli_args = CliArgs::parse();
@@ -89,156 +85,147 @@ fn main() {
         );
     }
 
-    if let Some(transaction_action) = &cli_args.transaction_action {
-        assert!(
-            cli_args.receiver.is_some(),
-            "receiver must be provided when transaction_action is set"
-        );
+    let params: Vec<InputParams> = serde_json::from_str(&cli_args.params.as_ref().unwrap()).expect("input parsing failed");
+    let mut outcomes = Outputs::default();
 
-        let mut outcome: Option<ExecutionResult> = None; 
-        let mut view_outcome: Option<ViewResult> = None; 
-
-        let mut state_root: CryptoHash = CryptoHash::default();
-
-        match transaction_action.as_str() {
-            "create_account" => {
-                assert!(
-                    cli_args.amount.is_some(),
-                    "amount must be provided when transaction_action is set"
-                );
-
-                script.create_account(
-                    &cli_args.receiver.unwrap(),
-                    cli_args.amount.unwrap(),
-                );
-            },
-            "transfer" => {
-                assert!(
-                    cli_args.amount.is_some(),
-                    "amount must be provided when transaction_action is set"
-                );
-
-                script.transfer(
-                    &cli_args.receiver.unwrap(),
-                    cli_args.amount.unwrap(),
-                );
-            },
-            "call" => {
-                assert!(
-                    cli_args.method.is_some(),
-                    "method must be provided when transaction_action is set"
-                );
-
-                assert!(
-                    cli_args.args.is_some(),
-                    "args must be provided when transaction_action is set"
-                );
-
-                outcome = Some(script.call(
-                    &cli_args.receiver.unwrap(),
-                    &cli_args.method.unwrap(),
-                    &cli_args.args.unwrap().as_bytes(),
-                    cli_args.amount.unwrap(),
-                ));
-            },
-            "view_method_call"  => {
-                assert!(
-                    cli_args.method.is_some(),
-                    "method must be provided when transaction_action is set"
-                );
-
-                assert!(
-                    cli_args.args.is_some(),
-                    "args must be provided when transaction_action is set"
-                );
-
-                view_outcome = Some(script.view_method_call(
-                    &cli_args.receiver.unwrap(),
-                    &cli_args.method.unwrap(),
-                    &cli_args.args.unwrap().as_bytes(),
-                ));
-            },
-            "delete_account" => {
-                script.delete_account(
-                    &cli_args.receiver.unwrap(),
-                    &cli_args.to.unwrap(),
-                );
-            },
-            "deploy" => {
-                assert!(
-                    cli_args.wasm_file.is_some(),
-                    "wasm_file must be provided when transaction_action is set"
-                );
-
-                assert!(
-                    cli_args.amount.is_some(),
-                    "amount must be provided when transaction_action is set"
-                );
-
-                let code = fs::read(&cli_args.wasm_file.unwrap()).unwrap();
-
-                script.deploy(
-                    &code,
-                    &cli_args.receiver.unwrap(),
-                    cli_args.amount.unwrap(),
-                );
-            },
-            _ => {}
-        }
-
-        // #[derive(Serialize, Deserialize, Default)]
-        // struct InterfaceOutcome {
-        //     pub view_result_log: Vec<String>,
-        //     pub view_result: Vec<u8>,
-        //     pub outcome_logs: Vec<String>,
-        //     pub outcome_receipt_ids: Vec<CryptoHash>,
-        //     pub outcome_gas_burnt: Gas,
-        //     pub outcome_tokens_burnt: Balance,
-        //     pub outcome_executor_id: String,
-        //     pub outcome_status: bool,
-        //     pub new_state_root: CryptoHash,
-        // }
-
-        let mut execution_result: InterfaceOutcome = InterfaceOutcome::default();
-
-        match &outcome {
-            Some(outcome) => {
-                execution_result.outcome_logs = outcome.logs().clone();
-                execution_result.outcome_receipt_ids = outcome.receipt_ids().clone();
-                execution_result.outcome_gas_burnt = outcome.gas_burnt().0;
-                execution_result.outcome_tokens_burnt = outcome.tokens_burnt();
-                execution_result.outcome_executor_id = outcome.executor_id().to_string();
-                execution_result.outcome_status = match outcome.status() {
-                    ExecutionStatus::SuccessValue(x) => Some(x),
-                    _ => None,
-                };
-
-                // println!("{:#?}", outcome);
+    for input in params.iter() {
+        if let Some(transaction_action) = &input.transaction_action {
+            assert!(
+                input.receiver.is_some(),
+                "receiver must be provided when transaction_action is set"
+            );
+    
+            let mut outcome: Option<ExecutionResult> = None; 
+            let mut view_outcome: Option<ViewResult> = None; 
+    
+            match transaction_action.as_str() {
+                "create_account" => {
+                    assert!(
+                        input.amount.is_some(),
+                        "amount must be provided when transaction_action is set"
+                    );
+    
+                    script.create_account(
+                        &input.receiver.as_ref().unwrap(),
+                        input.amount.unwrap(),
+                    );
+                },
+                "transfer" => {
+                    assert!(
+                        input.amount.is_some(),
+                        "amount must be provided when transaction_action is set"
+                    );
+    
+                    script.transfer(
+                        &input.receiver.as_ref().unwrap(),
+                        input.amount.unwrap(),
+                    );
+                },
+                "call" => {
+                    assert!(
+                        input.method.is_some(),
+                        "method must be provided when transaction_action is set"
+                    );
+    
+                    assert!(
+                        input.args.is_some(),
+                        "args must be provided when transaction_action is set"
+                    );
+    
+                    outcome = Some(script.call(
+                        &input.receiver.as_ref().unwrap(),
+                        &input.method.as_ref().unwrap(),
+                        &input.args.as_ref().unwrap().as_bytes(),
+                        input.amount.unwrap(),
+                    ));
+                },
+                "view_method_call"  => {
+                    assert!(
+                        input.method.is_some(),
+                        "method must be provided when transaction_action is set"
+                    );
+    
+                    assert!(
+                        input.args.is_some(),
+                        "args must be provided when transaction_action is set"
+                    );
+    
+                    view_outcome = Some(script.view_method_call(
+                        &input.receiver.as_ref().unwrap(),
+                        &input.method.as_ref().unwrap(),
+                        &input.args.as_ref().unwrap().as_bytes(),
+                    ));
+                },
+                "delete_account" => {
+                    script.delete_account(
+                        &input.receiver.as_ref().unwrap(),
+                        &input.to.as_ref().unwrap(),
+                    );
+                },
+                "deploy" => {
+                    assert!(
+                        input.wasm_file.is_some(),
+                        "wasm_file must be provided when transaction_action is set"
+                    );
+    
+                    assert!(
+                        input.amount.is_some(),
+                        "amount must be provided when transaction_action is set"
+                    );
+    
+                    let code = fs::read(&input.wasm_file.as_ref().unwrap()).unwrap();
+    
+                    script.deploy(
+                        &code,
+                        &input.receiver.as_ref().unwrap(),
+                        input.amount.unwrap(),
+                    );
+                },
+                _ => {}
             }
-            _ => {}
-        }
-
-        match &view_outcome {
-            Some(outcome) => {
-                execution_result.view_result_log = outcome.logs().clone();
-                execution_result.view_result = outcome.unwrap().clone();
-                
-                // println!("{:#?}", outcome);
-            }
-            _ => {}
-        }
-
         
-        if let Some(path) = &cli_args.state_file {
-            script.write_to_file(&path, &mut state_root);
+            let mut execution_result: InterfaceOutcome = InterfaceOutcome::default();
+
+            match &outcome {
+                Some(outcome) => {
+                    execution_result.outcome_logs = outcome.logs().clone();
+                    execution_result.outcome_receipt_ids = outcome.receipt_ids().clone();
+                    execution_result.outcome_gas_burnt = outcome.gas_burnt().0;
+                    execution_result.outcome_tokens_burnt = outcome.tokens_burnt();
+                    execution_result.outcome_executor_id = outcome.executor_id().to_string();
+                    execution_result.outcome_status = match outcome.status() {
+                        ExecutionStatus::SuccessValue(x) => Some(x),
+                        _ => None,
+                    };
+    
+                    // println!("{:#?}", outcome);
+                }
+                _ => {}
+            }
+    
+            match &view_outcome {
+                Some(outcome) => {
+                    execution_result.view_result_log = outcome.logs().clone();
+                    execution_result.view_result = outcome.unwrap().clone();
+                    
+                    // println!("{:#?}", outcome);
+                }
+                _ => {}
+            }
+    
+            outcomes.ops.push(execution_result);
         }
-
-        execution_result.new_state_root = state_root;
-        // println!("{:?}", state_root);
-
-        let output: String = serde_json::to_string(&execution_result).unwrap();
-        println!("{}", output);
     }
+    
+    let mut state_root = CryptoHash::default();
+    if let Some(path) = &cli_args.state_file {
+        script.write_to_file(&path, &mut state_root);
+    }
+
+    outcomes.state_root = state_root;
+
+    let output: String = serde_json::to_string(&outcomes).unwrap();
+    println!("{}", output);
 }
 
 
