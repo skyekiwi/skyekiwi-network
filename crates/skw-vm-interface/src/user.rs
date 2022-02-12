@@ -31,39 +31,6 @@ pub const STORAGE_AMOUNT: u128 = 50_000_000_000_000_000_000_000_000;
 
 type Runtime = Rc<RefCell<RuntimeStandalone>>;
 
-#[derive(Debug)]
-pub struct PendingContractTx {
-    pub receiver_id: AccountId,
-    pub method: String,
-    pub args: Vec<u8>,
-    pub is_view: bool,
-}
-
-impl PendingContractTx {
-    pub fn new(
-        receiver_id: AccountId,
-        method: &str,
-        args: serde_json::Value,
-        is_view: bool,
-    ) -> Self {
-        PendingContractTx::new_from_bytes(
-            receiver_id,
-            method,
-            args.to_string().into_bytes(),
-            is_view,
-        )
-    }
-
-    pub fn new_from_bytes(
-        receiver_id: AccountId,
-        method: &str,
-        args: Vec<u8>,
-        is_view: bool,
-    ) -> Self {
-        Self { receiver_id, method: method.to_string(), args, is_view }
-    }
-}
-
 pub struct UserTransaction {
     transaction: Transaction,
     signer: InMemorySigner,
@@ -149,12 +116,7 @@ impl UserAccount {
     pub fn account(&self) -> Option<Account> {
         (*self.runtime).borrow().view_account(&self.account_id.as_str())
     }
-     /// Look up the account information on chain.
-     pub fn account_of(&self, account_id: &str) -> Option<Account> {
-        (*self.runtime).borrow().view_account(account_id)
-    }
-
-    /// Look up the account information on chain.
+    /// Look up the latest state_root
     pub fn state_root(&self) -> CryptoHash {
         (*self.runtime).borrow().state_root()
     }
@@ -162,18 +124,6 @@ impl UserAccount {
     /// Transfer yoctoNear to another account
     pub fn transfer(&self, to: AccountId, deposit: Balance) -> ExecutionResult {
         self.submit_transaction(self.transaction(to).transfer(deposit))
-    }
-
-    /// Make a contract call.  `pending_tx` includes the receiver, the method to call as well as its arguments.
-    /// Note: You will most likely not be using this method directly but rather the [`call!`](./macro.call.html) macro.
-    pub fn function_call(
-        &self,
-        pending_tx: PendingContractTx,
-        gas: Gas,
-        deposit: Balance,
-    ) -> ExecutionResult {
-        let receiver_id = pending_tx.receiver_id.to_string().parse().unwrap();
-        self.call(receiver_id, &pending_tx.method, &pending_tx.args, gas, deposit)
     }
 
     pub fn call(
@@ -211,26 +161,6 @@ impl UserAccount {
         )
         .assert_success();
         UserAccount::new(&self.runtime, account_id, signer)
-    }
-
-    /// Deploy a contract and in the same transaction call its initialization method.
-    /// Note: You will most likely not be using this method directly but rather the [`deploy!`](./macro.deploy.html) macro.
-    pub fn deploy_and_initialize(
-        &self,
-        wasm_bytes: &[u8],
-        pending_tx: PendingContractTx,
-        deposit: Balance,
-        gas: Gas,
-    ) -> UserAccount {
-        let receiver_id = pending_tx.receiver_id.to_string().parse().unwrap();
-        self.deploy_and_init(
-            wasm_bytes,
-            receiver_id,
-            &pending_tx.method,
-            &pending_tx.args,
-            deposit,
-            gas,
-        )
     }
 
     pub fn deploy_and_init(
@@ -284,13 +214,6 @@ impl UserAccount {
         outcome_into_result(res, &self.runtime)
     }
 
-    /// Call a view method on a contract.
-    /// Note: You will most likely not be using this method directly but rather the [`view!`](./macros.view.html) macro.
-    pub fn view_method_call(&self, pending_tx: PendingContractTx) -> ViewResult {
-        let receiver_id = pending_tx.receiver_id.to_string().parse().unwrap();
-        self.view(receiver_id, &pending_tx.method, &pending_tx.args)
-    }
-
     pub fn view(&self, receiver_id: AccountId, method: &str, args: &[u8]) -> ViewResult {
         (*self.runtime).borrow().view_method_call(&receiver_id.as_str(), method, args)
     }
@@ -315,6 +238,21 @@ impl UserAccount {
             .assert_success();
         UserAccount::new(&self.runtime, account_id, signer)
     }
+
+    pub fn delete_account(
+        &self,
+        account_id: AccountId,
+        beneficiary_id: AccountId,
+    ) -> UserAccount {
+        let signer =
+            InMemorySigner::from_seed(new_p_account(&account_id.as_str()), KeyType::ED25519, &account_id.as_str());
+        self.submit_transaction(
+                self.transaction(account_id.clone())
+                    .delete_account(beneficiary_id),
+            ).assert_success();
+        UserAccount::new(&self.runtime, account_id, signer)
+    }
+
 
     /// Create a new user where the signer is this user account
     pub fn create_user(&self, account_id: AccountId, amount: Balance) -> UserAccount {
@@ -350,22 +288,6 @@ impl UserAccount {
     }
 }
 
-/// A account for a contract that includes a reference to the contract proxy and a user account
-pub struct ContractAccount<T> {
-    pub user_account: UserAccount,
-    pub contract: T,
-}
-
-// TODO: find smarter way to respond to all `self.user_account` methods for a ContractAccount
-impl<T> ContractAccount<T> {
-    pub fn account_id(&self) -> AccountId {
-        self.user_account.account_id()
-    }
-    pub fn account(&self) -> Option<Account> {
-        self.user_account.account()
-    }
-}
-
 /// The simulator takes an optional GenesisConfig, which sets up the fees and other settings.
 /// It returns the `master_account` which can then create accounts and deploy contracts.
 pub fn init_node(genesis_config: Option<GenesisConfig>) -> UserAccount {
@@ -381,70 +303,4 @@ pub fn recover_node(genesis_config: Option<GenesisConfig>, store: Option<&Arc<St
 pub fn init_node_with_store(genesis_config: Option<GenesisConfig>, store: Option<&Arc<Store>>, state_root: Option<CryptoHash> ) -> UserAccount {
     let (runtime, signer) = init_runtime(&"root", genesis_config, store, state_root);
     UserAccount::new(&Rc::new(RefCell::new(runtime)), AccountId::from_str("root").unwrap(), signer)
-}
-
-#[macro_export]
-macro_rules! deploy {
-    ($contract: ident, $account_id:expr, $wasm_bytes: expr, $user:expr $(,)?) => {
-        deploy!($contract, $account_id, $wasm_bytes, $user, skw_vm_interface::STORAGE_AMOUNT)
-    };
-    ($contract: ident, $account_id:expr, $wasm_bytes: expr, $user:expr, $deposit: expr $(,)?) => {
-        skw_vm_interface::ContractAccount {
-            user_account: $user.deploy($wasm_bytes, skw_contract_sdk::AccountId::new_unchecked($account_id.to_string()), $deposit),
-            contract: $contract { account_id: skw_contract_sdk::AccountId::new_unchecked($account_id.to_string()) },
-        }
-    };
-    ($contract: ident, $account_id:expr, $wasm_bytes: expr, $user_id:expr, $deposit:expr, $gas:expr, $method: ident, $($arg:expr),* $(,)?) => {
-           {
-               let __contract = $contract { account_id: skw_contract_sdk::AccountId::new_unchecked($account_id.to_string()) };
-               skw_vm_interface::ContractAccount {
-                   user_account: $user_id.deploy_and_initialize($wasm_bytes, __contract.$method($($arg),*), $deposit, $gas),
-                   contract: __contract,
-               }
-           }
-   };
-    (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr $(,)?) => {
-      deploy!($contract, $account_id, $wasm_bytes, $user)
-    };
-    (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, deposit: $deposit: expr $(,)?) => {
-        deploy!($contract, $account_id, $wasm_bytes, $user, $deposit)
-    };
-    (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, deposit: $deposit: expr, gas: $gas:expr, init_method: $method: ident($($arg:expr),*) $(,)?) => {
-       deploy!($contract, $account_id, $wasm_bytes, $user, $deposit, $gas, $method, $($arg),*)
-    };
-    (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, gas: $gas:expr, init_method: $method: ident($($arg:expr),*) $(,)?) => {
-       deploy!($contract, $account_id, $wasm_bytes, $user, skw_vm_interface::STORAGE_AMOUNT, $gas, $method, $($arg),*)
-    };
-    (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, deposit: $deposit: expr, init_method: $method: ident($($arg:expr),*) $(,)?) => {
-       deploy!($contract, $account_id, $wasm_bytes, $user, $deposit, skw_vm_interface::DEFAULT_GAS, $method, $($arg),*)
-    };
-    (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, init_method: $method: ident($($arg:expr),*) $(,)?) => {
-       deploy!($contract, $account_id, $wasm_bytes, $user, skw_vm_interface::STORAGE_AMOUNT, skw_vm_interface::DEFAULT_GAS, $method, $($arg),*)
-    };
-}
-
-#[macro_export]
-macro_rules! call {
-    ($signer:expr, $deposit: expr, $gas: expr, $contract: ident, $method:ident, $($arg:expr),*) => {
-        $signer.function_call((&$contract).contract.$method($($arg),*), $gas, $deposit)
-    };
-    ($signer:expr, $contract: ident.$method:ident($($arg:expr),*), $deposit: expr, $gas: expr) => {
-        call!($signer, $deposit, $gas, $contract, $method, $($arg),*)
-    };
-    ($signer:expr, $contract: ident.$method:ident($($arg:expr),*)) => {
-        call!($signer, 0, skw_vm_interface::DEFAULT_GAS,  $contract, $method, $($arg),*)
-    };
-    ($signer:expr, $contract: ident.$method:ident($($arg:expr),*), gas=$gas_or_deposit: expr) => {
-        call!($signer, 0, $gas_or_deposit, $contract, $method, $($arg),*)
-    };
-    ($signer:expr, $contract: ident.$method:ident($($arg:expr),*), deposit=$gas_or_deposit: expr) => {
-        call!($signer, $gas_or_deposit, skw_vm_interface::DEFAULT_GAS, $contract, $method, $($arg),*)
-    };
-}
-
-#[macro_export]
-macro_rules! view {
-    ($contract: ident.$method:ident($($arg:expr),*)) => {
-        (&$contract).user_account.view_method_call((&$contract).contract.$method($($arg),*))
-    };
 }

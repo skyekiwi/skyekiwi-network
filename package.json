@@ -15,6 +15,7 @@
     "main:build": "node ./skw-tools-scripts/main-build.cjs",
     "main:ci": "node ./skw-tools-scripts/main-ci.cjs",
     "main:test": "node ./skw-tools-scripts/main-test.cjs",
+    "vm-interface:run": "node ./skw-tools-scripts/vm-interface-run.cjs",
 
     "docker:build": "node ./skw-tools-scripts/docker-build.cjs",
     "railway:run": "node ./skw-tools-scripts/railway-run.cjs",

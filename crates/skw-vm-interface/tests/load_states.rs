@@ -40,8 +40,8 @@ fn test_dump_state_from_file() {
             to_yocto("100")
         );
 
-        let status_account = root_account.account_of(&"status");
-        let alice_account = root_account.account_of(&"alice");
+        let status_account = root_account.borrow_runtime().view_account(&"status");
+        let alice_account = root_account.borrow_runtime().view_account(&"alice");
 
         assert!(status_account.is_some());
         assert!(alice_account.is_some());
@@ -83,15 +83,15 @@ fn test_dump_state_from_file() {
         );
 
         // existing accounts in the state store
-        let status_account = root_account.account_of(&"status");
-        let alice_account = root_account.account_of(&"alice");
+        let status_account = root_account.borrow_runtime().view_account(&"status");
+        let alice_account = root_account.borrow_runtime().view_account(&"alice");
 
         assert!(status_account.is_some());
         assert!(alice_account.is_some());
 
         // newly created accounts in the state store
-        let status_account = root_account.account_of(&"status_new");
-        let alice_account = root_account.account_of(&"alice_new");
+        let status_account = root_account.borrow_runtime().view_account(&"status_new");
+        let alice_account = root_account.borrow_runtime().view_account(&"alice_new");
 
         assert!(status_account.is_some());
         assert!(alice_account.is_some());

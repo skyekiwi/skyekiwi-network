@@ -36,3 +36,5 @@ enclave/bin/tmp/*
 chaos/src/logs/*.log
 
 crates/**/mock/*ColState
+vm-interface.json
+vm-state-dump/interface__state_dump__ColState

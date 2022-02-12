@@ -331,7 +331,7 @@ impl RuntimeStandalone {
         let mut logs = vec![];
         let view_state = ViewApplyState {
             block_number: self.cur_block.block_number,
-            prev_block_hash: self.cur_block.prev_block.as_ref().unwrap().state_root,
+            prev_block_hash: CryptoHash::default(), //self.cur_block.prev_block.as_ref().unwrap().state_root,
             block_timestamp: self.cur_block.block_timestamp,
             block_hash: self.cur_block.state_root,
         };
