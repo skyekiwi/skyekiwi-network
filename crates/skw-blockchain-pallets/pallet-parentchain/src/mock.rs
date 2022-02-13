@@ -1,5 +1,6 @@
 #![cfg(test)]
-use crate as pallet_registry;
+use crate as pallet_parentchain;
+use pallet_registry;
 
 use frame_support::parameter_types;
 use frame_system as system;
@@ -21,6 +22,7 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Registry: pallet_registry::{Pallet, Call, Storage, Event<T>},
+		Parentchain: pallet_parentchain::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -64,6 +66,19 @@ impl pallet_registry::Config for Test {
 	type Event = Event;
 	type RegistrationDuration = RegistrationDuration;
 	type MaxActiveShards = MaxActiveShards;
+}
+
+parameter_types! {
+	pub const DeplayThreshold: u32 = 20;
+	pub const MaxOutcomePerSubmission: u64 = 20;
+	pub const MaxSizePerOutcome: u64 = 1024;
+}
+
+impl pallet_parentchain::Config for Test {
+	type Event = Event;
+	type DeplayThreshold = DeplayThreshold;
+	type MaxOutcomePerSubmission = MaxOutcomePerSubmission;
+	type MaxSizePerOutcome = MaxSizePerOutcome;
 }
 
 // Build genesis storage according to the mock runtime.

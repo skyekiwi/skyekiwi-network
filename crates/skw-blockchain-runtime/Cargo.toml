@@ -21,6 +21,7 @@ pallet-naming = { default-features = false, path = '../skw-blockchain-pallets/pa
 pallet-secrets = { default-features = false, path = '../skw-blockchain-pallets/pallet-secrets', version = '3.0.0' }
 pallet-s-contract = { default-features = false, path = '../skw-blockchain-pallets/pallet-s-contract', version = '3.0.0' }
 pallet-registry = { default-features = false, path = '../skw-blockchain-pallets/pallet-registry', version = '3.0.0' }
+pallet-parentchain = { default-features = false, path = '../skw-blockchain-pallets/pallet-parentchain', version = '3.0.0' }
 
 codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
 frame-benchmarking = {default-features = false, git = 'https://github.com/paritytech/substrate.git', optional = true, tag = 'monthly-2021-12', version = '4.0.0-dev'}

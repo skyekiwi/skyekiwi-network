@@ -1,10 +1,10 @@
 [package]
 authors = ['SkyeKiwi <https://github.com/skyekiwi>']
-description = 'a secret registry palelt for the SkyeKiwi Protocol'
+description = 'offchain vm chain sycner'
 edition = '2021'
 homepage = 'https://skye.kiwi'
 license = 'GPL-3.0'
-name = 'pallet-secrets'
+name = 'pallet-parentchain'
 readme = 'README.md'
 repository = 'https://github.com/skyekiwi/skyekiwi-network'
 version = '3.0.0'
@@ -18,13 +18,14 @@ log = "*"
 env_logger="*"
 
 [dependencies]
+pallet-registry = { version = "3.0.0", default-features = false, path = "../pallet-registry" }
 codec = {default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0'}
 frame-benchmarking = { default-features = false, git = 'https://github.com/paritytech/substrate.git', optional = true, tag = 'monthly-2021-12', version = '4.0.0-dev'}
 frame-support = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
 frame-system = { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
 scale-info = { default-features = false, features = ['derive'], version = '1.0'}
 sp-std = { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
-sp-core = { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = "4.0.0-dev"}
+sp-core = { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
 sp-io = { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
 sp-runtime = { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
 
