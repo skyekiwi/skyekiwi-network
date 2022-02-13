@@ -11,11 +11,13 @@ mod mock;
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
 
+type ShardId = u64;
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 	use frame_support::sp_runtime::traits::Saturating;
+	use frame_support::sp_runtime::SaturatedConversion;
 	use super::*;
 	
 	#[pallet::config]
@@ -24,6 +26,9 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type RegistrationDuration: Get<u32>;
+
+		#[pallet::constant]
+		type MaxActiveShards: Get<u64>;
 		// type ForceOrigin: EnsureOrigin<Self::Origin>;
 	}
 
@@ -45,14 +50,27 @@ pub mod pallet {
 	#[pallet::getter(fn public_key_of)]
 	pub(super) type PublicKey<T: Config> = StorageMap<_, Twox64Concat, 
 		T::AccountId, Vec<u8>>;
+	
+	#[pallet::storage]
+	#[pallet::getter(fn shard_members_of)]
+	pub(super) type ShardMembers<T: Config> = StorageMap<_, Twox64Concat, ShardId, Vec<T::AccountId>>;
+	
+	#[pallet::storage]
+	#[pallet::getter(fn beacon_index_of)]
+	pub(super) type BeaconIndex<T: Config> = StorageDoubleMap<_, Twox64Concat, ShardId,
+	Twox64Concat, T::AccountId, u64>;
 
-
+	#[pallet::storage]
+	#[pallet::getter(fn beacon_count_of)]
+	pub(super) type BeaconCount<T: Config> = StorageMap<_, Twox64Concat, ShardId, u64>;
+	
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		SecretKeeperRegistered(T::AccountId),
 		SecretKeeperRenewed(T::AccountId),
 		SecretKeeperRemoved(T::AccountId),
+		NewMemberForShard(ShardId),
 	}
 
 	#[pallet::error]
@@ -61,6 +79,7 @@ pub mod pallet {
 		DuplicateRegistration,
 		RegistrationNotFound,
 		Unexpected,
+		InvalidShardId,
 	}
 
 	#[pallet::call]
@@ -75,8 +94,6 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			ensure!(!<Expiration<T>>::contains_key(&who), Error::<T>::DuplicateRegistration);
-			// TODO: do we really need this?
-			ensure!(!<PublicKey<T>>::contains_key(&who), Error::<T>::DuplicateRegistration);
 			ensure!(Self::validate_signature(signature), Error::<T>::InvalidSecretKeeper);
 
 			// TODO: check for key validity
@@ -105,8 +122,6 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			ensure!(<Expiration<T>>::contains_key(&who), Error::<T>::RegistrationNotFound);
-			// TODO: do we really need this?
-			ensure!(<PublicKey<T>>::contains_key(&who), Error::<T>::RegistrationNotFound);
 			ensure!(Self::validate_signature(signature), Error::<T>::InvalidSecretKeeper);
 
 			// TODO: check for key validity
@@ -137,6 +152,38 @@ pub mod pallet {
 				},
 				false => Err(Error::<T>::RegistrationNotFound.into())
 			}
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		pub fn register_running_shard(
+			origin: OriginFor<T>,
+			shard: ShardId,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			
+			ensure!(Self::is_valid_shard_id(shard), Error::<T>::InvalidShardId);
+			ensure!(Self::is_valid_secret_keeper(&who), Error::<T>::InvalidSecretKeeper);
+			let shard_members = Self::shard_members_of(shard);
+			let shard_members = match shard_members {
+				None => {
+					// first member of the shard
+					let mut shard_members = Vec::new();
+					shard_members.push(who.clone());
+					shard_members
+				},
+				Some(mut shard_members) => {
+					shard_members.push(who.clone());
+					shard_members
+				}
+			};
+
+			<BeaconIndex<T>>::insert(&shard, &who, shard_members.len() as u64);
+			<BeaconCount<T>>::mutate(&shard, 
+				|count| *count = Some(shard_members.len() as u64));
+			<ShardMembers<T>>::mutate(&shard, 
+				|members| *members = Some(shard_members));
+
+			Ok(())
 		}
 	}
 
@@ -189,6 +236,65 @@ pub mod pallet {
 				},
 				false => false
 			}
+		}
+
+		pub fn is_valid_shard_id(shard: ShardId) -> bool {
+			shard <= T::MaxActiveShards::get()
+		}
+
+		pub fn is_beacon_turn(
+			block_number: T::BlockNumber, 
+			who: &T::AccountId, 
+			shard: ShardId,
+			threshold: u64,
+		) -> bool {
+			if !Self::is_valid_shard_id(shard) || !Self::is_valid_secret_keeper(who) {
+				return false;
+			}
+
+			if threshold < 1 {
+				return false;
+			}
+
+			let beacon_index = Self::beacon_index_of(shard, who);
+			if beacon_index.is_none() {
+				// sanity check
+				return false;
+			}
+
+			let beacon_count = Self::beacon_count_of(shard);
+			if beacon_count.is_none() || beacon_count == Some(0) {
+				// sanity check
+				return false;
+			}
+
+			let beacon_index = beacon_index.unwrap();
+			let beacon_count = beacon_count.unwrap();
+			
+			if threshold >= beacon_count {
+				// always allow when threshold is greater than or equal to the number of members
+				return true;
+			}
+
+			// NO PANIC BELOW THIS LINE
+			let block_number = block_number.saturated_into::<u64>();
+
+			// 1 2 3 4 5 6 7 8 9 
+			// _ X X X _ _ _ _ _
+			(
+				block_number % beacon_count <= beacon_index &&
+				beacon_index <= block_number % beacon_count + threshold - 1
+			) 
+			||
+			// X X _ _ _ _ _ _ X
+			(
+				block_number % beacon_count + threshold - 1 > beacon_count && 
+				(
+					beacon_count - (block_number % beacon_count + threshold - 1) % beacon_count <= beacon_index 
+						||
+					beacon_index <= block_number % beacon_count + threshold - 1 - beacon_count
+				)
+			)
 		}
 
 		// TODO: move this to a shared crate

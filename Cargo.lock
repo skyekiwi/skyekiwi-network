@@ -4246,6 +4246,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-parentchain"
+version = "3.0.0"
+dependencies = [
+ "env_logger 0.7.1",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-registry",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "test-env-log",
+]
+
+[[package]]
 name = "pallet-randomness-collective-flip"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate.git?tag=monthly-2021-12#b6c1c1bcfa5d831bfd1f278064d7af757f9b38f5"
@@ -4268,7 +4287,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-balances",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -4287,8 +4305,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-balances",
- "pallet-registry",
  "pallet-secrets",
  "parity-scale-codec",
  "scale-info",
@@ -4308,7 +4324,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-balances",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -6875,6 +6890,7 @@ dependencies = [
  "pallet-balances",
  "pallet-grandpa",
  "pallet-naming",
+ "pallet-parentchain",
  "pallet-randomness-collective-flip",
  "pallet-registry",
  "pallet-s-contract",

@@ -56,11 +56,13 @@ impl system::Config for Test {
 
 parameter_types! {
 	pub const IPFSCIDLength: u32 = 46;
+	pub const MaxActiveShards: u64 = 0;
 }
 
 impl pallet_secrets::Config for Test {
 	type Event = Event;
 	type IPFSCIDLength = IPFSCIDLength;
+	type MaxActiveShards = MaxActiveShards;
 }
 
 // Build genesis storage according to the mock runtime.

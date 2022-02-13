@@ -16,6 +16,7 @@ mod mock;
 
 pub type CallIndex = u64;
 pub type EncodedCall = Vec<u8>;
+pub type ShardId = u64;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -26,8 +27,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: 
 		frame_system::Config + 
-		pallet_secrets::Config +
-		pallet_registry::Config
+		pallet_secrets::Config
 	{
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -45,8 +45,8 @@ pub mod pallet {
 	// index of EncodedCall ALWAYS should equals to its CallIndex
 	#[pallet::storage]
 	#[pallet::getter(fn call_history_of)]
-	pub(super) type CallHistory<T: Config> = StorageMap<_, Blake2_128Concat,
-		SecretId, Vec<(EncodedCall, T::AccountId, bool)> >;
+	pub(super) type CallHistory<T: Config> = StorageMap<_, Twox64Concat,
+		ShardId, Vec<(T::BlockNumber, EncodedCall, T::AccountId)> >;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -72,8 +72,9 @@ pub mod pallet {
 		pub fn register_contract(
 			origin: OriginFor<T>, 
 			metadata: Vec<u8>,
-			contract_public_key: Vec<u8>,
+			wasm_blob_cid: Vec<u8>,
 			initialization_call: EncodedCall,
+			shard_id: ShardId,
 		) -> DispatchResult {
 			let deployer = ensure_signed(origin.clone())?;
 
@@ -83,7 +84,7 @@ pub mod pallet {
 			);
 
 			match pallet_secrets::Pallet::<T>::register_secret_contract(
-				origin, metadata, contract_public_key
+				origin, metadata, wasm_blob_cid, shard_id
 			) {
 				Ok(()) => {
 					// TODO: is this always right??
@@ -117,40 +118,6 @@ pub mod pallet {
 				}
 			}
 		}
-
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
-		pub fn fullfill_call(
-			origin: OriginFor<T>, 
-			contract_index: SecretId,
-			call_index: CallIndex,
-			// gotta structure this into the skw-primritives
-			call_output: Vec<u8>,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			ensure!(pallet_registry::Pallet::<T>::is_valid_secret_keeper(&who), Error::<T>::Unauthorized);
-			ensure!(Self::validate_output(&call_output), Error::<T>::InvalidCallOutput);
-			
-			match Self::call_history_of(&contract_index) {
-				Some(mut history) => {
-					match history.get_mut(call_index as usize) {
-						Some(res) => {
-							let mut res_clone = res.clone();
-							res_clone.2 = true;
-							* res = res_clone;
-
-							Self::deposit_event(Event::<T>::CallFullfilled(contract_index, call_index, call_output));
-							Ok(())
-						},
-						None => {
-							Err(Error::<T>::InvalidCallIndex.into())
-						}
-					}
-				},
-				None => {
-					Err(Error::<T>::InvalidContractIndex.into())
-				}
-			}
-		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -178,7 +145,8 @@ pub mod pallet {
 			}
 
 			if let Some(mut content) = history {
-				content.push((call, origin, false));
+				let now = frame_system::Pallet::<T>::block_number();
+				content.push((now, call, origin));
 				<CallHistory<T>>::insert(&contract_index, content.clone());
 				Some(content.len() as u64)
 			} else {
@@ -189,7 +157,7 @@ pub mod pallet {
 		pub fn get_call(
 			contract_index: SecretId,
 			call_index: CallIndex
-		) -> Option<(EncodedCall, T::AccountId, bool)> {
+		) -> Option<(T::BlockNumber, EncodedCall, T::AccountId)> {
 			match Self::call_history_of(&contract_index) {
 				Some(history) => {
 					match history.get(call_index as usize) {

@@ -42,6 +42,7 @@ pub use pallet_naming;
 pub use pallet_secrets;
 pub use pallet_s_contract;
 pub use pallet_registry;
+pub use pallet_parentchain;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -299,17 +300,19 @@ impl pallet_naming::Config for Runtime {
 }
 
 parameter_types! {
-    pub const IPFSCIDLength: u32 = 46;
+	pub const IPFSCIDLength: u32 = 46;
+	pub const MaxActiveShards: u64 = 0;
 }
 
 impl pallet_secrets::Config for Runtime {
-    type Event = Event;
-		type IPFSCIDLength = IPFSCIDLength;
+	type Event = Event;
+	type IPFSCIDLength = IPFSCIDLength;
+	type MaxActiveShards = MaxActiveShards;
 }
 
 parameter_types! {
-	pub const MaxCallLength: u32 = 128;
-	pub const MaxOutputLength: u32 = 256;
+	pub const MaxCallLength: u32 = 512;
+	pub const MaxOutputLength: u32 = 1024;
 }
 
 impl pallet_s_contract::Config for Runtime {
@@ -324,6 +327,21 @@ parameter_types! {
 impl pallet_registry::Config for Runtime {
 	type Event = Event;
 	type RegistrationDuration = RegistrationDuration;
+	type MaxActiveShards = MaxActiveShards;
+}
+
+
+parameter_types! {
+	pub const DeplayThreshold: u32 = 20;
+	pub const MaxOutcomePerSubmission: u64 = 20;
+	pub const MaxSizePerOutcome: u64 = 1024;
+}
+
+impl pallet_parentchain::Config for Runtime {
+	type Event = Event;
+	type DeplayThreshold = DeplayThreshold;
+	type MaxOutcomePerSubmission = MaxOutcomePerSubmission;
+	type MaxSizePerOutcome = MaxSizePerOutcome;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -346,6 +364,7 @@ construct_runtime!(
 		Secrets: pallet_secrets::{Pallet, Call, Storage, Event<T>},
 		SContract: pallet_s_contract::{Pallet, Call, Storage, Event<T>},
 		Registry: pallet_registry::{Pallet, Call, Storage, Event<T>},
+		Parentchain: pallet_parentchain::{Pallet, Call, Storage, Event<T>},
 	}
 );
 

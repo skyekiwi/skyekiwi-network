@@ -6,6 +6,7 @@ members = [
     'crates/skw-blockchain-pallets/pallet-secrets',
     'crates/skw-blockchain-pallets/pallet-s-contract',
     'crates/skw-blockchain-pallets/pallet-registry',
+    'crates/skw-blockchain-pallets/pallet-parentchain',
     'crates/skw-blockchain-runtime',
 
     # SkyeKiwi VM based on NEAR VM
