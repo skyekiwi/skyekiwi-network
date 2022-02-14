@@ -31,6 +31,8 @@ frame-system = {default-features = false, git = 'https://github.com/paritytech/s
 frame-system-benchmarking = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev', optional = true}
 frame-system-rpc-runtime-api = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
 hex-literal = {optional = true, version = '0.3.1'}
+
+pallet-utility = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
 pallet-aura = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
 pallet-balances = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
 pallet-grandpa = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}

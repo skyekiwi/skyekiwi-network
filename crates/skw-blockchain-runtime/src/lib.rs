@@ -280,6 +280,13 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
+impl pallet_utility::Config for Runtime {
+    type Event = Event;
+    type Call = Call;
+    type PalletsOrigin = OriginCaller;
+	type WeightInfo = ();
+}
+
 parameter_types! {
     pub const ReservationFee: u128 = 10_000_000_000_000;
 		// pub const Day: BlockNumber = DAYS;
@@ -359,6 +366,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
+		Utility: pallet_utility::{Pallet, Call, Event},
 
 		Naming: pallet_naming::{Pallet, Call, Storage, Event<T>},
 		Secrets: pallet_secrets::{Pallet, Call, Storage, Event<T>},

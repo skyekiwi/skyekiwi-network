@@ -13,17 +13,7 @@ const u8aToString = (u8a) => {
 const u8aToHex = (bytes) =>
   bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
 
-  //   struct InputParams {
-//     transaction_action: Option<String>,
-//     receiver: Option<String>,
-//     amount: Option<Balance>,
-//     wasm_file: Option<PathBuf>,
-//     method: Option<String>,
-//     args: Option<String>,
-//     to: Option<String>,
-// }
-
-function generateParams(config) {
+  function generateParams(config) {
     return `\'${JSON.stringify(config)}\'`;
 }
 
