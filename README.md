@@ -46,7 +46,9 @@ The SkyeKiwi Network blockchain is based on Substrate and currently contains 3 m
 
 ​	`pallet-secrets` for secret registration: Late Alpha
 
-​	`pallet-s-contract` for an exposed interface to call secret contracts: Not Finished
+​	`pallet-s-contract` for an exposed interface to call secret contracts: Alpha
+
+​	`pallet-parentchain` for syncing offchain blocks on chain: Alpha
 
 There is not a `chain-spec` file yet to run a test-net. Est. Avaliable by the end of Feberuray 2022. 
 
@@ -78,17 +80,34 @@ As a result:
 
 - The default enclave heap size allocated is `0xf00000` bytes. As a result, it will be hard to process secrets larger than 1MB. The process might panic. Generally, the SkyeKiwi Protocol inside the SGX Enclave is designed to process secret smart contract states ... and they rarely reaches these much of storage usage either way. Plus, we always have the option to allocate more memory to the enclave. 
 - The IPFS module does not comes with the automatic fallback function as the client side yet. Not a top priority for us yet. For testers, if your enclave tests failed because of `HttpErrors`. Try again.
-- The typical `upstream` and `downstream` processing is now divided into three seperated steps: `pre-processing`, `encrypt-cid-list` and `post-processing`. We might blog about it later, or we might find a better arch for it later. It's hard to explain in a line. 
+- The typical `upstream` and `downstream` processing is now divided into three seperated steps: `pre-processing`, `encrypt-cid-list` and `post-processing`. We might blog about it later, or we might find a better arch for it later. Details below. 
 
 **Building & Testing**
 
+0. Make sure all Rust env are correctly installed. 
+
+Here's the cheatsheet. 
+
+To Install Rust:
+```
+curl https://sh.rustup.rs -sSf | sh -s -- -y
+source ~/.cargo/env
+```
+
+Install target `wasm32`
+```
+rustup target add wasm32-unknown-unknown --toolchain nightly
+```
+
 1. `yarn main:build`
 
-Will generate two binaries: `skyekiwi-node` and `skw-vm-engine-cli`. 
+Will generate three binaries: `skyekiwi-node`, `skw-vm-engine-cli` and `skw-vm-interface`. 
 
 `skyekiwi-node` is the Substrate based blockchain binary. 
 
 `skw-vm-engine-cli` is a testing tool for manualy run a low-level SkyeKiwi Offchain VM secret contract. 
+
+`skw-vm-interface` is used to executing transactions in complete runtime environment. Supported types of transactions are `deploy` to deploy contracts; `create_account` to create accounts; `call` to invoke smart contract calls and `view_method_call` to view the secret state. 
 
 2. `yarn main:test` Might take a while to finish!
 
@@ -105,6 +124,28 @@ Currently, the enclave only contains code to run unit tests and integration test
 
 **Note:**  the enclave runs on **Intel SGX Platform**, therefore, AMD based computers, cloud VMs, or ARM based computers (like Apple M1 MacBooks) cannot run the docker simulation of the real enclave. For more information, refer to [Apache/Teaclave-SGX-SDK](http://github.com/apache/incubator-teaclave-sgx-sdk). 
 
+## Integrating the SkyeKiwi Protocol to your project
+For most users, READMEs on the TypeScript version of the SkyeKiwi Protocol will be more applicable. https://github.com/skyekiwi/skyekiwi-protocol. It's a known issue that most browser wallet extensions have limited to none supports to decrypt/encrypt with ECDH based encryption. We have been working on this problem. 
+
+For curious users who want to integrate the TEE version of the SkyeKiwi Protocol to their code, it won't be as straightforwards as the TypeScript version. Guess a general descriptions of how secrets are processed inside the enclave will be helpful. 
+
+There are the **Trust** and **Untrusted** parts of the protocol. A generaly principle is to NEVER have the unencrypted secrets exposed to the untrusted parts, while minimize the exposure of the metadata to the untrusted parts as well. The calls into the enclaves are called `ecall`, and the processing on the untrusted parts are called `host` or `app`. In our implementation of the SkyeKiwi Protocol inside TEE, the `upstream` and `downstream` processes are broken down to three calls: 
+
+`ecall_protocol_upstream_pre`: to pre-packaging the file from the SGX protected filesystem, encrypt them and emit to the normal file system for the `host` to upload to IPFS. 
+
+`ecall_protocol_upstream_cid_list`: to encrypt the CID list we got from uploading from the previous step. 
+
+`ecall_protocol_upstream_seal`: to process the CID list and seal the metadata to the desired recipients. 
+
+For the downstream procss, it's symmetrical to the upstream process but reversed. 
+
+`ecall_protocol_downstream_pre`: reverse the processed metadata from `ecall_protocol_upstream_seal`;
+
+`ecall_protocol_downstream_cid_list`: reverse the processed CID list from `ecall_protocol_upstream_cid_list`;
+
+`ecall_protocol_downstream_unseal`: reverse the processed metadata from `ecall_protocol_upstream_pre`;
+
+The metadata packaged are identitical to the metadata from the TypeScript implementation. 
 
 
 ## License
