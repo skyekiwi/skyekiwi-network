@@ -148,6 +148,24 @@ For the downstream procss, it's symmetrical to the upstream process but reversed
 The metadata packaged are identitical to the metadata from the TypeScript implementation. 
 
 
+## Technical Roadmap to Mainnet and Beyond for the SkyeKiwi Network
+Like all blockchains, it will take a few stages before the network launch into mainnet and so are we. The SkyeKiwi Network is generally divided to the main chain and a shadow chain. The main chain is the public interface of the SkyeKiwi Network, while the the shadowchain is not a full-fledged blockchain, but a virtual blockchain in form of offchain runtimes to execute secret contracts. The shadow chain is sharded and will have more shards over time. The shadowchain is a modified version of the runtime of the NEAR Protocol.
+
+**Stage 1**: Testnet Alpha
+Testnet Alpha is a PoA testnet for the main chain and runs the shadow chain (the `mock-enclave`) on trusted servers instead of trusted TEE hardwares, while the shadow chain will have only one shard running. Testnet Alpha is capable of executing a mostly full functional secret contracts without a few host functions. Tokens on testnet alpha has no money value. 
+
+**Stage 2**: Testnet Beta
+Testnet Beta is a NPoS testnet for the main chain and runs shadow chain on a mixture of trusted servers and trusted hardwares, while the shadow chain will still have only one shard running. Testnet Beta is capable of executing full functional secret contracts. Tokens on testnet Beta has no money value. 
+
+**Stage 3** Sigma Network
+Testnet Sigma is the final pre-mainnet testnet that features all functionalities with complete host functions and a centralized bridge connect to the placeholder token issuance network that has money value for tokens, with NPoS mainnet and trusted hardware enclaves. It's in place for final checkups on chain economical paramters and correcct gas counting offchain. There will be only one shard running offchain. It will be the standalone network. 
+
+**Stage 4** Mainnet 
+Mainnet is the parachain ready version of the Sigma Network that will be connect on Kusama and the Octupus Network for bridging to the NEAR ecosystem. 
+
+**Stage 5 and After** Mainnet Upgrades 
+New shards will be added to the offchain VM gradually. The first shard will be a general purpose NEAR sdk focused shard, while the second shard will be an EVM compatible shard, further down the line, high throughput shard, high security shard will be added one by one. 
+
 ## License
 
 The entire code within this repository is licensed under the [GPLv3](LICENSE).

@@ -1,4 +1,4 @@
-# NEAR Simulator & cross-contract testing library
+# SkyeKiwi Offchain VM Simulator & cross-contract testing library
 
 When writing NEAR contracts, with Rust or other Wasm-compiled languages like [AssemblyScript](https://github.com/near/near-sdk-as), the default testing approach for your language of choice (such as `mod test` in your Rust project's `src/lib.rs` file) is great for testing the behavior of a single contract in isolation.
 
