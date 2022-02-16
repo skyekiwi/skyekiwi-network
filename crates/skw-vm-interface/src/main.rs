@@ -10,10 +10,15 @@ use skw_vm_primitives::{
 };
 
 use borsh::{BorshSerialize, BorshDeserialize};
-use serde::{Serialize, Deserialize};
 use clap::Clap;
 use std::fs;
 
+pub fn decode_hex(s: &str) -> Vec<u8> {
+	(0..s.len())
+		.step_by(2)
+		.map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+		.collect()
+}
 #[derive(Clap)]
 struct CliArgs {
     #[clap(long)]
@@ -31,7 +36,7 @@ struct CliArgs {
     timings: bool,
 }
 
-#[derive(Serialize, Deserialize, Default, BorshSerialize, BorshDeserialize)]
+#[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
 struct InputParams {
     transaction_action: String,
     receiver: String,
@@ -42,7 +47,13 @@ struct InputParams {
     to: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Default, BorshSerialize, BorshDeserialize)]
+#[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
+struct Input {
+   ops: Vec<InputParams>,
+}
+
+
+#[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
 struct InterfaceOutcome {
     pub view_result_log: Vec<String>,
     pub view_result: Vec<u8>,
@@ -53,7 +64,7 @@ struct InterfaceOutcome {
     pub outcome_executor_id: String,
     pub outcome_status: Option<Vec<u8>>,
 }
-#[derive(Serialize, Deserialize, Default)]
+#[derive(BorshSerialize, BorshDeserialize, Default, Debug)]
 struct Outputs {
     ops: Vec<InterfaceOutcome>,
     state_root: CryptoHash,
@@ -85,10 +96,10 @@ fn main() {
         );
     }
 
-    let params: Vec<InputParams> = serde_json::from_str(&cli_args.params.as_ref().unwrap()).expect("input parsing failed");
+    let params: Input = BorshDeserialize::try_from_slice(&decode_hex(cli_args.params.as_ref().unwrap())).expect("input parsing failed");
     let mut outcomes = Outputs::default();
 
-    for input in params.iter() {
+    for input in params.ops.iter() {
         let mut outcome: Option<ExecutionResult> = None; 
         let mut view_outcome: Option<ViewResult> = None; 
 
@@ -130,7 +141,7 @@ fn main() {
                     &input.receiver,
                     &input.method.as_ref().unwrap(),
                     &input.args.as_ref().unwrap().as_bytes(),
-                    input.amount.unwrap(),
+                    input.amount.unwrap_or(0),
                 ));
             },
             "view_method_call"  => {
@@ -192,8 +203,6 @@ fn main() {
                     ExecutionStatus::SuccessValue(x) => Some(x),
                     _ => None,
                 };
-
-                // println!("{:#?}", outcome);
             }
             _ => {}
         }
@@ -202,8 +211,6 @@ fn main() {
             Some(outcome) => {
                 execution_result.view_result_log = outcome.logs().clone();
                 execution_result.view_result = outcome.unwrap().clone();
-                
-                // println!("{:#?}", outcome);
             }
             _ => {}
         }
@@ -218,6 +225,8 @@ fn main() {
 
     outcomes.state_root = state_root;
 
-    let output: String = serde_json::to_string(&outcomes).unwrap();
-    println!("{}", output);
+    let mut buffer: Vec<u8> = Vec::new();
+    // println!("{:?}", outcomes);
+    outcomes.serialize(&mut buffer).unwrap();
+    println!("{:?}", buffer);
 }
