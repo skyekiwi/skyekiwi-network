@@ -22,7 +22,6 @@ pub type ShardId = u64;
 pub mod pallet {
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*, ensure};
 	use frame_system::pallet_prelude::*;
-	use sp_std::vec;
 	use super::*;
 	
 	#[pallet::config]
