@@ -37,10 +37,10 @@ fn it_register_secret_contracts() {
 		assert! (events[0].event == Event::SContract(SContractEvent::ShardInitialized(0)));
 		assert! (events[1].event == Event::Secrets(SecretsEvent::SecretContractRegistered(0)));
 
-		let history = SContract::call_history_of(0).unwrap();
+		let history = SContract::call_history_of(0, 1).unwrap();
 
 		assert_eq! (history.len(), 2);
-		assert_eq! (history[0], (1, ENCODED_CALL.as_bytes().to_vec(), AccountId::default()));
-		assert_eq! (history[1], (1, ENCODED_CALL.as_bytes().to_vec(), ALICE));
+		assert_eq! (history[0], (ENCODED_CALL.as_bytes().to_vec(), AccountId::default()));
+		assert_eq! (history[1], (ENCODED_CALL.as_bytes().to_vec(), ALICE));
 	});
 }

@@ -43,16 +43,15 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	// index of EncodedCall ALWAYS should equals to its CallIndex
 	#[pallet::storage]
 	#[pallet::getter(fn call_history_of)]
-	pub(super) type CallHistory<T: Config> = StorageMap<_, Twox64Concat,
-		ShardId, Vec<(T::BlockNumber, EncodedCall, T::AccountId)> >;
-
+	pub(super) type CallHistory<T: Config> = StorageDoubleMap<_, Twox64Concat,
+		ShardId, Twox64Concat, T::BlockNumber, Vec<(EncodedCall, T::AccountId)> >;
+	
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		CallReceived(ShardId, CallIndex),
+		CallReceived(ShardId, T::BlockNumber),
 		ShardInitialized(ShardId),
 	}
 
@@ -60,7 +59,6 @@ pub mod pallet {
 	pub enum Error<T> {
 		InvalidEncodedCall,
 		InvalidContractIndex,
-		InvalidCallIndex,
 		InvalidCallOutput,
 		ShardNotInitialized,
 		ShardHasBeenInitialized,
@@ -85,7 +83,8 @@ pub mod pallet {
 				Self::validate_call(initialization_call.clone()),
 				Error::<T>::InvalidEncodedCall
 			);
-			let history = Self::call_history_of(&shard_id);
+			let now = frame_system::Pallet::<T>::block_number();
+			let history = Self::call_history_of(&shard_id, now);
 			ensure!(history.is_some(), Error::<T>::ShardNotInitialized);
 
 			match pallet_secrets::Pallet::<T>::register_secret_contract(
@@ -97,12 +96,11 @@ pub mod pallet {
 					let contract_index = pallet_secrets::Pallet::<T>::current_secret_id().saturating_sub(1);
 
 					// insert the init call
-					let now = frame_system::Pallet::<T>::block_number();
 					let mut content = history.unwrap();
-					content.push((now, initialization_call, deployer));
-					<CallHistory<T>>::mutate(&contract_index, 
+					content.push((initialization_call, deployer));
+					<CallHistory<T>>::mutate(&contract_index, &now,
 						|c| *c = Some(content.clone()));
-					Self::deposit_event(Event::<T>::CallReceived(contract_index, content.len() as u64));
+					Self::deposit_event(Event::<T>::CallReceived(contract_index, now));
 					
 					Ok(())
 				},
@@ -121,15 +119,15 @@ pub mod pallet {
 			let home_shard = pallet_secrets::Pallet::<T>::home_shard_of(contract_index);
 			ensure!(home_shard.is_some(), Error::<T>::InvalidContractIndex);
 			let home_shard = home_shard.unwrap();
+			let now = frame_system::Pallet::<T>::block_number();
 
-			let history = Self::call_history_of(&home_shard);
+			let history = Self::call_history_of(&home_shard, now);
 
 			if let Some(mut content) = history {
-				let now = frame_system::Pallet::<T>::block_number();
-				content.push((now, call, who));
-				<CallHistory<T>>::mutate(&contract_index, 
+				content.push((call, who));
+				<CallHistory<T>>::mutate(&contract_index, &now,
 					|c| *c = Some(content.clone()));
-				Self::deposit_event(Event::<T>::CallReceived(contract_index, content.len() as u64));
+				Self::deposit_event(Event::<T>::CallReceived(contract_index, now));
 			} else {
 				return Err(Error::<T>::ShardNotInitialized.into());
 			}
@@ -145,11 +143,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_root(origin)?;
 			ensure!(Self::validate_call(call.clone()), Error::<T>::InvalidEncodedCall);
-			let history = Self::call_history_of(&shard_id);
+			let now = frame_system::Pallet::<T>::block_number();
+			let history = Self::call_history_of(&shard_id, &now);
 
 			ensure!(history.is_none(), Error::<T>::ShardHasBeenInitialized);
-			<CallHistory<T>>::insert(&shard_id, vec![(
-				frame_system::Pallet::<T>::block_number(), 
+			<CallHistory<T>>::insert(&shard_id, &now, vec![(
 				call, T::AccountId::default()
 			)]);
 
@@ -165,24 +163,15 @@ pub mod pallet {
 
 		pub fn get_call(
 			contract_index: SecretId,
-			call_index: CallIndex
-		) -> Option<(T::BlockNumber, EncodedCall, T::AccountId)> {
+			block_number: T::BlockNumber,
+		) -> Option<Vec<(EncodedCall, T::AccountId)>> {
 			let home_shard = pallet_secrets::Pallet::<T>::home_shard_of(contract_index);
 			if home_shard.is_none() {
 				return None;
 			}
 
 			let home_shard = home_shard.unwrap();
-
-			match Self::call_history_of(&home_shard) {
-				Some(history) => {
-					match history.get(call_index as usize) {
-						Some(res) => { Some( res.clone()) },
-						None => None
-					}
-				},
-				None => None
-			}
+			Self::call_history_of(&home_shard, &block_number)
 		}
 	}
 }
