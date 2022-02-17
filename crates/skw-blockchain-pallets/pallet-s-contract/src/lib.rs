@@ -48,6 +48,11 @@ pub mod pallet {
 	pub(super) type CallHistory<T: Config> = StorageDoubleMap<_, Twox64Concat,
 		ShardId, Twox64Concat, T::BlockNumber, Vec<(EncodedCall, T::AccountId)> >;
 	
+	#[pallet::storage]
+	#[pallet::getter(fn shard_initialization_call)]
+	pub(super) type ShardInitializationCall<T: Config> = StorageMap<_, Twox64Concat,
+		ShardId, EncodedCall >;
+		
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -84,8 +89,8 @@ pub mod pallet {
 				Error::<T>::InvalidEncodedCall
 			);
 			let now = frame_system::Pallet::<T>::block_number();
-			let history = Self::call_history_of(&shard_id, now);
-			ensure!(history.is_some(), Error::<T>::ShardNotInitialized);
+			let init = Self::shard_initialization_call(&shard_id);
+			ensure!(init.is_some(), Error::<T>::ShardNotInitialized);
 
 			match pallet_secrets::Pallet::<T>::register_secret_contract(
 				origin, metadata, wasm_blob_cid, shard_id
@@ -96,7 +101,7 @@ pub mod pallet {
 					let contract_index = pallet_secrets::Pallet::<T>::current_secret_id().saturating_sub(1);
 
 					// insert the init call
-					let mut content = history.unwrap();
+					let mut content = Self::call_history_of(&shard_id, &now).unwrap_or(Vec::new());
 					content.push((initialization_call, deployer));
 					<CallHistory<T>>::mutate(&contract_index, &now,
 						|c| *c = Some(content.clone()));
@@ -121,18 +126,20 @@ pub mod pallet {
 			let home_shard = home_shard.unwrap();
 			let now = frame_system::Pallet::<T>::block_number();
 
-			let history = Self::call_history_of(&home_shard, now);
+			let init = Self::shard_initialization_call(&home_shard);
 
-			if let Some(mut content) = history {
-				content.push((call, who));
-				<CallHistory<T>>::mutate(&contract_index, &now,
-					|c| *c = Some(content.clone()));
-				Self::deposit_event(Event::<T>::CallReceived(contract_index, now));
-			} else {
-				return Err(Error::<T>::ShardNotInitialized.into());
+			match init {
+				Some(_) => {
+					let history = Self::call_history_of(&home_shard, now);
+					let mut content = history.unwrap_or(Vec::new());
+					content.push((call, who));
+					<CallHistory<T>>::mutate(&contract_index, &now,
+						|c| *c = Some(content.clone()));
+					Self::deposit_event(Event::<T>::CallReceived(contract_index, now));
+					Ok(())
+				},
+				None => Err(Error::<T>::ShardNotInitialized.into())
 			}
-
-			Ok(())
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
@@ -143,14 +150,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_root(origin)?;
 			ensure!(Self::validate_call(call.clone()), Error::<T>::InvalidEncodedCall);
-			let now = frame_system::Pallet::<T>::block_number();
-			let history = Self::call_history_of(&shard_id, &now);
+			let maybe_init = Self::shard_initialization_call(&shard_id);
 
-			ensure!(history.is_none(), Error::<T>::ShardHasBeenInitialized);
-			<CallHistory<T>>::insert(&shard_id, &now, vec![(
-				call, T::AccountId::default()
-			)]);
-
+			ensure!(maybe_init.is_none(), Error::<T>::ShardHasBeenInitialized); 
+			<ShardInitializationCall<T>>::insert(&shard_id, call);
 			Self::deposit_event(Event::<T>::ShardInitialized(shard_id));
 			Ok(())
 		}
