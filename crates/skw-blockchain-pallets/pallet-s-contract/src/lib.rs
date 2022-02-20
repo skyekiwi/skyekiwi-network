@@ -17,6 +17,7 @@ mod mock;
 pub type CallIndex = u64;
 pub type EncodedCall = Vec<u8>;
 pub type ShardId = u64;
+pub type PublicKey = [u8; 32];
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -52,11 +53,32 @@ pub mod pallet {
 	pub(super) type ShardInitializationCall<T: Config> = StorageMap<_, Twox64Concat,
 		ShardId, EncodedCall >;
 		
+	#[pallet::storage]
+	#[pallet::getter(fn shard_secret_id)]
+	pub(super) type ShardSecretIndex<T: Config> = StorageMap<_, Twox64Concat,
+		ShardId, SecretId >;
+	
+	#[pallet::storage]
+	#[pallet::getter(fn shard_public_key)]
+	pub(super) type ShardPublicKey<T: Config> = StorageMap<_, Twox64Concat,
+		ShardId, PublicKey>;
+	
+	#[pallet::storage]
+	#[pallet::getter(fn shard_high_call_index)]
+	pub(super) type ShardHighCallIndex<T: Config> = StorageMap<_, Twox64Concat,
+		ShardId, CallIndex>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn shard_operator)]
+	pub(super) type ShardOperator<T: Config> = StorageDoubleMap<_, Twox64Concat,
+		ShardId, Twox64Concat, T::AccountId, bool>;
+		
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		CallReceived(ShardId, T::BlockNumber),
 		ShardInitialized(ShardId),
+		ShardRolluped(ShardId, CallIndex),
 	}
 
 	#[pallet::error]
@@ -64,6 +86,7 @@ pub mod pallet {
 		InvalidEncodedCall,
 		InvalidContractIndex,
 		InvalidCallOutput,
+		InvalidShardIndex,
 		ShardNotInitialized,
 		ShardHasBeenInitialized,
 		Unauthorized, 
@@ -95,16 +118,12 @@ pub mod pallet {
 				origin, metadata, wasm_blob_cid, shard_id
 			) {
 				Ok(()) => {
-					// TODO: is this always right??
-					// get the lastest secretId - 1 -> it belongs to the secret we have just created
-					let contract_index = pallet_secrets::Pallet::<T>::current_secret_id().saturating_sub(1);
-
 					// insert the init call
 					let mut content = Self::call_history_of(&shard_id, &now).unwrap_or(Vec::new());
 					content.push((initialization_call, deployer));
-					<CallHistory<T>>::mutate(&contract_index, &now,
+					<CallHistory<T>>::mutate(&shard_id, &now,
 						|c| *c = Some(content.clone()));
-					Self::deposit_event(Event::<T>::CallReceived(contract_index, now));
+					Self::deposit_event(Event::<T>::CallReceived(shard_id, now));
 					
 					Ok(())
 				},
@@ -146,15 +165,85 @@ pub mod pallet {
 			origin: OriginFor<T>, 
 			shard_id: ShardId,
 			call: EncodedCall,
+			initial_metadata: Vec<u8>,
+			public_key: PublicKey,
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			let who = ensure_signed(origin.clone())?;
+			ensure!(Self::shard_operator(&shard_id, &who).is_some(), Error::<T>::Unauthorized);
 			ensure!(Self::validate_call(call.clone()), Error::<T>::InvalidEncodedCall);
 			let maybe_init = Self::shard_initialization_call(&shard_id);
 
 			ensure!(maybe_init.is_none(), Error::<T>::ShardHasBeenInitialized); 
-			<ShardInitializationCall<T>>::insert(&shard_id, call);
-			Self::deposit_event(Event::<T>::ShardInitialized(shard_id));
-			Ok(())
+			match pallet_secrets::Pallet::<T>::register_secret(origin, initial_metadata) {
+				Ok(()) => {
+					// TODO: is this always right??
+					// get the lastest secretId - 1 -> it belongs to the secret we have just created
+					let secret_id = pallet_secrets::Pallet::<T>::current_secret_id().saturating_sub(1);
+
+					<ShardSecretIndex<T>>::insert(&shard_id, secret_id);
+					<ShardPublicKey<T>>::insert(&shard_id, public_key);
+					<ShardInitializationCall<T>>::insert(&shard_id, call);
+					<ShardHighCallIndex<T>>::insert(&shard_id, 0);
+					Self::deposit_event(Event::<T>::ShardInitialized(shard_id));
+					Ok(())
+				},
+				Err(err) => Err(err)
+			}
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		pub fn shard_rollup(
+			origin: OriginFor<T>,
+			shard_id: ShardId,
+			metadata: Vec<u8>,
+			high_call_index: CallIndex,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+			ensure!(Self::shard_operator(&shard_id, &who).is_some(), Error::<T>::Unauthorized);
+			let secret_id = Self::shard_secret_id(shard_id);
+			ensure!(secret_id.is_some(), Error::<T>::InvalidShardIndex);
+
+			match pallet_secrets::Pallet::<T>::update_metadata(origin, secret_id.unwrap(), metadata) {
+				Ok(()) => {
+					<ShardHighCallIndex<T>>::mutate(&shard_id, |hci| {
+						* hci = Some(high_call_index);
+					});
+					Self::deposit_event(Event::<T>::ShardRolluped(shard_id, high_call_index));
+					Ok(())
+				},
+				Err(e) => Err(e)
+			}
+		}
+		
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		pub fn add_authorized_shard_operator(
+			origin: OriginFor<T>,
+			shard_id: ShardId,
+			operator: T::AccountId,
+		) -> DispatchResult {
+			ensure_root(origin.clone())?;
+
+			let secret_id = Self::shard_secret_id(shard_id);
+			match secret_id {
+				Some(id) => {
+					pallet_secrets::Pallet::<T>::force_nominate_member(origin, id, operator.clone())?;
+					<ShardOperator<T>>::mutate(&shard_id, &operator, |status| {
+						* status = Some(true);
+					});
+
+					Ok(())
+				},
+				None => {
+					// the shard has not been initialized
+					// do nothing on pallet_secrets
+
+					<ShardOperator<T>>::mutate(&shard_id, &operator, |status| {
+						* status = Some(true);
+					});
+		
+					Ok(())
+				},
+			}
 		}
 	}
 

@@ -139,18 +139,18 @@ pub mod pallet {
 			
 			Ok(())
 		}
-
+		
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
 		pub fn nominate_member(
 			origin: OriginFor<T>,
-			vault_id: SecretId,
+			secret_id: SecretId,
 			member: T::AccountId
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(Self::authorize_owner(who, vault_id) == true, Error::<T>::AccessDenied);
+			ensure!(Self::authorize_owner(who, secret_id) == true, Error::<T>::AccessDenied);
 
-			<Operator<T>>::insert(vault_id, &member, true);
-			Self::deposit_event(Event::<T>::MembershipGranted(vault_id, member));
+			<Operator<T>>::insert(secret_id, &member, true);
+			Self::deposit_event(Event::<T>::MembershipGranted(secret_id, member));
 			
 			Ok(())
 		}
@@ -167,6 +167,48 @@ pub mod pallet {
 			<Operator<T>>::take(&secret_id, &member);
 			Self::deposit_event(Event::<T>::MembershipRevoked(secret_id, member));
 			
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
+		pub fn force_nominate_member(
+			origin: OriginFor<T>,
+			secret_id: SecretId,
+			member: T::AccountId
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			<Operator<T>>::insert(secret_id, &member, true);
+			Self::deposit_event(Event::<T>::MembershipGranted(secret_id, member));
+
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
+		pub fn force_remove_member(
+			origin: OriginFor<T>,
+			secret_id: SecretId,
+			member: T::AccountId
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			<Operator<T>>::take(&secret_id, &member);
+			Self::deposit_event(Event::<T>::MembershipRevoked(secret_id, member));
+			
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
+		pub fn force_change_owner(
+			origin: OriginFor<T>,
+			secret_id: SecretId,
+			member: T::AccountId
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			<Owner<T>>::mutate(&secret_id, |owner| {
+				* owner = Some(member);
+			});
 			Ok(())
 		}
 
