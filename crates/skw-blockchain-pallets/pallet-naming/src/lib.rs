@@ -10,6 +10,9 @@ use sp_runtime::traits::{CheckedAdd, CheckedMul};
 use sp_std::prelude::*;
 pub use pallet::*;
 
+// SBP M1 review: empty README
+// SBP M1 review: missing pallet doc comment
+
 // #[cfg(test)]
 // mod tests;
 
@@ -32,6 +35,8 @@ pub mod pallet {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type Currency: ReservableCurrency<Self::AccountId>;
 
+		// SBP M1 review: add comments to make it clear what those params are for.
+
 		#[pallet::constant]
 		type ReservationFee: Get<BalanceOf <Self>>;
 
@@ -48,6 +53,7 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
+	// SBP M1 review: you could create a struct for more clarity
 	// resolve_to, expiration, locked amount, period
 	#[pallet::storage]
 	#[pallet::getter(fn name_of)]
@@ -92,6 +98,7 @@ pub mod pallet {
 				.checked_mul(&T::BlockNumber::from(period))
 				.ok_or(ArithmeticError::Overflow)?;
 
+			// SBP M1 review: you could use a try_mutate StorageMap operation instead of the get-insert.
 			if let Some((_to, _expiration, _deposit)) = <Naming<T>>::get(&name) {
 				// EITHER the previous naming expired *OR* a renewal operation
 				ensure!(_expiration < now || _to == who, Error::<T>::NameTaken);
@@ -102,10 +109,13 @@ pub mod pallet {
 				let (expiration, new_deposit) = if _expiration < now {
 					// register to new user
 
+					// SBP M1 review: is there no additional check ? (e.g. higher deposit from new user) 
+
 					// release the old reserve first
 					// it should be "_deposit" from the mapping instead of "deposit"
 					T::Currency::unreserve(&_to, _deposit.clone());
 					(
+						// SBP M1 review: perform fallible operations before mutating storage.
 						now.checked_add(&duration).ok_or(ArithmeticError::Overflow)?,
 						deposit,
 					)
@@ -120,6 +130,7 @@ pub mod pallet {
 				};
 
 				T::Currency::reserve(&who, deposit.clone())?;
+
 				<Naming<T>>::insert(&name, (
 					who.clone(), 
 					expiration, 
@@ -135,6 +146,7 @@ pub mod pallet {
 			} else {
 				// empty name 
 				T::Currency::reserve(&who, deposit.clone())?;
+				// SBP M1 review: perform fallible operations before mutating storage.
 				let expiration = now.checked_add(&duration).ok_or(ArithmeticError::Overflow)?;
 				<Naming<T>>::insert(&name, (
 					who.clone(), 
@@ -152,7 +164,9 @@ pub mod pallet {
 			name: T::Hash
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			// SBP M1 reviw: why prefix those variables with '_' if they are used ?
 			if let Some((_to, _expiration, _deposit)) = <Naming<T>>::take(&name) {
+				// SBP M1 review: shouldn't there be a check on the original origin here ? (or anyone can clear some other account's name ?)
 				T::Currency::unreserve(&_to, _deposit);
 				Self::deposit_event(Event::<T>::NameCleared(who));
 			} else {

@@ -7,6 +7,8 @@ use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_sui
 #[allow(unused)]
 use crate::Pallet as Secrets;
 
+// SBP M1 review: missing benchmarks
+
 benchmarks! {
 	register_secret {
 		const IPFS_CID: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";

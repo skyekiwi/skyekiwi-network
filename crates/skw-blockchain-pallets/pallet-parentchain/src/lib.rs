@@ -2,6 +2,8 @@
 use sp_std::prelude::*;
 pub use pallet::*;
 
+// SBP M1 review: empty README
+// SBP M1 review: missing pallet doc comment
 
 #[cfg(test)]
 mod tests;
@@ -25,6 +27,8 @@ pub mod pallet {
 	pub trait Config: frame_system::Config + pallet_registry::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
+		// SBP M1 review: add comments to make it clear what those params are for.
+		
 		#[pallet::constant]
 		type DeplayThreshold: Get<<Self as frame_system::Config>::BlockNumber>;
 

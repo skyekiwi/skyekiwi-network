@@ -5,6 +5,9 @@ pub use pallet::*;
 pub use pallet_secrets;
 use pallet_secrets::SecretId;
 
+// SBP M1 review: empty README
+// SBP M1 review: missing pallet doc comment
+
 #[cfg(test)]
 mod tests;
 
@@ -31,6 +34,8 @@ pub mod pallet {
 	{
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
+		// SBP M1 review: add comments to make it clear what those params are for.
+		
 		#[pallet::constant]
 		type MaxCallLength: Get<u32>;
 

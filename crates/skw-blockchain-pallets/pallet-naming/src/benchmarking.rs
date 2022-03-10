@@ -7,6 +7,8 @@ use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_sui
 #[allow(unused)]
 use crate::Pallet as Naming;
 
+// SBP M1 review: missing benchmarks
+
 benchmarks! {
 	do_something {
 		let s in 0 .. 100;

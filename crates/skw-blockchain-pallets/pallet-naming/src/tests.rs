@@ -2,6 +2,8 @@
 // use frame_support::{assert_ok};
 // use crate::mock::*;
 
+// SBP M1 review: missing tests
+
 // #[test]
 // fn it_sets_empty_name() {
 // 	new_test_ext().execute_with(|| {
