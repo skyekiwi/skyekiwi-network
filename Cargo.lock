@@ -6711,6 +6711,7 @@ name = "skw-vm-interface"
 version = "0.1.0"
 dependencies = [
  "borsh",
+ "bs58",
  "clap 3.0.0-beta.2",
  "clap_derive",
  "funty",

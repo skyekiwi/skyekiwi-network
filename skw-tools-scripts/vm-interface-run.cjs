@@ -13,8 +13,8 @@ const u8aToString = (u8a) => {
 const u8aToHex = (bytes) =>
   bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
 
-  function generateParams(config) {
-    return `\'${JSON.stringify(config)}\'`;
+function generateParams(config) {
+  return `\'${JSON.stringify(config)}\'`;
 }
 
 function enclaveCI() {

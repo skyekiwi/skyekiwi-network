@@ -8,7 +8,6 @@ use skw_vm_primitives::{
     contract_runtime::{Balance, Gas},
     transaction::ExecutionStatus,
 };
-
 use borsh::{BorshSerialize, BorshDeserialize};
 use clap::Clap;
 use std::fs;
@@ -38,10 +37,14 @@ struct CliArgs {
 
 #[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
 struct InputParams {
+    origin: Option<String>,
+    origin_public_key: Option<[u8; 32]>,
+    encrypted_egress: bool,
+
     transaction_action: String,
     receiver: String,
     amount: Option<Balance>,
-    wasm_file: Option<String>,
+    wasm_blob_path: Option<String>,
     method: Option<String>,
     args: Option<String>,
     to: Option<String>,
@@ -96,7 +99,9 @@ fn main() {
         );
     }
 
-    let params: Input = BorshDeserialize::try_from_slice(&decode_hex(cli_args.params.as_ref().unwrap())).expect("input parsing failed");
+    let decoded_call = bs58::decode(&cli_args.params.unwrap_or_default()).into_vec().unwrap();
+    let params: Input = BorshDeserialize::try_from_slice(&decoded_call).expect("input parsing failed");
+
     let mut outcomes = Outputs::default();
 
     for input in params.ops.iter() {
@@ -169,7 +174,7 @@ fn main() {
             },
             "deploy" => {
                 assert!(
-                    input.wasm_file.is_some(),
+                    input.wasm_blob_path.is_some(),
                     "wasm_file must be provided when transaction_action is set"
                 );
 
@@ -178,7 +183,7 @@ fn main() {
                     "amount must be provided when transaction_action is set"
                 );
 
-                let wasm_path = PathBuf::from(input.wasm_file.as_ref().unwrap());
+                let wasm_path = PathBuf::from(input.wasm_blob_path.as_ref().unwrap());
                 let code = fs::read(&wasm_path).unwrap();
 
                 script.deploy(
@@ -228,5 +233,7 @@ fn main() {
     let mut buffer: Vec<u8> = Vec::new();
     // println!("{:?}", outcomes);
     outcomes.serialize(&mut buffer).unwrap();
-    println!("{:?}", buffer);
+
+    println!("{:?}", state_root);
+    println!("{:?}", bs58::encode(buffer).into_string());
 }

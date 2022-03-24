@@ -7,6 +7,7 @@ import { Keyring } from '@polkadot/keyring'
 import { waitReady } from '@polkadot/wasm-crypto'
 import { ApiPromise, WsProvider } from '@polkadot/api'
 import {sendTx} from './util'
+import { buildCall, Calls, Call, buildCalls } from '@skyekiwi/s-contract';
 
 export class Chaos {
 
@@ -20,8 +21,26 @@ export class Chaos {
     // deploy a shit tons of contract -> contractId cannot be wrongfully read
     for (let i = 0 ; i < loop; i ++) {
       const logger = getLogger(`push calls to //${accountIndex}`);
-      const bytes = randomBytes(32);
-      const pushCall = api.tx.sContract.pushCall(0, u8aToHex(bytes));
+
+      const call = new Calls({
+        ops: [
+          new Call({
+            origin: keyring.address,
+            origin_public_key: keyring.publicKey,
+            encrypted_egress: false,
+
+            transaction_action: 'call',
+            receiver: 'status_message_collections',
+            amount: null,
+            method: 'set_status',
+            args: "0x" + u8aToHex(randomBytes(32)),
+            wasm_blob_path: null,
+            to: null,
+          })
+        ]
+      })
+
+      const pushCall = api.tx.sContract.pushCall(0, buildCalls(call));
       logger.info(`pushing calls from ${keyring.address}`)
       await sendTx(pushCall, keyring, logger);  
     }

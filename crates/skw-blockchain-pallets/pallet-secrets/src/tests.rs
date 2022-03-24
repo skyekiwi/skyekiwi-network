@@ -29,34 +29,6 @@ fn it_register_secrets() {
 	});
 }
 
-
-#[test]
-fn it_register_secret_contracts() {
-
-	new_test_ext().execute_with(|| {
-		System::set_block_number(1);
-
-		assert_ok!(
-			Secrets::register_secret_contract( 
-				Origin::signed(ALICE), 
-				IPFS_CID_1.as_bytes().to_vec(),
-				IPFS_CID_2.as_bytes().to_vec(),
-				0,
-			)
-		);
-
-		assert! (System::events().iter().all(|evt| {
-				evt.event == Event::Secrets(SecretsEvent::SecretContractRegistered(0))
-			})
-		);
-
-		assert_eq! (Secrets::owner_of(0).unwrap(), ALICE);
-		assert_eq! (Secrets::metadata_of(0).unwrap(), IPFS_CID_1.as_bytes().to_vec());
-		assert_eq! (Secrets::wasm_blob_of(0).unwrap(), IPFS_CID_2.as_bytes().to_vec());
-		assert_eq! (Secrets::home_shard_of(0).unwrap(), 0);
-	});
-}
-
 #[test]
 fn it_updates_metadata() {
 	new_test_ext().execute_with(|| {

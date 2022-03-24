@@ -320,13 +320,18 @@ impl pallet_secrets::Config for Runtime {
 parameter_types! {
 	pub const MaxCallLength: u32 = 512;
 	pub const MaxOutputLength: u32 = 1024;
+	pub const MinContractNameLength: u32 = 1;
+	pub const MaxContractNameLength: u32 = 32;
 }
 
 impl pallet_s_contract::Config for Runtime {
 	type Event = Event;
 	type MaxCallLength = MaxCallLength;
 	type MaxOutputLength = MaxOutputLength;
+	type MinContractNameLength = MinContractNameLength;
+	type MaxContractNameLength = MaxContractNameLength;
 }
+
 parameter_types! {
 	pub const RegistrationDuration: u32 = 1_000_000_000;
 }

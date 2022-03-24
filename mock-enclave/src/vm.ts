@@ -1,63 +1,140 @@
-import fs from 'fs';
-import { fromByteArray, toByteArray } from 'base64-js';
-import { u8aToString } from '@skyekiwi/util';
-import configuration from './config'
+// import path from 'path';
+import { execSync } from 'child_process';
+import { u8aToHex } from '@skyekiwi/util';
 
-const { execute } = require('../scripts/execSync');
 
-export function preRun() {
-  execute('cd src/near-vm-runner-standalone && cargo build --release')
-}
+import config from './config'
 
-const defaultContext = {
-  current_account_id: 'contract.sk',
-  signer_account_id: 'system.sk',
-  signer_account_pk: '15T',
-  predecessor_account_id: 'system.sk',
-  input: '',
-  block_index: 1,
-  block_timestamp: '1586796191203000000',
-  epoch_height: 1,
-  account_balance: '10000000000000000000000000',
-  account_locked_balance: '0',
-  storage_usage: 100,
-  attached_deposit: '0',
-  prepaid_gas: 1000000000000000000,
-  random_seed: '15T',
-  view_config: null,
-  output_data_receivers: []
-}
+// import BN from 'bn.js';
+// import path from 'path'
 
-const injectOrigin = (origin: string) => {
-  let thisContext = defaultContext;
-  thisContext['signer_account_id'] = origin;
-  return JSON.stringify(thisContext);
-}
+import {
+  Calls,buildCalls, parseOutcomes, Outcomes,
+} from './host/borsh';
 
-export function runVM({
-  methodName = "",
-  stateInput = "{}",
-  input = "",
-  wasmFile = "./wasm/greeting.wasm",
-  origin = "system.sk",
-  profiling = false,
-  contractId = "0x000000"
-}): string {
-  const outputPath = `${configuration.localStoragePath}${contractId}.json`;
-  const runnerPath = "./src/near-vm-runner-standalone/target/release/near-vm-runner-standalone";
-  execute(`${runnerPath} --context '${injectOrigin(origin)}' --wasm-file '${wasmFile}' --method-name '${methodName}' --input ${input} --state ${stateInput} ${profiling ? "--timings" : ""} > ${outputPath}`)
-  
-  // parse the output 
-  const contentRaw = fs.readFileSync(outputPath);
-  const content = JSON.parse(contentRaw.toString());
-  const stateB64 = JSON.parse(content.state);
-  let state: {[key: string]: string} = {}
-  
-  for (const key in stateB64) {
-    const k = u8aToString(toByteArray(key))
-    const v = u8aToString(toByteArray(stateB64[key]))
-    state[k] = v;
+
+const callRuntime = (calls: Calls, stateRoot: Uint8Array, resetState = false): Outcomes => {
+  if (resetState) {
+    try {
+      execSync(`rm ${config.currentStateFile}`);
+      execSync(`cp ${config.genesisStateFile} ${config.currentStateFile}`);
+    } catch(err) { }
   }
-  console.log(state)
-  return stateB64;
+
+  const encodedCall = buildCalls(calls);
+  return parseOutcomes(  JSON.parse(execSync(`../target/release/skw-vm-interface \
+      --state-file ${config.stateDumpPrefix} \
+      --state-root ${u8aToHex(stateRoot)} \
+      ${encodedCall.length === 0 ? "" : `--params ${encodedCall}`}`
+    ).toString()));
 }
+
+// const callStatus = (resetState: boolean) => {
+//   const status_wasm_file = path.join(__dirname, "../wasm/status_message_collections.wasm");
+//   const calls = new Calls({
+//     ops: [ 
+//       new Call({
+//         "origin": "root",
+//         "origin_public_key": new Uint8Array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]),
+    
+//         "encrypted_egress": false,
+
+//         "transaction_action": "deploy",
+//         "receiver": "status", 
+//         "amount": new BN(0x100, 16),
+//         "wasm_blob_path": status_wasm_file.toString(),
+//         "method": null, 
+//         "args": null,
+//         "to": null,
+//       }), 
+//       new Call({
+//         "origin": "root",
+//         "origin_public_key": new Uint8Array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]),
+    
+//         "encrypted_egress": false,
+
+//         "transaction_action": "call",
+//         "receiver": "status", 
+//         "amount": null,
+//         "wasm_blob_path": null,
+//         "method": "set_status", 
+//         "args": JSON.stringify({message: "HELLLOOOOOOOOOOO"}),
+//         "to": null,
+//       }), 
+//       new Call({
+//         "origin": "root",
+//         "origin_public_key": new Uint8Array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]),
+    
+//         "encrypted_egress": false,
+
+//         "transaction_action": "view_method_call",
+//         "receiver": "status", 
+//         "amount": null,
+//         "wasm_blob_path": null,
+//         "method": "get_status", 
+//         "args": JSON.stringify({account_id: "root"}),
+//         "to": null,
+//       }),
+//     ]
+//   });
+//   const o = callRuntime(calls, new Uint8Array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]), resetState);
+//   return o.state_root;
+// }
+
+
+// const callCrossContract = (state_root: Uint8Array, resetState: boolean) => {
+//   const contract_wasm_file = path.join(__dirname, "../wasm/cross_contract_high_level.wasm");
+  
+//   const calls = new Calls({
+//     ops: [ 
+//       new Call({
+//         "origin": "root",
+//         "origin_public_key": new Uint8Array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]),
+    
+//         "encrypted_egress": false,
+
+//         "transaction_action": "deploy",
+//         "receiver": "contract", 
+//         "amount": new BN(0x100, 16),
+//         "wasm_blob_path": contract_wasm_file.toString(),
+//         "method": null, 
+//         "args": null,
+//         "to": null,
+//       }), 
+//       new Call({
+//         "origin": "root",
+//         "origin_public_key": new Uint8Array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]),
+    
+//         "encrypted_egress": false,
+
+//         "transaction_action": "call",
+//         "receiver": "contract", 
+//         "amount": null,
+//         "wasm_blob_path": null,
+//         "method": "deploy_status_message", 
+//         "args": JSON.stringify({account_id: "status", amount: new BN(0x100, 16)}),
+//         "to": null,
+//       }), 
+//       new Call({
+//         "origin": "root",
+//         "origin_public_key": new Uint8Array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]),
+    
+//         "encrypted_egress": false,
+
+//         "transaction_action": "call",
+//         "receiver": "contract", 
+//         "amount": null,
+//         "wasm_blob_path": null,
+//         "method": "complex_call", 
+//         "args": JSON.stringify({account_id: "status", message: "something"}),
+//         "to": null,
+//       }),
+//     ]
+//   });
+//   return callRuntime(calls, state_root, resetState);
+// }
+
+// const root = callStatus(true);
+// console.log(callCrossContract(root, false));
+
+export {callRuntime};
