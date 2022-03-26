@@ -17,8 +17,8 @@ const main = async () => {
 
   await waitReady();
 
-  if (g) await genesis()
-  await deployContract()
+  // if (g) await genesis()
+  // await deployContract()
 
   // spawn all workers
 

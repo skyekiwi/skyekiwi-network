@@ -33,7 +33,7 @@ export class Chaos {
             receiver: 'status_message_collections',
             amount: null,
             method: 'set_status',
-            args: "0x" + u8aToHex(randomBytes(32)),
+            args: JSON.stringify({message: "0x" + u8aToHex(randomBytes(32))}),
             wasm_blob_path: null,
             to: null,
           }),

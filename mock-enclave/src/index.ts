@@ -24,6 +24,7 @@ const processCalls = (calls: Calls, stateRoot: Uint8Array) => {
     });
 
   const outcomes = callRuntime(calls, stateRoot)
+  console.log(outcomes)
 
   console.log("New State Root", u8aToHex(outcomes.state_root));
   for (let res of outcomes.ops) {
@@ -91,12 +92,12 @@ const main = async () => {
           }
         }
 
-        executionSummary.high_local_execution_block = block.block_number;
+        executionSummary.high_local_execution_block = block.block_number - 1;
         const op = [
           Storage.writeExecutionSummary(executionSummary),
           Storage.writeMetadata(localMetadata),
         ];
-        Storage.writeAll(db, op);
+        await Storage.writeAll(db, op);
 
         console.log(`execution summary: ${executionSummary.high_local_execution_block}`)
       }
@@ -151,7 +152,7 @@ const main = async () => {
           Storage.writeExecutionSummary(executionSummary),
           Storage.writeMetadata(localMetadata),
         ];
-         Storage.writeAll(db, op);
+        await Storage.writeAll(db, op);
 
         console.log(`execution summary: ${executionSummary.high_local_execution_block}`)
         await indexer.writeAll()
