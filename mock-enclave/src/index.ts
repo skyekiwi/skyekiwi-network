@@ -1,13 +1,15 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import {Calls, Block, Outcomes} from './host/borsh';
+import level from 'level'
+
+import {Calls, Block, Outcomes} from '@skyekiwi/s-contract/borsh';
 import {u8aToString, u8aToHex} from '@skyekiwi/util';
+
 import { Indexer } from './host/indexer';
-import {Storage} from './host/storage'
+import { Storage } from './host/storage'
 import { ShardManager } from './host/shard';
 import { Subscriber } from './host/subscriber';
 
 import { Dispatcher } from './host/dispatcher';
-import level from 'level'
 import { callRuntime  } from './vm';
 
 require("dotenv").config()
@@ -26,7 +28,7 @@ const processCalls = (calls: Calls, stateRoot: Uint8Array) => {
   console.log("New State Root", u8aToHex(outcomes.state_root));
   for (let res of outcomes.ops) {
 
-    console.log("Outcome:", res);
+    // console.log("Outcome:", res);
     if (res.view_result && res.view_result.length !== 0) {
       console.log("View Result", u8aToString(Buffer.from(res.view_result)));
     }
@@ -103,17 +105,18 @@ const main = async () => {
 
       const conf = (await api.query.parentchain.confirmation(0, block.block_number)).toJSON();
       if (
-          conf === null && (
+            // no reports has been submitted yet || confirmation is below the threshold?
+          (conf === null) && (
             (block.calls && block.calls.length !== 0) || 
             (block.contracts && block.contracts.length !== 0)
-          )
+          ) && dispatcher.isDispatchable(db, block.block_number)
       ) {
         console.log("submitting report for ", block.block_number)
         await shard.maybeSubmitExecutionReport(api, db, block.block_number);
       }
     }
   )
-return;
+
   await subscriber.subscribeNewBlock(api, async (blockNumber: number) => {
     
     console.log(`New block: ${blockNumber}`);

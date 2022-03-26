@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import path from 'path';
-import {IPFS} from './ipfs'
-import {  Calls, Call, Outcomes } from './borsh';
-import { Storage } from './storage';
-import BN from 'bn.js';
 import Level from 'level';
 import fs from 'fs';
+
+import {IPFS} from '@skyekiwi/ipfs'
+import {  Calls, Call, Outcomes } from '@skyekiwi/s-contract';
 import { hexToU8a } from '@polkadot/util';
+
+import { Storage } from './storage';
 import {Indexer} from './indexer'
-// import {hexToU8a} from '@skyekiwi/util'
 
 /* eslint-disable sort-keys, camelcase, @typescript-eslint/ban-ts-comment */
 export class Dispatcher {
@@ -47,7 +47,7 @@ export class Dispatcher {
 
       transaction_action: 'deploy',
       receiver: contractName,
-      amount: new BN(0x100, 16),
+      amount: 1,
       wasm_blob_path: wasmPath.toString(),
       method: null,
       args: null,
@@ -79,7 +79,12 @@ export class Dispatcher {
     executor: (calls: Calls, stateRoot: Uint8Array) => Outcomes
   ): Promise<Uint8Array> {
     const c = await Storage.getCallsRecord(db, 0, callsIndex)
-    const ops = c.ops.filter(op => op.transaction_action !== "deploy");
+    // const ops = c.ops.filter(op => op.transaction_action !== "deploy");
+    const ops = c.ops;
+    ops.map(it => {
+      it.origin = it.origin.toLowerCase();
+      it.receiver = it.receiver.toLowerCase();
+    })
     const o = executor(new Calls({ ops: ops }), stateRoot);
 
     indexer.writeOutcomes(0, callsIndex, o);

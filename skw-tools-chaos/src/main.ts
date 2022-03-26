@@ -8,7 +8,7 @@ import { Keyring } from '@polkadot/keyring'
 import { waitReady } from '@polkadot/wasm-crypto'
 import { ApiPromise, WsProvider } from '@polkadot/api'
 import {genesis} from './genesis'
-
+import { deployContract } from './deploy';
 
 // whether do we want to fund all accounts - enable for first run OR blockchain reset 
 const g = true;
@@ -16,12 +16,10 @@ const g = true;
 const main = async () => {
 
   await waitReady();
-  const rootKeypair = (new Keyring({ type: 'sr25519' })).addFromUri("//Alice");
 
-  const provider = new WsProvider('ws://127.0.0.1:9944');
-  const api = await ApiPromise.create({ provider: provider });
+  if (g) await genesis()
+  await deployContract()
 
-  if (g) genesis()
   // spawn all workers
 
   const pm2Path = path.join(__dirname, '../node_modules/.bin/pm2')

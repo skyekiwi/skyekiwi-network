@@ -7,10 +7,12 @@ import type { CallRecord } from './types';
 
 import level from 'level';
 import { getLogger, hexToU8a, u8aToString } from '@skyekiwi/util';
+import { 
+  Calls, ExecutionSummary, ShardMetadata, Block, LocalMetadata, parseCalls, Contract, Outcomes
+} from '@skyekiwi/s-contract/borsh';
 
 import { DBOps } from './types';
-import { Calls, ExecutionSummary, ShardMetadata, Block, LocalMetadata, parseCalls, Contract, Outcomes} from './borsh';
-import {Storage} from './storage';
+import { Storage } from './storage';
 
 /* eslint-disable sort-keys, camelcase, @typescript-eslint/ban-ts-comment */
 export class Indexer {

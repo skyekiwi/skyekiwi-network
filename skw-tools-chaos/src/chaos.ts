@@ -7,7 +7,7 @@ import { Keyring } from '@polkadot/keyring'
 import { waitReady } from '@polkadot/wasm-crypto'
 import { ApiPromise, WsProvider } from '@polkadot/api'
 import {sendTx} from './util'
-import { buildCall, Calls, Call, buildCalls } from '@skyekiwi/s-contract';
+import { Calls, Call, buildCalls } from '@skyekiwi/s-contract';
 
 export class Chaos {
 
@@ -34,6 +34,19 @@ export class Chaos {
             amount: null,
             method: 'set_status',
             args: "0x" + u8aToHex(randomBytes(32)),
+            wasm_blob_path: null,
+            to: null,
+          }),
+          new Call({
+            origin: keyring.address,
+            origin_public_key: keyring.publicKey,
+            encrypted_egress: false,
+
+            transaction_action: 'view_method_call',
+            receiver: 'status_message_collections',
+            amount: null,
+            method: 'get_status',
+            args: JSON.stringify({account_id: keyring.address.toLowerCase()}),
             wasm_blob_path: null,
             to: null,
           })

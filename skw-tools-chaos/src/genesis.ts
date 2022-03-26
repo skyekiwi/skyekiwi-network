@@ -6,10 +6,8 @@ import path from 'path'
 import { Driver } from '@skyekiwi/driver';
 import { AsymmetricEncryption, DefaultSealer, EncryptionSchema } from '@skyekiwi/crypto';
 
-import {IPFS} from '@skyekiwi/ipfs'
 import fs from 'fs'
 import BN from 'bn.js'
-import { baseDecode } from 'borsh'
 import { getLogger } from '@skyekiwi/util';
 import { Keyring } from '@polkadot/keyring'
 import { waitReady } from '@polkadot/wasm-crypto'
@@ -48,15 +46,6 @@ const genesis = async () => {
       api.tx.sContract.addAuthorizedShardOperator(0, rootKeypair.address)
   );
 
-  const fundAccounts = []
-  // 3. fund the accounts from the root account
-  for (let i = 1; i <= 10; i++) {
-      const keyring = (new Keyring({ type: 'sr25519' })).addFromUri(`//${i}`);
-      // fund the account with enough gas for 20 push calls
-      fundAccounts.push(api.tx.balances.transfer(keyring.address, 155_000_142 * 20));
-  }
-  fundAccounts.push(api.tx.balances.transfer(  "5DFhSMLmnw3Fgc6trbp8AuErcZoJS64gDFHUemqh2FRYdtoC"  , 155_000_142 * 20));
-
 
   let shardInitializeCalls = new Calls({
     ops: [
@@ -67,7 +56,7 @@ const genesis = async () => {
   
         transaction_action: 'create_account',
         receiver: 'deployer',
-        amount: new BN(0x10000, 16),
+        amount: 1000000,
         wasm_blob_path: null,
         method: null,
         args: null,
@@ -75,6 +64,43 @@ const genesis = async () => {
       }),
     ]
   })
+
+  const fundAccounts = []
+  // 3. fund the accounts from the root account
+  for (let i = 1; i <= 10; i++) {
+      const keyring = (new Keyring({ type: 'sr25519' })).addFromUri(`//${i}`);
+      // fund the account with enough gas for 20 push calls
+      fundAccounts.push(api.tx.balances.transfer(keyring.address, 155_000_142 * 20));
+
+      shardInitializeCalls.ops.push(new Call({
+        origin: 'root',
+        origin_public_key: publicKey,
+        encrypted_egress: false,
+  
+        transaction_action: 'create_account',
+        receiver: keyring.address,
+        amount: 10,
+        wasm_blob_path: null,
+        method: null,
+        args: null,
+        to: null
+      }));
+  }
+
+  shardInitializeCalls.ops.push(new Call({
+    origin: 'deployer',
+    origin_public_key: publicKey,
+    encrypted_egress: false,
+
+    transaction_action: 'deploy',
+    receiver: "test_contract",
+    amount: 1,
+    wasm_blob_path: '/Users/songzhou/Desktop/skyekiwi-network/mock-enclave/wasm/status_message_collections.wasm',
+    method: null,
+    args: null,
+    to: null
+  }));
+  fundAccounts.push(api.tx.balances.transfer(  "5DFhSMLmnw3Fgc6trbp8AuErcZoJS64gDFHUemqh2FRYdtoC"  , 155_000_142 * 20));
 
   const encryptionSchema = new EncryptionSchema();
   encryptionSchema.addMember(publicKey);
@@ -94,21 +120,11 @@ const genesis = async () => {
       }
   )
 
-  const wasmBlob = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/status_message_collections.wasm')));
-
-  const ipfs = new IPFS();
-  const cid = await ipfs.add(u8aToHex(wasmBlob));
-  const deploymentCalls = new Calls({ ops: [ ] });
-  const deployContract = api.tx.sContract.registerContract(
-    "status_message_collections", cid.cid.toString(), buildCalls(deploymentCalls), 0
-  );
-
-
   const submitInitialize = api.tx.utility.batch(
     [
       ...fundAccounts,
       registerSecretKeeper, registerShard,
-      authorizeRoot, initializeShard, deployContract,
+      authorizeRoot, initializeShard,
     ]
   );
   await sendTx(submitInitialize, rootKeypair, logger);

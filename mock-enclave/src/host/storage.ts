@@ -5,15 +5,16 @@ import type { DBOps } from './types';
 
 import level from 'level';
 
-import { Block, buildBlock, buildCalls, buildContract, buildExecutionSummary, buildLocalMetadata, buildOutcomes, buildShard, buildShardMetadata, Contract, ExecutionSummary, LocalMetadata, Outcomes, parseBlock,
-  Calls, parseCalls,
-  parseContract,
-  parseExecutionSummary,
-  parseLocalMetadata,
-  parseOutcomes,
-  parseShard,
-  parseShardMetadata,
-  Shard, ShardMetadata } from './borsh';
+import { 
+  Calls, buildCalls, parseCalls,
+  Outcomes, buildOutcomes, parseOutcomes,
+  Block, buildBlock, parseBlock,
+  Contract, buildContract, parseContract,
+  Shard, buildShard, parseShard,
+  ShardMetadata, buildShardMetadata, parseShardMetadata,
+  LocalMetadata, buildLocalMetadata, parseLocalMetadata,
+  ExecutionSummary, buildExecutionSummary, parseExecutionSummary
+} from '@skyekiwi/s-contract/borsh';
 
 const numberPadding = (n: number, pad: number): string => {
   return String(n).padStart(pad, '0');

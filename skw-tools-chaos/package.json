@@ -12,11 +12,11 @@
     "typescript": "^4.5.3"
   },
   "dependencies": {
-    "@skyekiwi/crypto": "0.6.2-7",
-    "@skyekiwi/driver": "0.6.2-7",
-    "@skyekiwi/s-contract": "0.6.2-7",
-    "@skyekiwi/secret-registry": "0.6.2-7",
-    "@skyekiwi/util": "0.6.2-7",
+    "@skyekiwi/crypto": "0.6.2-9",
+    "@skyekiwi/driver": "0.6.2-9",
+    "@skyekiwi/s-contract": "0.6.2-9",
+    "@skyekiwi/secret-registry": "0.6.2-9",
+    "@skyekiwi/util": "0.6.2-9",
     "bn.js": "^5.2.0",
     "borsh": "^0.7.0",
     "dotenv": "^16.0.0",

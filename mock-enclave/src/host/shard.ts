@@ -1,18 +1,19 @@
 // Copyright 2021-2022 @skyekiwi/s-contract authors & contributors
 // SPDX-License-Identifier: Apache-2.0
 
+import { randomBytes } from 'tweetnacl';
+import Level from 'level';
+
 import { ApiPromise } from '@polkadot/api';
 import { KeyringPair } from '@polkadot/keyring/types';
-import { randomBytes } from 'tweetnacl';
-
-import { AsymmetricEncryption } from '@skyekiwi/crypto';
-import { sendTx, u8aToHex } from '@skyekiwi/util';
 import { waitReady } from '@polkadot/wasm-crypto';
 import { Keyring } from '@polkadot/keyring'
-import Level from 'level';
-import {ShardMetadata} from '@skyekiwi/s-contract/borsh'
+
+import { AsymmetricEncryption } from '@skyekiwi/crypto';
+import { ShardMetadata, buildOutcomes } from '@skyekiwi/s-contract/borsh';
+import { sendTx, u8aToHex } from '@skyekiwi/util';
+
 import {Storage} from './storage'
-import { buildOutcomes } from './borsh';
 
 export class ShardManager {
   #keyring: KeyringPair
@@ -66,6 +67,12 @@ export class ShardManager {
       if (this.beaconIsTurn(blockNumber, shardMetadata)) {
 
         const block = await Storage.getBlockRecord(db, shard, blockNumber);
+
+        if (!block.calls || !block.contracts) {
+          console.log("unexpected", block, shard)
+          continue;
+        }
+
         let stateRoot: Uint8Array
         let outcomes: string[] = []
         let callIndex: number[] = []

@@ -21,16 +21,13 @@
     "@polkadot/keyring": "^8.3.3",
     "@polkadot/util": "^8.3.3",
     "@polkadot/wasm-crypto": "^4.5.1",
-    "@skyekiwi/crypto": "0.6.2-6",
-    "@skyekiwi/file": "0.6.2-6",
-    "@skyekiwi/s-contract": "0.6.2-6",
-    "@skyekiwi/util": "0.6.2-6",
+    "@skyekiwi/crypto": "0.6.2-9",
+    "@skyekiwi/file": "0.6.2-9",
+    "@skyekiwi/s-contract": "0.6.2-9",
+    "@skyekiwi/util": "0.6.2-9",
     "bn.js": "4.12",
     "dotenv": "^16.0.0",
     "level": "^7.0.1",
-    "p-queue": "6.6.2",
-    "superagent": "^7.1.1",
-    "threads": "^1.7.0",
     "tweetnacl": "^1.0.3"
   }
 }

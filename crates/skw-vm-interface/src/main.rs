@@ -1,6 +1,7 @@
 mod scripts;
 use std::path::PathBuf;
 use scripts::Script;
+use std::convert::{TryInto};
 
 use skw_contract_sdk::{CryptoHash};
 use skw_vm_interface::{ExecutionResult, ViewResult};
@@ -11,6 +12,7 @@ use skw_vm_primitives::{
 use borsh::{BorshSerialize, BorshDeserialize};
 use clap::Clap;
 use std::fs;
+use skw_vm_store::{create_store};
 
 pub fn decode_hex(s: &str) -> Vec<u8> {
 	(0..s.len())
@@ -21,12 +23,9 @@ pub fn decode_hex(s: &str) -> Vec<u8> {
 #[derive(Clap)]
 struct CliArgs {
     #[clap(long)]
-    state_file: Option<PathBuf>,
+    state_file: PathBuf,
     #[clap(long)]
-    state_root: Option<String>,
-
-    #[clap(long)]
-    signer: Option<String>,
+    state_root: String,
 
     #[clap(long)]
     params: Option<String>,
@@ -43,7 +42,7 @@ struct InputParams {
 
     transaction_action: String,
     receiver: String,
-    amount: Option<Balance>,
+    amount: Option<u32>,
     wasm_blob_path: Option<String>,
     method: Option<String>,
     args: Option<String>,
@@ -80,31 +79,31 @@ fn main() {
         tracing_span_tree::span_tree().enable();
     }
 
-    let mut script = Script::default();
-
-    if let Some(signer) = &cli_args.signer {
-        script.set_signer_str(signer);
-    }
-
-    if let Some(path) = &cli_args.state_file {
-        assert!(
-            cli_args.state_root.is_some(),
-            "state_root must be provided when state_file is set"
-        );
-
-        script.init(
-            path.as_path(),
-            &cli_args.state_root.unwrap(),
-
-        );
-    }
-
     let decoded_call = bs58::decode(&cli_args.params.unwrap_or_default()).into_vec().unwrap();
     let params: Input = BorshDeserialize::try_from_slice(&decoded_call).expect("input parsing failed");
 
     let mut outcomes = Outputs::default();
+    let mut script = Script::default();
+    let mut state_root: CryptoHash = decode_hex(&cli_args.state_root.as_str())
+        .try_into()
+        .expect("state root invalid");
+
+
+    let state_path = cli_args.state_file.to_str().expect("state path invalid");
+
+    let store = create_store();
+    store.load_state_from_file(state_path).unwrap();
+
+    script.init(
+        &store,
+        state_root,
+        &"empty".to_string(),
+    );
 
     for input in params.ops.iter() {
+    
+        script.update_account(input.origin.as_ref().unwrap_or(&"empty".to_string()));
+
         let mut outcome: Option<ExecutionResult> = None; 
         let mut view_outcome: Option<ViewResult> = None; 
 
@@ -117,7 +116,7 @@ fn main() {
 
                 script.create_account(
                     &input.receiver,
-                    input.amount.unwrap(),
+                    u128::from(input.amount.unwrap()) * 10u128.pow(24),
                 );
             },
             "transfer" => {
@@ -128,7 +127,7 @@ fn main() {
 
                 script.transfer(
                     &input.receiver,
-                    input.amount.unwrap(),
+                    u128::from(input.amount.unwrap()) * 10u128.pow(24),
                 );
             },
             "call" => {
@@ -146,7 +145,7 @@ fn main() {
                     &input.receiver,
                     &input.method.as_ref().unwrap(),
                     &input.args.as_ref().unwrap().as_bytes(),
-                    input.amount.unwrap_or(0),
+                    u128::from(input.amount.unwrap_or(0)) * 10u128.pow(24),
                 ));
             },
             "view_method_call"  => {
@@ -189,12 +188,13 @@ fn main() {
                 script.deploy(
                     &code,
                     &input.receiver,
-                    input.amount.unwrap(),
+                    u128::from(input.amount.unwrap()) * 10u128.pow(24),
                 );
             },
             _ => {}
         }
     
+        state_root = script.state_root();
         let mut execution_result: InterfaceOutcome = InterfaceOutcome::default();
 
         match &outcome {
@@ -221,12 +221,10 @@ fn main() {
         }
 
         outcomes.ops.push(execution_result);
+        script.sync_state_root();
     }
     
-    let mut state_root = CryptoHash::default();
-    if let Some(path) = &cli_args.state_file {
-        script.write_to_file(&path, &mut state_root);
-    }
+    script.write_to_file(&cli_args.state_file, &mut state_root);
 
     outcomes.state_root = state_root;
 
@@ -234,6 +232,5 @@ fn main() {
     // println!("{:?}", outcomes);
     outcomes.serialize(&mut buffer).unwrap();
 
-    println!("{:?}", state_root);
     println!("{:?}", bs58::encode(buffer).into_string());
 }

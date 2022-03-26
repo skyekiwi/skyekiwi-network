@@ -9,4 +9,3 @@ export type DBOps = {
 
 export type CallRecord = [string, string]
 export type SecretContractRegistrationEvent = [string]
-export type IPFSResult = { cid: string, size: number };

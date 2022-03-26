@@ -9,24 +9,30 @@ import config from './config'
 // import path from 'path'
 
 import {
-  Calls,buildCalls, parseOutcomes, Outcomes,
-} from './host/borsh';
+  Calls,buildCalls, Outcomes, parseOutcomes,
+} from '@skyekiwi/s-contract';
 
 
-const callRuntime = (calls: Calls, stateRoot: Uint8Array, resetState = false): Outcomes => {
-  if (resetState) {
-    try {
-      execSync(`rm ${config.currentStateFile}`);
-      execSync(`cp ${config.genesisStateFile} ${config.currentStateFile}`);
-    } catch(err) { }
-  }
+const callRuntime = (calls: Calls, stateRoot: Uint8Array): Outcomes => {
+  // if (resetState) {
+  //   try {
+  //     execSync(`rm ${config.currentStateFile}`);
+  //     execSync(`cp ${config.genesisStateFile} ${config.currentStateFile}`);
+  //   } catch(err) { }
+  // }
 
   const encodedCall = buildCalls(calls);
-  return parseOutcomes(  JSON.parse(execSync(`../target/release/skw-vm-interface \
-      --state-file ${config.stateDumpPrefix} \
-      --state-root ${u8aToHex(stateRoot)} \
-      ${encodedCall.length === 0 ? "" : `--params ${encodedCall}`}`
-    ).toString()));
+
+  const res = execSync(`../target/release/skw-vm-interface \
+    --state-file ${config.stateDumpPrefix} \
+    --state-root ${u8aToHex(stateRoot)} \
+    ${encodedCall.length === 0 ? "" : `--params ${encodedCall}`} \
+    ${stateRoot[0] !== 0 ? "--timings" : ""}`
+  ).toString()
+
+    console.log( res );
+  // console.log(parseOutcomes(  JSON.parse(res) ))
+  return parseOutcomes(  JSON.parse(res) );
 }
 
 // const callStatus = (resetState: boolean) => {

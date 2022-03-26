@@ -318,8 +318,8 @@ impl pallet_secrets::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxCallLength: u32 = 512;
-	pub const MaxOutputLength: u32 = 1024;
+	pub const MaxCallLength: u32 = 100_000;
+	pub const MaxOutputLength: u32 = 500_000;
 	pub const MinContractNameLength: u32 = 1;
 	pub const MaxContractNameLength: u32 = 32;
 }
@@ -345,8 +345,8 @@ impl pallet_registry::Config for Runtime {
 
 parameter_types! {
 	pub const DeplayThreshold: u32 = 20;
-	pub const MaxOutcomePerSubmission: u64 = 20;
-	pub const MaxSizePerOutcome: u64 = 1024;
+	pub const MaxOutcomePerSubmission: u64 = 10_000;
+	pub const MaxSizePerOutcome: u64 = 500_000;
 }
 
 impl pallet_parentchain::Config for Runtime {
