@@ -58,23 +58,10 @@ pub mod pallet {
 	#[pallet::getter(fn current_secret_id)]
 	pub(super) type CurrentSecretId<T: Config> = StorageValue<_, SecretId, ValueQuery, DefaultId<T>>;
 
-	/// ================== Secret Contract Specific Fields ==================
-	/// Wasm Blob CID of a secret contract
-	#[pallet::storage]
-	#[pallet::getter(fn wasm_blob_of)]
-	pub(super) type WasmBlob<T: Config> = StorageMap<_, Twox64Concat, SecretId, Vec<u8>>;
-
-	/// shard where the contract is located
-	#[pallet::storage]
-	#[pallet::getter(fn home_shard_of)]
-	pub(super) type HomeShard<T: Config> = StorageMap<_, Twox64Concat, SecretId, ShardId>;
-	/// ================== Secret Contract Specific Fields ==================
-
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		SecretRegistered(SecretId),
-		SecretContractRegistered(SecretId),
 		SecretUpdated(SecretId),
 		MembershipGranted(SecretId, T::AccountId),
 		MembershipRevoked(SecretId, T::AccountId),
@@ -86,8 +73,6 @@ pub mod pallet {
 		InvalidSecretId,
 		AccessDenied,
 		MetadataNotValid,
-		ContractCallIndexError,
-		ContractPublicKeyNotValid,
 		SecretNotExecutable,
 		NotAllowedForSecretContracts,
 		InvalidShardId,
@@ -114,43 +99,18 @@ pub mod pallet {
 			
 			Ok(())
 		}
-
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 4))]
-		pub fn register_secret_contract(
-			origin: OriginFor<T>, 
-			metadata: Vec<u8>,
-			wasm_blob_cid: Vec<u8>,
-			shard_id: ShardId,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			ensure!(metadata.len() == T::IPFSCIDLength::get() as usize, Error::<T>::MetadataNotValid);
-			ensure!(wasm_blob_cid.len() == T::IPFSCIDLength::get() as usize, Error::<T>::MetadataNotValid);
-			ensure!(T::MaxActiveShards::get() >= shard_id, Error::<T>::InvalidShardId);
-
-			let id = <CurrentSecretId<T>>::get();
-			let new_id = id.saturating_add(1);
-
-			<Metadata<T>>::insert(&id, metadata);
-			<WasmBlob<T>>::insert(&id, wasm_blob_cid);
-			<Owner<T>>::insert(&id, who);
-			<CurrentSecretId<T>>::set(new_id);
-			<HomeShard<T>>::insert(&id, shard_id);
-			Self::deposit_event(Event::<T>::SecretContractRegistered(id));
-			
-			Ok(())
-		}
-
+		
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
 		pub fn nominate_member(
 			origin: OriginFor<T>,
-			vault_id: SecretId,
+			secret_id: SecretId,
 			member: T::AccountId
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(Self::authorize_owner(who, vault_id) == true, Error::<T>::AccessDenied);
+			ensure!(Self::authorize_owner(who, secret_id) == true, Error::<T>::AccessDenied);
 
-			<Operator<T>>::insert(vault_id, &member, true);
-			Self::deposit_event(Event::<T>::MembershipGranted(vault_id, member));
+			<Operator<T>>::insert(secret_id, &member, true);
+			Self::deposit_event(Event::<T>::MembershipGranted(secret_id, member));
 			
 			Ok(())
 		}
@@ -171,13 +131,54 @@ pub mod pallet {
 		}
 
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
+		pub fn force_nominate_member(
+			origin: OriginFor<T>,
+			secret_id: SecretId,
+			member: T::AccountId
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			<Operator<T>>::insert(secret_id, &member, true);
+			Self::deposit_event(Event::<T>::MembershipGranted(secret_id, member));
+
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
+		pub fn force_remove_member(
+			origin: OriginFor<T>,
+			secret_id: SecretId,
+			member: T::AccountId
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			<Operator<T>>::take(&secret_id, &member);
+			Self::deposit_event(Event::<T>::MembershipRevoked(secret_id, member));
+			
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
+		pub fn force_change_owner(
+			origin: OriginFor<T>,
+			secret_id: SecretId,
+			member: T::AccountId
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			<Owner<T>>::mutate(&secret_id, |owner| {
+				* owner = Some(member);
+			});
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
 		pub fn update_metadata(
 			origin: OriginFor<T>,
 			secret_id: SecretId,
 			metadata: Vec<u8>
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(Self::is_executable(secret_id) == false, Error::<T>::NotAllowedForSecretContracts);
 			ensure!(metadata.len() == T::IPFSCIDLength::get() as usize, Error::<T>::MetadataNotValid);
 			ensure!(Self::authorize_access(who, secret_id) == true, Error::<T>::AccessDenied);
 
@@ -194,7 +195,6 @@ pub mod pallet {
 			secret_id: SecretId,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(Self::is_executable(secret_id) == false, Error::<T>::NotAllowedForSecretContracts);
 			ensure!(Self::authorize_owner(who, secret_id) == true, Error::<T>::AccessDenied);
 
 			// so far, it is garenteed the secret_id is valid 
@@ -221,12 +221,6 @@ pub mod pallet {
 			secret_id: SecretId
 		) -> bool {
 			<Operator<T>>::get(&secret_id, &who) == Some(true) || <Owner<T>>::get(&secret_id) == Some(who)
-		}
-
-		pub fn is_executable(
-			secret_id: SecretId
-		) -> bool {
-			<WasmBlob<T>>::contains_key(&secret_id) && <HomeShard<T>>::contains_key(&secret_id)
 		}
 
 		pub fn compress_hex_key(s: &Vec<u8>) -> Vec<u8> {

@@ -1,16 +1,12 @@
 use std::cell::{Ref, RefCell, RefMut};
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
-use std::str::FromStr;
-use std::sync::Arc;
 
 use skw_vm_primitives::{
     crypto::{InMemorySigner, KeyType, Signer},
     account_id::AccountId,
 };
-use skw_vm_store::Store;
 
-use crate::runtime::init_runtime;
 pub use crate::to_yocto;
 use crate::new_p_account;
 
@@ -22,7 +18,7 @@ use skw_vm_primitives::{
 
 use crate::{
     outcome_into_result,
-    runtime::{GenesisConfig, RuntimeStandalone},
+    runtime::{RuntimeStandalone},
     ExecutionResult, ViewResult,
 };
 
@@ -115,6 +111,10 @@ impl UserAccount {
     /// Look up the account information on chain.
     pub fn account(&self) -> Option<Account> {
         (*self.runtime).borrow().view_account(&self.account_id.as_str())
+    }
+    /// Look up the account information on chain.
+    pub fn other_account(&self, account_id: &str) -> Option<Account> {
+        (*self.runtime).borrow().view_account(account_id)
     }
     /// Look up the latest state_root
     pub fn state_root(&self) -> CryptoHash {
@@ -259,48 +259,11 @@ impl UserAccount {
         self.create_user_from(self, account_id, amount)
     }
 
-    /// Returns a reference to a memory location of the standalone runtime.
-    ///
-    /// # Examples
-    /// ```
-    /// let master_account = skw_vm_interface::init_node(None);
-    /// let runtime = master_account.borrow_runtime();
-    ///
-    /// // with use
-    /// let _block = runtime.current_block();
-    /// ```
     pub fn borrow_runtime(&self) -> Ref<RuntimeStandalone> {
         (*self.runtime).borrow()
     }
 
-    /// Returns a mutable memory location to the standalone runtime.
-    ///
-    /// # Examples
-    /// ```
-    /// let master_account = skw_vm_interface::init_node(None);
-    /// let mut runtime = master_account.borrow_runtime_mut();
-    ///
-    /// // with use
-    /// runtime.produce_block().unwrap();
-    /// ```
     pub fn borrow_runtime_mut(&self) -> RefMut<RuntimeStandalone> {
         (*self.runtime).borrow_mut()
     }
-}
-
-/// The simulator takes an optional GenesisConfig, which sets up the fees and other settings.
-/// It returns the `master_account` which can then create accounts and deploy contracts.
-pub fn init_node(genesis_config: Option<GenesisConfig>) -> UserAccount {
-    let (runtime, signer) = init_runtime(&"root", genesis_config, None, None);
-    UserAccount::new(&Rc::new(RefCell::new(runtime)), AccountId::from_str("root").unwrap(), signer)
-}
-
-pub fn recover_node(genesis_config: Option<GenesisConfig>, store: Option<&Arc<Store>>, state_root: Option<CryptoHash> ) -> UserAccount {
-    let (runtime, signer) = init_runtime(&"root", genesis_config, store, state_root);
-    UserAccount::new(&Rc::new(RefCell::new(runtime)), AccountId::from_str("root").unwrap(), signer)
-}
-
-pub fn init_node_with_store(genesis_config: Option<GenesisConfig>, store: Option<&Arc<Store>>, state_root: Option<CryptoHash> ) -> UserAccount {
-    let (runtime, signer) = init_runtime(&"root", genesis_config, store, state_root);
-    UserAccount::new(&Rc::new(RefCell::new(runtime)), AccountId::from_str("root").unwrap(), signer)
 }

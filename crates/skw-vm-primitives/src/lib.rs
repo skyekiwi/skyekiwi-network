@@ -27,7 +27,7 @@ pub mod contract_runtime {
     pub use crate::account_id::AccountId;
     use crate::receipt::{Receipt};
     use crate::trie_key::TrieKey;
-    use borsh::{BorshDeserialize, BorshSerialize};
+    use crate::borsh::{BorshDeserialize, BorshSerialize};
     use serde::{Serialize, Deserialize};
     use crate::crypto::PublicKey;
     use crate::serialize::u128_dec_format;

@@ -39,9 +39,9 @@ pub fn init_runtime(
     config.runtime_config.wasm_config.limit_config.max_total_prepaid_gas = config.gas_limit;
     let signer = InMemorySigner::from_seed(
         new_p_account(account_id),
-        KeyType::ED25519, "test"
+        KeyType::ED25519, account_id,
     );
-    let root_account = account_new(10u128.pow(33), CryptoHash::default());
+    let root_account = account_new(10u128.pow(60), CryptoHash::default());
 
     config.state_records.push(StateRecord::Account {
         account_id: new_p_account(account_id),

@@ -65,7 +65,7 @@ impl IpfsClient {
     let part = Part::bytes(content).file_name("skyekiwi-protocol-file");
     form = form.part("file", part);
   
-    let add = client.post("https://crustwebsites.net/api/v0/add")
+    let add = client.post("https://crustipfs.xyz/api/v0/add")
       .multipart(form)
       .send()?;
   
@@ -96,7 +96,7 @@ impl IpfsClient {
       .default_headers(headers)
       .build()?;
 
-    let download = client.post("https://crustwebsites.net/api/v0/cat")
+    let download = client.post("https://crustipfs.xyz/api/v0/cat")
       .query(&[("arg", std::str::from_utf8(&cid)?)])
       .send()?;
     

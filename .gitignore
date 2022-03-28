@@ -33,7 +33,12 @@ enclave/bin/tmp/*
 **/*.h
 **/*.o
 
-chaos/src/logs/*.log
-
 crates/**/mock/*ColState
 vm-state-dump/interface__state_dump__ColState
+.env
+
+mock-enclave/local
+skw-tools-chaos/src/logs/*.log
+mock-enclave/wasm/**.wasm
+mock-enclave/output
+mock-enclave/wasm/status_message_collections.wasm
