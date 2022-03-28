@@ -2,7 +2,7 @@ import { ApiPromise, WsProvider } from '@polkadot/api';
 import level from 'level'
 
 import {Calls, Block, Outcomes} from '@skyekiwi/s-contract/borsh';
-import {u8aToString, u8aToHex} from '@skyekiwi/util';
+import {u8aToString, u8aToHex, getLogger} from '@skyekiwi/util';
 
 import { Indexer } from './host/indexer';
 import { Storage } from './host/storage'
@@ -50,13 +50,14 @@ const processCalls = (calls: Calls, stateRoot: Uint8Array) => {
 
 const main = async () => {
 
-  // callStatus(true)
+  const logger = getLogger("mock-enclave")
 
   const subscriber = new Subscriber();
   const indexer = new Indexer();
   const shard = new ShardManager([0]);
-  await shard.init();
   const dispatcher = new Dispatcher();
+
+  await shard.init();
 
   const provider = new WsProvider('ws://localhost:9944');
   const api = await ApiPromise.create({ provider: provider });
@@ -68,7 +69,7 @@ const main = async () => {
   await indexer.fetchOnce(api, '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY');
   await indexer.fetchAll(api);
   await indexer.writeAll();
-  console.log(`pre-launching indexing done`)
+  logger.info("pre-launching indexing done, sending to executor")
 
   let executionSummary = await Storage.getExecutionSummary(db);
   let localMetadata = await Storage.getMetadata(db);
@@ -101,8 +102,7 @@ const main = async () => {
 
         console.log(`execution summary: ${executionSummary.high_local_execution_block}`)
       }
-
-      await indexer.writeAll()
+      await indexer.writeAll();
 
       const conf = (await api.query.parentchain.confirmation(0, block.block_number)).toJSON();
       if (
@@ -118,10 +118,11 @@ const main = async () => {
     }
   )
 
+  logger.info("subscribe to new blocks");
   await subscriber.subscribeNewBlock(api, async (blockNumber: number) => {
     
-    console.log(`New block: ${blockNumber}`);
-    if (blockNumber % 20 === 0) {
+    logger.info(`New block: ${blockNumber}`);
+    if (blockNumber % 20 === 0) { 
       await shard.maybeRegisterSecretKeeper(api, blockNumber);
       await shard.maybeSubmitExecutionReport(api, db, blockNumber);
     }
@@ -153,9 +154,20 @@ const main = async () => {
           Storage.writeMetadata(localMetadata),
         ];
         await Storage.writeAll(db, op);
+        await indexer.writeAll();
 
-        console.log(`execution summary: ${executionSummary.high_local_execution_block}`)
-        await indexer.writeAll()
+        logger.info(`execution summary: ${executionSummary.high_local_execution_block}`)
+        const conf = (await api.query.parentchain.confirmation(0, block.block_number)).toJSON();
+        if (
+              // no reports has been submitted yet || confirmation is below the threshold?
+            (conf === null) && (
+              (block.calls && block.calls.length !== 0) || 
+              (block.contracts && block.contracts.length !== 0)
+            ) && dispatcher.isDispatchable(db, block.block_number)
+        ) {
+          logger.info("submitting report for ", block.block_number)
+          await shard.maybeSubmitExecutionReport(api, db, block.block_number);
+        }
       }
     )
   })

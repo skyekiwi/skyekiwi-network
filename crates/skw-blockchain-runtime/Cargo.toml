@@ -17,7 +17,6 @@ version = '3.0.0'
 targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
-pallet-naming = { default-features = false, path = '../skw-blockchain-pallets/pallet-naming', version = '3.0.0' }
 pallet-secrets = { default-features = false, path = '../skw-blockchain-pallets/pallet-secrets', version = '3.0.0' }
 pallet-s-contract = { default-features = false, path = '../skw-blockchain-pallets/pallet-s-contract', version = '3.0.0' }
 pallet-registry = { default-features = false, path = '../skw-blockchain-pallets/pallet-registry', version = '3.0.0' }
@@ -63,11 +62,16 @@ runtime-benchmarks = [
     'frame-system/runtime-benchmarks',
     'hex-literal',
     'pallet-balances/runtime-benchmarks',
+
     'pallet-secrets/runtime-benchmarks',
-    'pallet-naming/runtime-benchmarks',
+    'pallet-s-contract/runtime-benchmarks',
+    'pallet-registry/runtime-benchmarks',
+    'pallet-parentchain/runtime-benchmarks',
+
     'pallet-timestamp/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
 ]
+
 std = [
     'codec/std',
     'scale-info/std',
@@ -81,7 +85,10 @@ std = [
     'pallet-randomness-collective-flip/std',
     'pallet-sudo/std',
     'pallet-secrets/std',
-    'pallet-naming/std',
+    'pallet-s-contract/std',
+    'pallet-registry/std',
+    'pallet-parentchain/std',
+
     'pallet-timestamp/std',
     'pallet-transaction-payment-rpc-runtime-api/std',
     'pallet-transaction-payment/std',

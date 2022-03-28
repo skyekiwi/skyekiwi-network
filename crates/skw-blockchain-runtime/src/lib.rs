@@ -35,10 +35,8 @@ pub use frame_support::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 	},
 };
-use frame_system::EnsureRoot;
 use pallet_transaction_payment::CurrencyAdapter;
 
-pub use pallet_naming;
 pub use pallet_secrets;
 pub use pallet_s_contract;
 pub use pallet_registry;
@@ -288,25 +286,6 @@ impl pallet_utility::Config for Runtime {
 }
 
 parameter_types! {
-    pub const ReservationFee: u128 = 10_000_000_000_000;
-		// pub const Day: BlockNumber = DAYS;
-		pub const BlockPerPeriod: BlockNumber = 5;
-		
-		// reserve a slot no more than 5 years.
-		pub const MaxPeriod: u32 = 1825;
-}
-
-impl pallet_naming::Config for Runtime {
-    type ReservationFee = ReservationFee;
-		type BlockPerPeriod = BlockPerPeriod;
-		type MaxPeriod = MaxPeriod;
-
-		type ForceOrigin = EnsureRoot<AccountId>;
-    type Event = Event;
-    type Currency = Balances;
-}
-
-parameter_types! {
 	pub const IPFSCIDLength: u32 = 46;
 	pub const MaxActiveShards: u64 = 0;
 }
@@ -344,7 +323,7 @@ impl pallet_registry::Config for Runtime {
 
 
 parameter_types! {
-	pub const DeplayThreshold: u32 = 20;
+	pub const DeplayThreshold: u32 = 5_000;
 	pub const MaxOutcomePerSubmission: u64 = 10_000;
 	pub const MaxSizePerOutcome: u64 = 500_000;
 }
@@ -373,7 +352,6 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Event},
 
-		Naming: pallet_naming::{Pallet, Call, Storage, Event<T>},
 		Secrets: pallet_secrets::{Pallet, Call, Storage, Event<T>},
 		SContract: pallet_s_contract::{Pallet, Call, Storage, Event<T>},
 		Registry: pallet_registry::{Pallet, Call, Storage, Event<T>},

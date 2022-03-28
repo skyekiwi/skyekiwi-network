@@ -4,9 +4,7 @@
 import {execSync} from 'child_process';
 import path from 'path'
 
-import { Keyring } from '@polkadot/keyring'
 import { waitReady } from '@polkadot/wasm-crypto'
-import { ApiPromise, WsProvider } from '@polkadot/api'
 import {genesis} from './genesis'
 import { deployContract } from './deploy';
 
@@ -17,8 +15,8 @@ const main = async () => {
 
   await waitReady();
 
-  // if (g) await genesis()
-  // await deployContract()
+  if (g) await genesis()
+  await deployContract()
 
   // spawn all workers
 
@@ -34,9 +32,9 @@ const main = async () => {
     // pass
   }
   // each account will make 10 random push calls
-  const callCounts = 10;
+  const callCounts = 1000;
 
-  for (let i = 1; i <= 10; i++) {
+  for (let i = 1; i <= 100; i++) {
     execSync(`${pm2Path} start "${tsnodePath} ${indexPath} ${i} ${callCounts}" --log ${logBasePath}/${i}.log`);
   }  
 }

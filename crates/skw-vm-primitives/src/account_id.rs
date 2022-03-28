@@ -184,7 +184,7 @@ impl AccountId {
 			for (i, c) in account_id.chars().enumerate() {
 				this.replace((i, c));
 				let current_char_is_separator = match c {
-					'a'..='z' | 'A'..='Z' | '0'..='9' => false,
+					'a'..='z' | '0'..='9' => false,
 					'-' | '_' | '.' => true,
 					_ => {
 						return Err(ParseAccountError {

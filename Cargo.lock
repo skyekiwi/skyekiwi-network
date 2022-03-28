@@ -6885,7 +6885,6 @@ dependencies = [
  "pallet-aura",
  "pallet-balances",
  "pallet-grandpa",
- "pallet-naming",
  "pallet-parentchain",
  "pallet-randomness-collective-flip",
  "pallet-registry",

@@ -8,7 +8,7 @@ import fs from 'fs';
 import {IPFS} from '@skyekiwi/ipfs'
 import {  Calls, Call, Outcomes } from '@skyekiwi/s-contract';
 import { hexToU8a } from '@polkadot/util';
-
+import { getLogger } from '@skyekiwi/util';
 import { Storage } from './storage';
 import {Indexer} from './indexer'
 
@@ -25,6 +25,7 @@ export class Dispatcher {
     contractName: string, stateRoot: Uint8Array,
     executor: (calls: Calls, stateRoot: Uint8Array) => Outcomes
   ): Promise<Uint8Array> {
+    const logger = getLogger('dispatcher.dispatchNewContract');
 
     const wasmPath = path.join(__dirname, "../../wasm/", contractName + '.wasm');
     const contract = await Storage.getContractRecord(db, contractName);
@@ -34,6 +35,7 @@ export class Dispatcher {
 
     // can this be exploited?
     fs.writeFileSync(wasmPath, hexToU8a(content));
+    logger.info(`wasm blobk downloaded to ${wasmPath}`);
 
     // now we deal with the calls 
     let rawOps = contract.deployment_call.ops;
@@ -67,8 +69,11 @@ export class Dispatcher {
     }
 
     const c = new Calls({ "ops": verifiedOps});
+    logger.info(`calls validated for ${contractName}, sending to executor`);
 
     const o = executor(c, stateRoot)
+
+    logger.info(`outcome received for contract deployment of ${contractName}, writing to DB`);
     indexer.writeOutcomes(0, contract.deployment_call_index, o);
     return o.state_root;
   }
@@ -78,16 +83,23 @@ export class Dispatcher {
     callsIndex: number, stateRoot: Uint8Array,
     executor: (calls: Calls, stateRoot: Uint8Array) => Outcomes
   ): Promise<Uint8Array> {
+
+    const logger = getLogger('dispatcher.dispatchCalls');
+
     const c = await Storage.getCallsRecord(db, 0, callsIndex)
-    // const ops = c.ops.filter(op => op.transaction_action !== "deploy");
-    const ops = c.ops;
+    const ops = c.ops.filter(op => op.transaction_action !== "deploy");
+
+    // const ops = c.ops;
     ops.map(it => {
       it.origin = it.origin.toLowerCase();
       it.receiver = it.receiver.toLowerCase();
     })
+
+    logger.info(`call validated for ${callsIndex}, sending to executor`)
     const o = executor(new Calls({ ops: ops }), stateRoot);
 
     indexer.writeOutcomes(0, callsIndex, o);
+    logger.info(`outcome received for ${callsIndex}, writing to DB`);
 
     return o.state_root;
   }

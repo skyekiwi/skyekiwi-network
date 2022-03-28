@@ -67,10 +67,10 @@ const genesis = async () => {
 
   const fundAccounts = []
   // 3. fund the accounts from the root account
-  for (let i = 1; i <= 10; i++) {
+  for (let i = 1; i <= 100; i++) {
       const keyring = (new Keyring({ type: 'sr25519' })).addFromUri(`//${i}`);
       // fund the account with enough gas for 20 push calls
-      fundAccounts.push(api.tx.balances.transfer(keyring.address, 155_000_142 * 20));
+      fundAccounts.push(api.tx.balances.transfer(keyring.address, 155_000_142 * 1000));
 
       shardInitializeCalls.ops.push(new Call({
         origin: 'root',
