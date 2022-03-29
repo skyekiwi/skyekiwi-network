@@ -14,6 +14,7 @@ targets = ['x86_64-unknown-linux-gnu']
 [dependencies]
 jsonrpc-core = '18.0.0'
 structopt = '0.3.25'
+hex-literal = "0.3.1"
 
 skyekiwi-runtime = { path = '../skw-blockchain-runtime', version = '3.0.0' }
 frame-benchmarking = { git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}

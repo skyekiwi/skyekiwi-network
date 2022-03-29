@@ -1,24 +1,22 @@
-//! Benchmarking setup for pallet-template
-
 use super::*;
 
 use frame_system::RawOrigin;
 use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_suite};
 #[allow(unused)]
-use crate::Pallet as Secrets;
+use crate::Pallet as Parentchain;
 
 benchmarks! {
-	register_secret {
-		let s in 0 .. 100;
+	set_shard_confirmation_threshold {
+		let s = 0u64;
 		let caller: T::AccountId = whitelisted_caller();
-	}: _(RawOrigin::Signed(caller), s)
+	}: set_shard_confirmation_threshold(RawOrigin::Root, s, 2)
 	verify {
-		assert_eq!(Metadata::<T>::get(), Some(s));
+		assert_eq!(ShardConfirmationThreshold::<T>::get(s), Some(2u64));
 	}
 }
 
 impl_benchmark_test_suite!(
-	Secrets,
+	Parentchain,
 	crate::mock::new_test_ext(),
 	crate::mock::Test,
 );

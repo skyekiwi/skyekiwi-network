@@ -9,8 +9,8 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 pub type CallIndex = u64;
 pub type ShardId = u64;

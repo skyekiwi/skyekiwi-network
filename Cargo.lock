@@ -6840,6 +6840,7 @@ version = "3.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
+ "hex-literal 0.3.4",
  "jsonrpc-core",
  "pallet-transaction-payment-rpc",
  "sc-basic-authorship",

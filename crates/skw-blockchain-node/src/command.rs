@@ -25,7 +25,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn support_url() -> String {
-		"skye.kiwi".into()
+		"https://skye.kiwi".into()
 	}
 
 	fn copyright_start_year() -> i32 {
@@ -35,7 +35,7 @@ impl SubstrateCli for Cli {
 	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
 		Ok(match id {
 			"dev" => Box::new(chain_spec::development_config()?),
-			"" | "local" => Box::new(chain_spec::local_testnet_config()?),
+			"" | "skw_alpha" => Box::new(chain_spec::alpha_config()?),
 			path =>
 				Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		})
