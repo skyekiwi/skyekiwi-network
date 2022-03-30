@@ -5,7 +5,8 @@ const execSync = require('./execSync.cjs');
 console.log('$ yarn docker:build', process.argv.slice(2).join(' '));
 
 function dockerBuild() {
-  execSync(`sudo docker build -m 4g -f ./Dockerfile.build -t skyekiwi/skyekiwi-network .`);
+  execSync(`sudo docker build -m 4g -f ./Dockerfile.build -t skyekiwi/skyekiwi-network . \
+    && sudo docker push skyekiwi/skyekiwi-network`);
 }
 
 dockerBuild()

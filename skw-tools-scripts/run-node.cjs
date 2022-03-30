@@ -5,7 +5,11 @@ const execSync = require('./execSync.cjs');
 const path = require('path');
 console.log('$ yarn railway:run', process.argv.slice(2).join(' '));
 
-require('dotenv').config();
+try {
+  require('dotenv').config();
+} catch (e) {
+  // pass, deplying on railway
+}
 
 function runValidatorNode(seed, dbPath, p2pPort, wsPort, rpcPort, name, bootnodes,) {
 
@@ -35,7 +39,9 @@ function runValidatorNode(seed, dbPath, p2pPort, wsPort, rpcPort, name, bootnode
     --rpc-port ${rpcPort} \
     --telemetry-url "wss://telemetry.polkadot.io/submit/ 0" \
     --validator \
-    --rpc-methods Unsafe \
+    --unsafe-rpc-external \
+    --unsafe-ws-external 
+    --prometheus-external \
     --name ${name} \
     ${!!bootnodes ? `--bootnodes ${bootnodes}` : ''}`);
 }
@@ -44,10 +50,10 @@ function runValidatorNode(seed, dbPath, p2pPort, wsPort, rpcPort, name, bootnode
 function runEndpoint(bootnodes) {
   const node = path.join(__dirname, "../target/release/skyekiwi-node");
   execSync(`${node} \
-    --base-path ../tmp/db \
-    --chain=skw_alpha \
+    --base-path ../tmp/full \
+    --chain crates/skw-blockchain-node/res/alphaRaw.json \
     --port 30333 \
-    --ws-port 443 \
+    --ws-port 9944 \
     --rpc-port 9935 \
     --telemetry-url "wss://telemetry.polkadot.io/submit/ 0" \
     --rpc-methods Unsafe \
@@ -61,6 +67,7 @@ function runEndpoint(bootnodes) {
 // EXPOSE 30333 9933 9944 9615
 
 const main = () => {
+
   const mode = process.argv[2]
   const bootnode = process.env.BOOTNODES;
 

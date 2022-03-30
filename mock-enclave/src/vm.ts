@@ -9,20 +9,12 @@ import {
 
 
 const callRuntime = (calls: Calls, stateRoot: Uint8Array): Outcomes => {
-  // if (resetState) {
-  //   try {
-  //     execSync(`rm ${config.currentStateFile}`);
-  //     execSync(`cp ${config.genesisStateFile} ${config.currentStateFile}`);
-  //   } catch(err) { }
-  // }
-
   const encodedCall = buildCalls(calls);
 
   const res = execSync(`../target/release/skw-vm-interface \
     --state-file ${config.stateDumpPrefix} \
     --state-root ${u8aToHex(stateRoot)} \
-    ${encodedCall.length === 0 ? "" : `--params ${encodedCall}`} \
-    ${stateRoot[0] !== 0 ? "--timings" : ""}`
+    ${encodedCall.length === 0 ? "" : `--params ${encodedCall}`}`
   ).toString()
 
   // console.log( res );

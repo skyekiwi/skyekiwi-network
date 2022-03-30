@@ -19,21 +19,14 @@ export class Indexer {
   #db: level.LevelDB
   #ops: DBOps[]
 
-  public init (db: level.LevelDB): void {
-    this.#ops = [];
+  constructor(db: level.LevelDB) {
     this.#db = db;
+    this.#ops = []
   }
 
   public async done() {
     await this.writeAll();
     this.#db.close();
-  }
-
-  public async runBlocks(from: number, to: number, dispatcher: (block: Block) => Promise<void>): Promise<void> {
-    for (let i = from; i < to; i ++ ) {
-      const block = await Storage.getBlockRecord(this.#db, 0, i);
-      await dispatcher(block)
-    }
   }
 
   public async initialzeLocalDatabase (): Promise<void> {
@@ -62,7 +55,8 @@ export class Indexer {
 
     logger.info(`highest local block at ${localMetadata.high_local_block}`);
 
-    let currentBlockNumber = highLocalBlock + 1;
+    // let currentBlockNumber = highLocalBlock + 1;
+    let currentBlockNumber = highLocalBlock;
 
     while (true) {
       logger.debug(`fetching all info from block# ${currentBlockNumber}`);
@@ -110,8 +104,6 @@ export class Indexer {
           const contractName = evt.event.data[1].toString();
           const callIndex = Number(evt.event.data[2]);
 
-          console.log(contractName);
-          // console.log(u8aToString( hexToU8a(contractName.substring(2)) ))
           let call
           const encodedCall = (await api.query.sContract.callRecord(shardId, callIndex)).toJSON() as CallRecord;
           if (encodedCall[0] === '0x') {
@@ -166,7 +158,7 @@ export class Indexer {
     return true;
   }
 
-  public async fetchOnce (api: ApiPromise, address: string): Promise<void> {
+  public async fetchShardInfo (api: ApiPromise, address: string): Promise<void> {
     const localMetadata = await Storage.getMetadata(this.#db);
 
     for (const shard of localMetadata.shard_id) {
@@ -200,7 +192,6 @@ export class Indexer {
       }
 
       this.#ops.push(Storage.writeShardMetadataRecord(shard, shardInfo));
-      console.log(this.#ops)
     }
   }
 
@@ -209,5 +200,6 @@ export class Indexer {
   }
   public async writeAll (): Promise<void> {
     await Storage.writeAll(this.#db, this.#ops);
+    this.#ops = []
   }
 }

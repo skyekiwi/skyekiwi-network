@@ -62,7 +62,7 @@ export class Chaos {
       await sendTx(pushCall, keyring, logger);
 
       const random = Math.floor(Math.random() * (1000 - 1)) + 1;
-      await sleep(random);
+      await sleep(random * 100);
     }
   }
 }

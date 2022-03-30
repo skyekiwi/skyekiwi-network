@@ -7,7 +7,7 @@ import { Driver } from '@skyekiwi/driver';
 import { AsymmetricEncryption, DefaultSealer, EncryptionSchema } from '@skyekiwi/crypto';
 
 import fs from 'fs'
-import BN from 'bn.js'
+
 import { getLogger } from '@skyekiwi/util';
 import { Keyring } from '@polkadot/keyring'
 import { waitReady } from '@polkadot/wasm-crypto'
@@ -120,11 +120,15 @@ const genesis = async () => {
       }
   )
 
+  let shardConfirmationThreshold = api.tx.sudo.sudo(
+    api.tx.parentchain.setShardConfirmationThreshold(0, 1)
+  );
+
   const submitInitialize = api.tx.utility.batch(
     [
       ...fundAccounts,
       registerSecretKeeper, registerShard,
-      authorizeRoot, initializeShard,
+      authorizeRoot, initializeShard, shardConfirmationThreshold,
     ]
   );
   await sendTx(submitInitialize, rootKeypair, logger);

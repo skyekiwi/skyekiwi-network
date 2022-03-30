@@ -1,22 +1,28 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import level from 'level'
 
-import {Calls, Block, Outcomes} from '@skyekiwi/s-contract/borsh';
-import {u8aToString, u8aToHex, getLogger} from '@skyekiwi/util';
+import {Calls, Outcomes} from '@skyekiwi/s-contract/borsh';
+import { getLogger} from '@skyekiwi/util';
 
 import { Indexer } from './host/indexer';
 import { Storage } from './host/storage'
 import { ShardManager } from './host/shard';
-import { Subscriber } from './host/subscriber';
 
 import { Dispatcher } from './host/dispatcher';
 import { callRuntime  } from './vm';
+import { SubmittableExtrinsic } from '@polkadot/api/promise/types';
+import config from './config';
+
+import fs from 'fs';
+import crypto from 'crypto';
 
 require("dotenv").config()
 
-const processCalls = (calls: Calls, stateRoot: Uint8Array) => {
-  console.log("Executing", calls)
+const sleep = (ms: number) => {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
 
+const processCalls = (calls: Calls, stateRoot: Uint8Array) => {
   if (calls.ops.length === 0) 
     return new Outcomes({
       ops: [],
@@ -24,62 +30,58 @@ const processCalls = (calls: Calls, stateRoot: Uint8Array) => {
     });
 
   const outcomes = callRuntime(calls, stateRoot)
-  console.log(outcomes)
-
-  console.log("New State Root", u8aToHex(outcomes.state_root));
-  for (let res of outcomes.ops) {
-
-    // console.log("Outcome:", res);
-    if (res.view_result && res.view_result.length !== 0) {
-      console.log("View Result", u8aToString(Buffer.from(res.view_result)));
-    }
-    // if (res.outcome_logs && res.outcome_logs.length !== 0) {
-    //   console.log("Exec Log", u8aToString(Buffer.from(res.outcome_logs)));
-    // }
-    if (res.outcome_status && res.outcome_status.length !== 0) {
-      console.log("Exec Status", u8aToString(Buffer.from(res.outcome_status)));
-    }
-    
-    else {
-      // console.log(res);
-    }
-  }
-
   return outcomes;
+}
+
+const getStateFileHash = (): Uint8Array => {
+  const file = fs.readFileSync(config.currentStateFile);
+  const hashSum = crypto.createHash('sha256');
+  hashSum.update(file);
+  return hashSum.digest();
 }
 
 const main = async () => {
 
   const logger = getLogger("mock-enclave")
 
-  const subscriber = new Subscriber();
-  const indexer = new Indexer();
+  const provider = new WsProvider('ws://localhost:9944');
+  const api = await ApiPromise.create({ provider: provider });
+
+  const db = level('local');
+  const indexer = new Indexer(db);
   const shard = new ShardManager([0]);
   const dispatcher = new Dispatcher();
 
   await shard.init();
 
-  const provider = new WsProvider('ws://localhost:9944');
-  const api = await ApiPromise.create({ provider: provider });
-  const db = level('local');
+  try {
+    await Storage.getMetadata(db);
+  } catch(e) {
+    logger.warn(e);
+    // local metadata has not been initialized
+    await indexer.initialzeLocalDatabase();
+  }
 
-  indexer.init(db);
-  await indexer.initialzeLocalDatabase();
+  await indexer.fetchShardInfo(api, '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY');
 
-  await indexer.fetchOnce(api, '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY');
-  await indexer.fetchAll(api);
-  await indexer.writeAll();
-  logger.info("pre-launching indexing done, sending to executor")
+  let txBuffer: SubmittableExtrinsic[] = [];
 
-  let executionSummary = await Storage.getExecutionSummary(db);
-  let localMetadata = await Storage.getMetadata(db);
+  while (true) {
+    await indexer.fetchAll(api);
+    await indexer.writeAll();
 
+    let executionSummary = await Storage.getExecutionSummary(db);
+    let localMetadata = await Storage.getMetadata(db);
+    for (let blockNumber = executionSummary.high_local_execution_block === 0 ? 1 : executionSummary.high_local_execution_block; 
+      blockNumber < localMetadata.high_local_block; blockNumber ++ ) 
+    {
+      const block = await Storage.getBlockRecord(db, 0, blockNumber);
+      if (blockNumber % 20 === 0) {
+        const txs = await shard.maybeRegisterSecretKeeper(api, blockNumber);
+        txBuffer.push(... (txs ? txs : []));
+      }
 
-  await indexer.runBlocks(
-    executionSummary.high_local_execution_block + 1, 
-    localMetadata.high_local_block,
-    async (block: Block) => {
-      if (dispatcher.isDispatchable(db, block.block_number)) {
+      if (dispatcher.isDispatchable(db, blockNumber)) {
 
         if (block.calls && block.calls.length > 0) {
           for (let call of block.calls) {
@@ -94,83 +96,39 @@ const main = async () => {
         }
 
         executionSummary.high_local_execution_block = block.block_number - 1;
+
         const op = [
           Storage.writeExecutionSummary(executionSummary),
           Storage.writeMetadata(localMetadata),
         ];
         await Storage.writeAll(db, op);
-
-        console.log(`execution summary: ${executionSummary.high_local_execution_block}`)
       }
+
       await indexer.writeAll();
 
       const conf = (await api.query.parentchain.confirmation(0, block.block_number)).toJSON();
       if (
-            // no reports has been submitted yet || confirmation is below the threshold?
+          // no reports has been submitted yet || confirmation is below the threshold?
           (conf === null) && (
             (block.calls && block.calls.length !== 0) || 
             (block.contracts && block.contracts.length !== 0)
           ) && dispatcher.isDispatchable(db, block.block_number)
       ) {
         console.log("submitting report for ", block.block_number)
-        await shard.maybeSubmitExecutionReport(api, db, block.block_number);
-      }
-    }
-  )
+        txBuffer.push(... (await shard.maybeSubmitExecutionReport(api, db, block.block_number, getStateFileHash())));
 
-  logger.info("subscribe to new blocks");
-  await subscriber.subscribeNewBlock(api, async (blockNumber: number) => {
-    
-    logger.info(`New block: ${blockNumber}`);
-    if (blockNumber % 20 === 0) { 
-      await shard.maybeRegisterSecretKeeper(api, blockNumber);
-      await shard.maybeSubmitExecutionReport(api, db, blockNumber);
-    }
-
-    await indexer.fetchAll(api);
-    await indexer.writeAll();
-    let executionSummary = await Storage.getExecutionSummary(db);
-    let localMetadata = await Storage.getMetadata(db);
-
-    await indexer.runBlocks(
-      executionSummary.high_local_execution_block, 
-      localMetadata.high_local_block,
-      async (block: Block) => {
-        if (block.contracts && block.contracts.length > 0) {
-          for (const contractName of block.contracts) {
-            localMetadata.latest_state_root = await dispatcher.dispatchNewContract(indexer, db, contractName, localMetadata.latest_state_root, processCalls);
-          }
-        }
-
-        if (block.contracts && block.contracts.length > 0) {
-          for (const contractName of block.contracts) {
-            localMetadata.latest_state_root = await dispatcher.dispatchNewContract(indexer, db, contractName, localMetadata.latest_state_root, processCalls);
-          }
-        }
-
-        executionSummary.high_local_execution_block = block.block_number;
-        const op = [
-          Storage.writeExecutionSummary(executionSummary),
-          Storage.writeMetadata(localMetadata),
-        ];
-        await Storage.writeAll(db, op);
-        await indexer.writeAll();
-
-        logger.info(`execution summary: ${executionSummary.high_local_execution_block}`)
-        const conf = (await api.query.parentchain.confirmation(0, block.block_number)).toJSON();
-        if (
-              // no reports has been submitted yet || confirmation is below the threshold?
-            (conf === null) && (
-              (block.calls && block.calls.length !== 0) || 
-              (block.contracts && block.contracts.length !== 0)
-            ) && dispatcher.isDispatchable(db, block.block_number)
-        ) {
-          logger.info("submitting report for ", block.block_number)
-          await shard.maybeSubmitExecutionReport(api, db, block.block_number);
+        if (txBuffer.length >= 100) {
+          await shard.submitTxBatch(api.tx.utility.batchAll(txBuffer));
+          txBuffer = [];
         }
       }
-    )
-  })
+    }
+
+    await shard.submitTxBatch(api.tx.utility.batchAll(txBuffer));
+    txBuffer = [];
+
+    await sleep(6000);
+  }
 }
 
 main()

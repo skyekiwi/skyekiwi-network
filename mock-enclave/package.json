@@ -6,7 +6,8 @@
   "license": "GPL-3.0-or-later",
   "scripts": {
     "vm": "./node_modules/.bin/ts-node ./src/vm.ts",
-    "sandbox": "./node_modules/.bin/ts-node ./src/index.ts"
+    "sandbox": "./node_modules/.bin/ts-node ./src/index.ts",
+    "start": "./node_modules/.bin/ts-node ./src/index.ts"
   },
   "devDependencies": {
     "@types/bn.js": "4.11.6",
