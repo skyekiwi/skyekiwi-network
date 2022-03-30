@@ -63,6 +63,7 @@ parameter_types! {
 }
 
 impl pallet_secrets::Config for Test {
+	type WeightInfo = ();
 	type Event = Event;
 	type IPFSCIDLength = IPFSCIDLength;
 	type MaxActiveShards = MaxActiveShards;
@@ -76,6 +77,7 @@ parameter_types! {
 }
 
 impl pallet_s_contract::Config for Test {
+	type WeightInfo = ();
 	type Event = Event;
 	type MaxCallLength = MaxCallLength;
 	type MaxOutputLength = MaxOutputLength;

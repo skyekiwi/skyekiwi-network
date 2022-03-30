@@ -11,8 +11,11 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
+pub mod weights;
+pub use weights::WeightInfo;
 
 pub type CallIndex = u64;
 pub type EncodedCall = Vec<u8>;
@@ -31,6 +34,8 @@ pub mod pallet {
 		pallet_secrets::Config
 	{
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		type WeightInfo: WeightInfo;
 
 		#[pallet::constant]
 		type MaxCallLength: Get<u32>;
@@ -114,7 +119,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_contract())]
 		pub fn register_contract(
 			origin: OriginFor<T>, 
 			contract_name: Vec<u8>,
@@ -160,7 +165,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::push_call())]
 		pub fn push_call(
 			origin: OriginFor<T>, 
 			shard_id: ShardId,
@@ -188,7 +193,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::initialize_shard())]
 		pub fn initialize_shard(
 			origin: OriginFor<T>, 
 			shard_id: ShardId,
@@ -225,7 +230,7 @@ pub mod pallet {
 			}
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::shard_rollup())]
 		pub fn shard_rollup(
 			origin: OriginFor<T>,
 			shard_id: ShardId,
@@ -249,7 +254,7 @@ pub mod pallet {
 			}
 		}
 		
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_authorized_shard_operator())]
 		pub fn add_authorized_shard_operator(
 			origin: OriginFor<T>,
 			shard_id: ShardId,

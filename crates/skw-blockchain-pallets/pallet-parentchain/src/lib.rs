@@ -2,6 +2,8 @@
 use sp_std::prelude::*;
 pub use pallet::*;
 
+pub mod weights;
+pub use weights::WeightInfo;
 
 #[cfg(test)]
 mod tests;
@@ -33,6 +35,8 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxSizePerOutcome: Get<u64>;
+
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -84,7 +88,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(0, 1))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_shard_confirmation_threshold())]
 		pub fn set_shard_confirmation_threshold(
 			origin: OriginFor<T>,
 			shard_id: ShardId,
@@ -97,7 +101,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(8, 10))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_outcome(outcome_call_index.len() as u32))]
 		pub fn submit_outcome(
 			origin: OriginFor<T>,
 			block_number: T::BlockNumber,

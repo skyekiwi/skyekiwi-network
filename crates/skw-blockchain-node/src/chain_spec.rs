@@ -77,7 +77,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 }
 
 pub fn alpha_config() -> Result<ChainSpec, String> {
-    ChainSpec::from_json_bytes(&include_bytes!("../res/alphaRaw.json")[..])
+    ChainSpec::from_json_bytes(&include_bytes!("../../../chain-spec/alphaRaw.json")[..])
 }
 
 // pub fn testnet_alpha_config() -> Result<ChainSpec, String> {
@@ -94,14 +94,14 @@ pub fn alpha_config() -> Result<ChainSpec, String> {
 // 				wasm_binary,
 // 				// Initial PoA authorities
 // 				vec![
-// 					authority_keys_from_seed("key"),
+// 					authority_keys_from_seed("key1"),
 // 					authority_keys_from_seed("key2"),
 // 				],
 // 				// Sudo account
-// 				get_account_id_from_seed::<sr25519::Public>("key"),
+// 				get_account_id_from_seed::<sr25519::Public>("key1"),
 // 				// Pre-funded accounts
 // 				vec![
-// 					get_account_id_from_seed::<sr25519::Public>("key"),
+// 					get_account_id_from_seed::<sr25519::Public>("key1"),
 // 					get_account_id_from_seed::<sr25519::Public>("key2"),
 // 				],
 // 				true,

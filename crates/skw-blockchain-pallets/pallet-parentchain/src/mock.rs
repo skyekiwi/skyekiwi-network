@@ -63,6 +63,7 @@ parameter_types! {
 }
 
 impl pallet_registry::Config for Test {
+	type WeightInfo = ();
 	type Event = Event;
 	type RegistrationDuration = RegistrationDuration;
 	type MaxActiveShards = MaxActiveShards;
@@ -75,6 +76,7 @@ parameter_types! {
 }
 
 impl pallet_parentchain::Config for Test {
+	type WeightInfo = ();
 	type Event = Event;
 	type DeplayThreshold = DeplayThreshold;
 	type MaxOutcomePerSubmission = MaxOutcomePerSubmission;

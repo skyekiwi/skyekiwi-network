@@ -12,6 +12,7 @@
     "setup-rust": "node ./skw-tools-scripts/setup-rust.cjs",
     "blockchain:build": "node ./skw-tools-scripts/blockchain-build.cjs",
     "blockchain:build-spec": "node ./skw-tools-scripts/generate-chainspec.cjs",
+    "blockchain:weight": "node ./skw-tools-scripts/generate-weight.cjs",
     "main:build": "node ./skw-tools-scripts/main-build.cjs",
     "main:ci": "node ./skw-tools-scripts/main-ci.cjs",
     "main:test": "node ./skw-tools-scripts/main-test.cjs",

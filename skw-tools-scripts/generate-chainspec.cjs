@@ -8,7 +8,7 @@ console.log('$ yarn enclave:ci', process.argv.slice(2).join(' '));
 function generateChainSpec() {
 
   const node = path.join(__dirname, "../target/release/skyekiwi-node");
-  const resFolder = path.join(__dirname, "../crates/skw-blockchain-node/res");
+  const resFolder = path.join(__dirname, "../chain-spec");
   execSync(`${node} build-spec \
     --chain=skw_alpha \
     --raw \

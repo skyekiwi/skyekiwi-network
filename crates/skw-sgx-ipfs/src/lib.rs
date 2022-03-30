@@ -31,9 +31,9 @@ use ipfs_types::*;
 
 pub struct IpfsClient ();
 
+#[allow(non_snake_case)]
 #[derive(Deserialize, Debug, Clone)]
 struct IpfsResponse {
-  Name: String,
   Hash: String,
   Size: String,
 }

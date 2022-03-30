@@ -8,8 +8,11 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
+pub mod weights;
+pub use weights::WeightInfo;
 
 type ShardId = u64;
 #[frame_support::pallet]
@@ -29,6 +32,8 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxActiveShards: Get<u64>;
+
+		type WeightInfo: WeightInfo;
 		// type ForceOrigin: EnsureOrigin<Self::Origin>;
 	}
 
@@ -85,7 +90,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_secret_keeper())]
 		pub fn register_secret_keeper(
 			origin: OriginFor<T>,
 			public_key: Vec<u8>,
@@ -113,7 +118,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::renew_registration())]
 		pub fn renew_registration(
 			origin: OriginFor<T>,
 			public_key: Vec<u8>,
@@ -137,7 +142,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_registration())]
 		pub fn remove_registration(
 			origin: OriginFor<T>,
 		) -> DispatchResult {
@@ -154,7 +159,7 @@ pub mod pallet {
 			}
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_running_shard())]
 		pub fn register_running_shard(
 			origin: OriginFor<T>,
 			shard: ShardId,

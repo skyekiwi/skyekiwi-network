@@ -63,6 +63,7 @@ impl pallet_secrets::Config for Test {
 	type Event = Event;
 	type IPFSCIDLength = IPFSCIDLength;
 	type MaxActiveShards = MaxActiveShards;
+	type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.
