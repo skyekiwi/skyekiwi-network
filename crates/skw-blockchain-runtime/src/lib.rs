@@ -294,7 +294,6 @@ impl pallet_secrets::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
 	type IPFSCIDLength = IPFSCIDLength;
-	type MaxActiveShards = MaxActiveShards;
 }
 
 parameter_types! {
@@ -308,7 +307,6 @@ impl pallet_s_contract::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
 	type MaxCallLength = MaxCallLength;
-	type MaxOutputLength = MaxOutputLength;
 	type MinContractNameLength = MinContractNameLength;
 	type MaxContractNameLength = MaxContractNameLength;
 }

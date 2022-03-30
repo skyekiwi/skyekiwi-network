@@ -2,7 +2,6 @@
 members = [
     # blockchain 
     'crates/skw-blockchain-node',
-    'crates/skw-blockchain-pallets-unused/pallet-naming',
     'crates/skw-blockchain-pallets/pallet-secrets',
     'crates/skw-blockchain-pallets/pallet-s-contract',
     'crates/skw-blockchain-pallets/pallet-registry',
@@ -39,6 +38,8 @@ exclude = [
     'enclave/skw-sgx-enclave',
 
     "crates/near-contract-standards",
+    'crates/skw-blockchain-pallets-unused/pallet-naming',
+
 ]
 [profile.release]
 panic = 'unwind'

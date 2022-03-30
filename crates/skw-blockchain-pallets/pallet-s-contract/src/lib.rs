@@ -21,6 +21,7 @@ pub type CallIndex = u64;
 pub type EncodedCall = Vec<u8>;
 pub type ShardId = u64;
 pub type PublicKey = [u8; 32];
+pub type ContractName = Vec<u8>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -37,15 +38,15 @@ pub mod pallet {
 
 		type WeightInfo: WeightInfo;
 
+		/// maximum length of encoded calls allowed
 		#[pallet::constant]
 		type MaxCallLength: Get<u32>;
 
-		#[pallet::constant]
-		type MaxOutputLength: Get<u32>;
-
+		/// minimum length of a contract name
 		#[pallet::constant]
 		type MinContractNameLength: Get<u32>;
 
+		/// maximum length of a contract name
 		#[pallet::constant]
 		type MaxContractNameLength: Get<u32>;
 	}
@@ -54,41 +55,49 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
+	/// wasm_blob of a deployed contracts
 	#[pallet::storage]
 	#[pallet::getter(fn wasm_blob_cid_of)]
 	pub(super) type WasmBlobCID<T: Config> = StorageDoubleMap<_, Twox64Concat,
-		ShardId, Blake2_128Concat, Vec<u8>, Vec<u8> >;
+		ShardId, Blake2_128Concat, ContractName, Vec<u8> >;
 
+	/// call history of a block (ShardId, BlockNumber) -> Vec<CallIndex>
 	#[pallet::storage]
 	#[pallet::getter(fn call_history_of)]
 	pub(super) type CallHistory<T: Config> = StorageDoubleMap<_, Twox64Concat,
 		ShardId, Twox64Concat, T::BlockNumber, Vec<CallIndex> >;
 	
+	/// call content of a call (ShardId, CallIndex) -> EncodedCall
 	#[pallet::storage]
 	#[pallet::getter(fn call_record_of)]
 	pub(super) type CallRecord<T: Config> = StorageDoubleMap<_, Twox64Concat,
 		ShardId, Twox64Concat, CallIndex, (EncodedCall, T::AccountId) >;
 
+	/// the callIndex that will be assigned to the next calls
 	#[pallet::storage]
 	#[pallet::getter(fn current_call_index_of)]
 	pub(super) type CurrentCallIndex<T: Config> = StorageMap<_, Twox64Concat,
 		ShardId, CallIndex >;
 
+	/// the secret id of the shard state file on pallet-secrets
 	#[pallet::storage]
 	#[pallet::getter(fn shard_secret_id)]
 	pub(super) type ShardSecretIndex<T: Config> = StorageMap<_, Twox64Concat,
 		ShardId, SecretId >;
 	
+	/// the public key of the shard, used for sending encrypted encoded calls
 	#[pallet::storage]
 	#[pallet::getter(fn shard_public_key)]
 	pub(super) type ShardPublicKey<T: Config> = StorageMap<_, Twox64Concat,
 		ShardId, PublicKey>;
 	
+	/// the highest call index of a shard as of the latest state rollup
 	#[pallet::storage]
 	#[pallet::getter(fn shard_high_call_index)]
 	pub(super) type ShardHighCallIndex<T: Config> = StorageMap<_, Twox64Concat,
 		ShardId, CallIndex>;
 
+	/// authorized members who can access the shard
 	#[pallet::storage]
 	#[pallet::getter(fn shard_operator)]
 	pub(super) type ShardOperator<T: Config> = StorageDoubleMap<_, Twox64Concat,
@@ -119,6 +128,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
 
+		/// register a contract with a deployment encoded call
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_contract())]
 		pub fn register_contract(
 			origin: OriginFor<T>, 
@@ -165,6 +175,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// push a batch of calls for a shard
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::push_call())]
 		pub fn push_call(
 			origin: OriginFor<T>, 
@@ -193,6 +204,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// (SHARD OPERATOR ONLY) initialize a shard with initial state file and initial calls
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::initialize_shard())]
 		pub fn initialize_shard(
 			origin: OriginFor<T>, 
@@ -230,6 +242,7 @@ pub mod pallet {
 			}
 		}
 
+		/// (SHARD OPERATOR ONLY) rollup a shard for key rotations
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::shard_rollup())]
 		pub fn shard_rollup(
 			origin: OriginFor<T>,
@@ -254,6 +267,7 @@ pub mod pallet {
 			}
 		}
 		
+		/// (ROOT ONLY) nominate a shard operator
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_authorized_shard_operator())]
 		pub fn add_authorized_shard_operator(
 			origin: OriginFor<T>,

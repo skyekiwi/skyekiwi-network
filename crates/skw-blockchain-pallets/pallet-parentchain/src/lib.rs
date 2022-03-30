@@ -27,42 +27,50 @@ pub mod pallet {
 	pub trait Config: frame_system::Config + pallet_registry::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
+		type WeightInfo: WeightInfo;
+
+		/// Maximum delay between receiving a call and submitting result for it
 		#[pallet::constant]
 		type DeplayThreshold: Get<<Self as frame_system::Config>::BlockNumber>;
 
+		/// Maximum number of outcomes allowed per submission 
 		#[pallet::constant]
 		type MaxOutcomePerSubmission: Get<u64>;
 
+		/// Maximum length of sizze for each outcome submitted
 		#[pallet::constant]
 		type MaxSizePerOutcome: Get<u64>;
-
-		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 	
+	/// Threshold of outcome submission from SecretKeepers needed to confirm a block
 	#[pallet::storage]
 	#[pallet::getter(fn shard_confirmation_threshold)]
 	pub(super) type ShardConfirmationThreshold<T: Config> = StorageMap<_, Twox64Concat, 
 		ShardId, u64>;
 
+	/// state_root of offchain runtime
 	#[pallet::storage]
 	#[pallet::getter(fn state_root_at)]
 	pub(super) type StateRoot<T: Config> = StorageDoubleMap<_, Twox64Concat, ShardId, 
 		Twox64Concat, T::BlockNumber, [u8; 32]>;
 	
+	/// state dump file checksum of offchain runtime
 	#[pallet::storage]
 	#[pallet::getter(fn state_file_hash_at)]
 	pub(super) type StateFileHash<T: Config> = StorageDoubleMap<_, Twox64Concat, ShardId,
 	Twox64Concat, T::BlockNumber, [u8; 32]>;
 
+	/// confirmations received for offchain runtime for blocks 
 	#[pallet::storage]
 	#[pallet::getter(fn confirmation_of)]
 	pub(super) type Confirmation<T: Config> = StorageDoubleMap<_, Twox64Concat, ShardId,
 	Twox64Concat, T::BlockNumber, u64>;
 
+	/// outcome received each call 
 	#[pallet::storage]
 	#[pallet::getter(fn outcome_of)]
 	pub(super) type Outcome<T: Config> = StorageMap<_, Twox64Concat, 
@@ -88,6 +96,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
 
+		/// (ROOT ONLY) set the confirmation threshold for a shard
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_shard_confirmation_threshold())]
 		pub fn set_shard_confirmation_threshold(
 			origin: OriginFor<T>,
@@ -101,6 +110,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// submit a batch of outcomes for a block
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_outcome(outcome_call_index.len() as u32))]
 		pub fn submit_outcome(
 			origin: OriginFor<T>,

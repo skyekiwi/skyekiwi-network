@@ -27,13 +27,16 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
+		type WeightInfo: WeightInfo;
+		
+		/// duration of the validity of registrations
 		#[pallet::constant]
 		type RegistrationDuration: Get<u32>;
 
+		/// maximum number of shards allowed
 		#[pallet::constant]
 		type MaxActiveShards: Get<u64>;
 
-		type WeightInfo: WeightInfo;
 		// type ForceOrigin: EnsureOrigin<Self::Origin>;
 	}
 
@@ -41,30 +44,38 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
+	/// a list of all active secret keepers
 	#[pallet::storage]
 	#[pallet::getter(fn secret_keepers)]
 	pub(super) type SecretKeepers<T: Config> = StorageValue<_, 
 		Vec< T::AccountId >, OptionQuery >;
 	
+	/// registration expiration block number for each secret keepers
 	#[pallet::storage]
 	#[pallet::getter(fn expiration_of)]
 	pub(super) type Expiration<T: Config> = StorageMap<_, Twox64Concat, 
 		T::AccountId, T::BlockNumber>;
 
+	/// identity publlic key of each secret keepers, used to receive the secret
 	#[pallet::storage]
 	#[pallet::getter(fn public_key_of)]
 	pub(super) type PublicKey<T: Config> = StorageMap<_, Twox64Concat, 
 		T::AccountId, Vec<u8>>;
 	
+	/// members of each shard
 	#[pallet::storage]
 	#[pallet::getter(fn shard_members_of)]
 	pub(super) type ShardMembers<T: Config> = StorageMap<_, Twox64Concat, ShardId, Vec<T::AccountId>>;
-	
+
+	// Beacons are identifier of when a secret keeper is supposed to submit a outcome
+
+	/// beacon index of each secret keeper, first come first serve
 	#[pallet::storage]
 	#[pallet::getter(fn beacon_index_of)]
 	pub(super) type BeaconIndex<T: Config> = StorageDoubleMap<_, Twox64Concat, ShardId,
 	Twox64Concat, T::AccountId, u64>;
 
+	/// total number of members in a shard - numbers of nodes playing the beacon game
 	#[pallet::storage]
 	#[pallet::getter(fn beacon_count_of)]
 	pub(super) type BeaconCount<T: Config> = StorageMap<_, Twox64Concat, ShardId, u64>;
@@ -90,6 +101,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
 
+		/// register a secret keeper
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_secret_keeper())]
 		pub fn register_secret_keeper(
 			origin: OriginFor<T>,
@@ -118,6 +130,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// renew registration by submitting a new signature and public key
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::renew_registration())]
 		pub fn renew_registration(
 			origin: OriginFor<T>,
@@ -142,6 +155,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// remove ones own registration record
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_registration())]
 		pub fn remove_registration(
 			origin: OriginFor<T>,
@@ -159,6 +173,7 @@ pub mod pallet {
 			}
 		}
 
+		/// register all active shards one is running
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_running_shard())]
 		pub fn register_running_shard(
 			origin: OriginFor<T>,
