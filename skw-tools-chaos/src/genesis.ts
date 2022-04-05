@@ -7,6 +7,7 @@ import { Driver } from '@skyekiwi/driver';
 import { AsymmetricEncryption, DefaultSealer, EncryptionSchema } from '@skyekiwi/crypto';
 
 import fs from 'fs'
+import {IPFS} from '@skyekiwi/ipfs'
 
 import { getLogger } from '@skyekiwi/util';
 import { Keyring } from '@polkadot/keyring'
@@ -120,8 +121,17 @@ const genesis = async () => {
       }
   )
 
-  let shardConfirmationThreshold = api.tx.sudo.sudo(
+  const shardConfirmationThreshold = api.tx.sudo.sudo(
     api.tx.parentchain.setShardConfirmationThreshold(0, 1)
+  );
+
+   const wasmBlob = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/status_message_collections.wasm')));
+
+  const ipfs = new IPFS();
+  const cid = await ipfs.add(u8aToHex(wasmBlob));
+  const deploymentCalls = new Calls({ ops: [ ] });
+  const deployContract = api.tx.sContract.registerContract(
+    "status_message_collections", cid.cid.toString(), buildCalls(deploymentCalls), 0
   );
 
   const submitInitialize = api.tx.utility.batch(
@@ -129,6 +139,7 @@ const genesis = async () => {
       ...fundAccounts,
       registerSecretKeeper, registerShard,
       authorizeRoot, initializeShard, shardConfirmationThreshold,
+      deployContract,
     ]
   );
   await sendTx(submitInitialize, rootKeypair, logger);

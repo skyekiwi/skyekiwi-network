@@ -15,6 +15,7 @@ import { getLogger, sendTx, u8aToHex } from '@skyekiwi/util';
 
 import {Storage} from './storage'
 import { SubmittableExtrinsic } from '@polkadot/api/promise/types';
+import { QueuedTransaction } from './types';
 
 export class ShardManager {
   #keyring: KeyringPair
@@ -105,8 +106,27 @@ export class ShardManager {
     return tx;
   }
 
-  public async submitTxBatch(tx: SubmittableExtrinsic): Promise<void> {
-    await sendTx(tx, this.#keyring);
+  // if curBlockNumber is undefined -> forceSubmitAllTx
+  public async maybeSubmitTxBatch(api: ApiPromise, buffer: QueuedTransaction[], curBlockNumber?: number): Promise<QueuedTransaction[]> {    
+    const submissionFilter = (it: QueuedTransaction) => {
+      if (!curBlockNumber) return true;
+      return it.blockNumber < curBlockNumber - 5 && it.blockNumber !== -1
+    };
+
+    let tx: SubmittableExtrinsic[] = buffer
+      .filter(it => submissionFilter(it))
+      .map(it => it.transaction)
+    await sendTx(api.tx.utiliy.batchAll(tx), this.#keyring);
+    
+    let res = buffer.filter(it => !submissionFilter(it))
+    if (res.length === 0) {
+      res = [{
+        transaction: null,
+        blockNumber: -1
+      }]
+    }
+
+    return res;
   }
 
   private beaconIsTurn (

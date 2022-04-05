@@ -13,7 +13,8 @@ import {
   Shard, buildShard, parseShard,
   ShardMetadata, buildShardMetadata, parseShardMetadata,
   LocalMetadata, buildLocalMetadata, parseLocalMetadata,
-  ExecutionSummary, buildExecutionSummary, parseExecutionSummary
+  ExecutionSummary, buildExecutionSummary, parseExecutionSummary,
+  BlockSummary, buildBlockSummary, parseBlockSummary,
 } from '@skyekiwi/s-contract/borsh';
 
 const numberPadding = (n: number, pad: number): string => {
@@ -41,6 +42,13 @@ export class Storage {
     const block = numberPadding(blockNumber, 16);
 
     return shard + block + 'BLOC';
+  }
+
+  public static getBlockSummaryIndex (shardId: number, blockNumber: number): string {
+    const shard = numberPadding(shardId, 4);
+    const block = numberPadding(blockNumber, 16);
+
+    return shard + block + 'BSUM';
   }
 
   public static getContractIndex (contractName: string): string {
@@ -120,6 +128,16 @@ export class Storage {
   }
 
   public static writeShardMetadataRecord (shardId: number, shardm: ShardMetadata): DBOps {
+    const key = Storage.getShardMetadataIndex(shardId);
+
+    return {
+      type: 'put',
+      key: key,
+      value: buildShardMetadata(shardm)
+    };
+  }
+
+  public static writeBlockSummary (shardId: number, blockS: BlockSummary): DBOps {
     const key = Storage.getShardMetadataIndex(shardId);
 
     return {

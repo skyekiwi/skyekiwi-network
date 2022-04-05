@@ -10,11 +10,12 @@ import { ShardManager } from './host/shard';
 
 import { Dispatcher } from './host/dispatcher';
 import { callRuntime  } from './vm';
-import { SubmittableExtrinsic } from '@polkadot/api/promise/types';
+import { validateIndexer, validateExecutor } from './validate';
 import config from './config';
 
 import fs from 'fs';
 import crypto from 'crypto';
+import { QueuedTransaction } from './host/types';
 
 require("dotenv").config()
 
@@ -40,6 +41,7 @@ const getStateFileHash = (): Uint8Array => {
   return hashSum.digest();
 }
 
+const SHUTDOWN_SIGNALS = ['SIGINT', 'SIGTERM'];
 const main = async () => {
 
   const logger = getLogger("mock-enclave")
@@ -54,6 +56,28 @@ const main = async () => {
 
   await shard.init();
 
+  SHUTDOWN_SIGNALS.forEach(signal => {
+    process.once(signal, () => {
+      const shutdown = async() => {
+        logger.warn("gracefully shutting down  ...")
+        await indexer.done();
+        await sleep(6000);
+        await db.close();
+      }
+
+      shutdown().then(() => {
+        process.exit(0);
+      })
+    });
+    process.once(signal, () => {
+      setTimeout(() => {
+        logger.warn(`Could not close resources gracefully after 15s: forcing shutdown`);
+        process.exit(1);
+      }, 15000)
+    })
+  });
+
+
   try {
     await Storage.getMetadata(db);
   } catch(e) {
@@ -64,21 +88,44 @@ const main = async () => {
 
   await indexer.fetchShardInfo(api, '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY');
 
-  let txBuffer: SubmittableExtrinsic[] = [];
+  // pre-launch validation
+  const validedIndexer = await validateIndexer(db, api);
+  const validedExecutor = await validateExecutor(db, api);
+
+  if (validedIndexer === -1 || validedExecutor === - 1) {
+    logger.error("pre-launch validation failed. Local db corruption. Gotta reset local db. Exiting ...");
+    process.exit(1);
+  }
+
+  logger.info(`highest validated indexed block at #${validedIndexer}`);
+  logger.info(`highest validated executed block at #${validedExecutor}`);
+
+  let txBuffer: QueuedTransaction[] = [{
+    transaction: null,
+    blockNumber: -1,
+  }];
 
   while (true) {
-    await indexer.fetchAll(api);
+    await indexer.fetchAll(api, validedIndexer);
     await indexer.writeAll();
 
     let executionSummary = await Storage.getExecutionSummary(db);
     let localMetadata = await Storage.getMetadata(db);
-    for (let blockNumber = executionSummary.high_local_execution_block === 0 ? 1 : executionSummary.high_local_execution_block; 
+
+    for (let blockNumber = validedExecutor; 
       blockNumber < localMetadata.high_local_block; blockNumber ++ ) 
     {
+      logger.info(`executing block number ${blockNumber}`);
       const block = await Storage.getBlockRecord(db, 0, blockNumber);
       if (blockNumber % 20 === 0) {
         const txs = await shard.maybeRegisterSecretKeeper(api, blockNumber);
-        txBuffer.push(... (txs ? txs : []));
+        txBuffer.push(
+          ...[... (txs ? txs : [])].map(tx => ({
+              transaction: tx,
+              blockNumber: blockNumber
+            })
+          )
+        );
       }
 
       if (dispatcher.isDispatchable(db, blockNumber)) {
@@ -95,7 +142,7 @@ const main = async () => {
           }
         }
 
-        executionSummary.high_local_execution_block = block.block_number - 1;
+        executionSummary.high_local_execution_block = block.block_number + 1;
 
         const op = [
           Storage.writeExecutionSummary(executionSummary),
@@ -115,20 +162,21 @@ const main = async () => {
           ) && dispatcher.isDispatchable(db, block.block_number)
       ) {
         console.log("submitting report for ", block.block_number)
-        txBuffer.push(... (await shard.maybeSubmitExecutionReport(api, db, block.block_number, getStateFileHash())));
+        txBuffer.push(
+          ...[... (await shard.maybeSubmitExecutionReport(api, db, block.block_number, getStateFileHash()))].map(tx => ({
+              transaction: tx,
+              blockNumber: blockNumber
+            })
+          )
+        );
 
-        if (txBuffer.length >= 100) {
-          await shard.submitTxBatch(api.tx.utility.batchAll(txBuffer));
-          txBuffer = [];
-        }
+        txBuffer = await shard.maybeSubmitTxBatch(api, txBuffer, blockNumber);
       }
     }
 
-    await shard.submitTxBatch(api.tx.utility.batchAll(txBuffer));
-    txBuffer = [];
+    txBuffer = await shard.maybeSubmitTxBatch(api, txBuffer);
 
     await sleep(6000);
-  }
+  }  
 }
-
 main()

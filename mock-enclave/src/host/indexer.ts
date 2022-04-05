@@ -18,15 +18,18 @@ import { Storage } from './storage';
 export class Indexer {
   #db: level.LevelDB
   #ops: DBOps[]
+  #active: boolean
 
   constructor(db: level.LevelDB) {
     this.#db = db;
     this.#ops = []
+    this.#active = true;
   }
 
   public async done() {
     await this.writeAll();
-    this.#db.close();
+    this.#active = false;
+    await this.#db.close();
   }
 
   public async initialzeLocalDatabase (): Promise<void> {
@@ -47,18 +50,20 @@ export class Indexer {
     this.#ops = [];
   }
 
-  public async fetchAll (api: ApiPromise): Promise<void> {
+  public async fetchAll (api: ApiPromise, start?: number): Promise<void> {
     const logger = getLogger('indexer.fetchAll');
 
     const localMetadata = await Storage.getMetadata(this.#db);
     const highLocalBlock = localMetadata.high_local_block ? localMetadata.high_local_block : 0;
 
-    logger.info(`highest local block at ${localMetadata.high_local_block}`);
+    start = start ? start : highLocalBlock;
 
-    // let currentBlockNumber = highLocalBlock + 1;
+    let fetchingCount = 0;
+
+    logger.info(`highest local block at ${localMetadata.high_local_block}`);
     let currentBlockNumber = highLocalBlock;
 
-    while (true) {
+    while (true && this.#active) {
       logger.debug(`fetching all info from block# ${currentBlockNumber}`);
 
       for (const shardId of localMetadata.shard_id) {
@@ -81,6 +86,18 @@ export class Indexer {
         this.#ops.push(Storage.writeMetadata(localMetadata));
         break;
       }
+
+      fetchingCount = fetchingCount + 1;
+
+      if (fetchingCount === 1000) {
+        fetchingCount = 0;
+        logger.info("writting some calls to local DB")
+
+        const localMetadata = await Storage.getMetadata(this.#db);
+        localMetadata.high_local_block = currentBlockNumber;
+        this.#ops.push(Storage.writeMetadata(localMetadata));
+        await this.writeAll();
+      }
     }
   }
 
@@ -91,8 +108,7 @@ export class Indexer {
     let contracts: string[] = []
 
     // 1. build new contract deployments
-    const blockHash = ((await api.query.system.blockHash(blockNumber)).toJSON()) as string;
-
+    const blockHash = ((await api.rpc.chain.getBlockHash(blockNumber)).toJSON()) as string;
     if (blockHash === '0x0000000000000000000000000000000000000000000000000000000000000000')
       return false;
     const events = (await api.query.system.events.at(blockHash)).toHuman() as unknown as EventRecord[];
@@ -199,7 +215,9 @@ export class Indexer {
     this.#ops.push(Storage.writeCallOutcome(shardId, callIndex, outcomes));
   }
   public async writeAll (): Promise<void> {
-    await Storage.writeAll(this.#db, this.#ops);
-    this.#ops = []
+    if (this.#active) {
+      await Storage.writeAll(this.#db, this.#ops);
+      this.#ops = []
+    }
   }
 }
