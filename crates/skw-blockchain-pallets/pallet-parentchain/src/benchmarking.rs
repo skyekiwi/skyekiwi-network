@@ -31,7 +31,6 @@ benchmarks! {
 		let now = frame_system::Pallet::<T>::block_number();
 
 		let state_root = [0u8; 32];
-		let state_file_hash = [0u8; 32];
 
 		let mut outcome_call_index: Vec<CallIndex> = Vec::new();
 		let mut outcome: Vec<Vec<u8>> = Vec::new();
@@ -45,7 +44,7 @@ benchmarks! {
 		Registry::<T>::register_secret_keeper( RawOrigin::Signed(caller.clone()).into(),  public_key.clone(), Vec::new() )?;
 		Registry::<T>::register_running_shard( RawOrigin::Signed(caller.clone()).into(), 0 )?;
 		Parentchain::<T>::set_shard_confirmation_threshold( RawOrigin::Root.into(), shard_id, 1 )?;
-	}: submit_outcome(RawOrigin::Signed(caller), now, shard_id, state_root, state_file_hash, outcome_call_index, outcome)
+	}: submit_outcome(RawOrigin::Signed(caller), now, shard_id, state_root, outcome_call_index, outcome)
 	verify {
 		assert_eq!(Confirmation::<T>::get(shard_id, now), Some(1u64));
 	}

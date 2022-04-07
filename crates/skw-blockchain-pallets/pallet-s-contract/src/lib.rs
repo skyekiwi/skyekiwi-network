@@ -70,14 +70,14 @@ pub mod pallet {
 	/// call content of a call (ShardId, CallIndex) -> EncodedCall
 	#[pallet::storage]
 	#[pallet::getter(fn call_record_of)]
-	pub(super) type CallRecord<T: Config> = StorageDoubleMap<_, Twox64Concat,
-		ShardId, Twox64Concat, CallIndex, (EncodedCall, T::AccountId) >;
+	pub(super) type CallRecord<T: Config> = StorageMap<_, Twox64Concat, CallIndex, (EncodedCall, T::AccountId) >;
 
 	/// the callIndex that will be assigned to the next calls
+	#[pallet::type_value]
+	pub(super) fn DefaultId<T: Config>() -> CallIndex { 0u64 }
 	#[pallet::storage]
 	#[pallet::getter(fn current_call_index_of)]
-	pub(super) type CurrentCallIndex<T: Config> = StorageMap<_, Twox64Concat,
-		ShardId, CallIndex >;
+	pub(super) type CurrentCallIndex<T: Config> = StorageValue<_, CallIndex, ValueQuery, DefaultId<T>>;
 
 	/// the secret id of the shard state file on pallet-secrets
 	#[pallet::storage]
@@ -153,23 +153,20 @@ pub mod pallet {
 			);
 
 			let now = frame_system::Pallet::<T>::block_number();
-			let init = Self::current_call_index_of(&shard_id);
-			ensure!(init.is_some(), Error::<T>::ShardNotInitialized);
+			ensure!(Self::is_shard_running(shard_id), Error::<T>::ShardNotInitialized);
 
 			// No error below this line 
 			<WasmBlobCID<T>>::insert(&shard_id, &contract_name, wasm_blob_cid);
 
-			let call_index = Self::current_call_index_of(shard_id).unwrap();
-			<CallRecord<T>>::insert(&shard_id, &call_index, (deployment_call, deployer));
+			let call_index = Self::current_call_index_of();
+			<CallRecord<T>>::insert(&call_index, (deployment_call, deployer));
 
 			// insert the init call
 			let mut content = Self::call_history_of(&shard_id, &now).unwrap_or(Vec::new());
 			content.push(call_index);
 			<CallHistory<T>>::mutate(&shard_id, &now,
 				|c| *c = Some(content.clone()));
-			<CurrentCallIndex<T>>::mutate(&shard_id, |i|
-				*i = Some(call_index.saturating_add(1))
-			);
+			<CurrentCallIndex<T>>::set( call_index.saturating_add(1) );
 
 			Self::deposit_event(Event::<T>::SecretContractRegistered(shard_id, contract_name, call_index));
 			Ok(())
@@ -185,21 +182,18 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			ensure!(Self::validate_call(call.clone()), Error::<T>::InvalidEncodedCall);
 
-			let call_index = Self::current_call_index_of(&shard_id);
-			ensure!(call_index.is_some(), Error::<T>::ShardNotInitialized);
-			let call_index = call_index.unwrap();
+			ensure!(Self::is_shard_running(shard_id), Error::<T>::ShardNotInitialized);
+			let call_index = Self::current_call_index_of();
 
 			let now = frame_system::Pallet::<T>::block_number();
-			<CallRecord<T>>::insert(&shard_id, &call_index, (call, who));
+			<CallRecord<T>>::insert(&call_index, (call, who));
 			
 			let history = Self::call_history_of(&shard_id, now);
 			let mut content = history.unwrap_or(Vec::new());
 			content.push(call_index);
 			<CallHistory<T>>::mutate(&shard_id, &now,
 				|c| *c = Some(content.clone()));
-			<CurrentCallIndex<T>>::mutate(&shard_id, |i|
-				*i = Some(call_index.saturating_add(1))
-			);
+			<CurrentCallIndex<T>>::set( call_index.saturating_add(1) );
 			Self::deposit_event(Event::<T>::CallReceived(shard_id, call_index));
 			Ok(())
 		}
@@ -216,25 +210,25 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			ensure!(Self::shard_operator(&shard_id, &who).is_some(), Error::<T>::Unauthorized);
 			ensure!(Self::validate_call(call.clone()), Error::<T>::InvalidEncodedCall);
-			let maybe_init = Self::current_call_index_of(&shard_id);
+			ensure!(!Self::is_shard_running(shard_id), Error::<T>::ShardHasBeenInitialized); 
 
-			ensure!(maybe_init.is_none(), Error::<T>::ShardHasBeenInitialized); 
 			match pallet_secrets::Pallet::<T>::register_secret(origin, initial_state_metadata) {
 				Ok(()) => {
 					// get the lastest secretId - 1 -> it belongs to the secret we have just created
 					let secret_id = pallet_secrets::Pallet::<T>::current_secret_id().saturating_sub(1);
 					let now = frame_system::Pallet::<T>::block_number();
 
+					let call_index = Self::current_call_index_of();
 					let mut call_history: Vec<CallIndex> = Vec::new();
-					call_history.push(0);
+					call_history.push(call_index);
 
 					// callIndex 0 is the init call - so current call is 1
-					<CurrentCallIndex<T>>::insert(&shard_id, 1);
-					<CallRecord<T>>::insert(&shard_id, &0, (call, who));
+					<CurrentCallIndex<T>>::set( call_index.saturating_add(1) );
+					<CallRecord<T>>::insert(&call_index, (call, who));
 					<CallHistory<T>>::insert(&shard_id, &now, call_history);
 					<ShardSecretIndex<T>>::insert(&shard_id, secret_id);
 					<ShardPublicKey<T>>::insert(&shard_id, public_key);
-					<ShardHighCallIndex<T>>::insert(&shard_id, 0);
+					<ShardHighCallIndex<T>>::insert(&shard_id, call_index);
 					Self::deposit_event(Event::<T>::ShardInitialized(shard_id));
 					Ok(())
 				},
@@ -313,6 +307,11 @@ pub mod pallet {
 				&& 
 			Self::wasm_blob_cid_of(shard_id, name).is_none()
 		}
+
+		pub fn is_shard_running(shard_id: ShardId) -> bool {
+			// or we can use any of the shard initialization param
+			Self::shard_secret_id(shard_id).is_some()
+		}		
 	}
 }
 

@@ -54,8 +54,8 @@ fn it_register_secret_contracts() {
 		let history = SContract::call_history_of(0, 1).unwrap();
 		assert_eq! (history.len(), 2);
 
-		let init_call = SContract::call_record_of(0, history[0]).unwrap();
-		let call_record = SContract::call_record_of(0, history[1]).unwrap();
+		let init_call = SContract::call_record_of(history[0]).unwrap();
+		let call_record = SContract::call_record_of(history[1]).unwrap();
 
 		assert_eq! (init_call, (ENCODED_CALL.as_bytes().to_vec(), ALICE));
 		assert_eq! (call_record, (ENCODED_CALL2.as_bytes().to_vec(), ALICE));

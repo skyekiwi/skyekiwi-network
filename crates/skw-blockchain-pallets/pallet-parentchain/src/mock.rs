@@ -70,7 +70,7 @@ impl pallet_registry::Config for Test {
 }
 
 parameter_types! {
-	pub const DeplayThreshold: u32 = 20;
+	pub const DelayThreshold: u32 = 20;
 	pub const MaxOutcomePerSubmission: u64 = 20;
 	pub const MaxSizePerOutcome: u64 = 1024;
 }
@@ -78,7 +78,7 @@ parameter_types! {
 impl pallet_parentchain::Config for Test {
 	type WeightInfo = ();
 	type Event = Event;
-	type DeplayThreshold = DeplayThreshold;
+	type DelayThreshold = DelayThreshold;
 	type MaxOutcomePerSubmission = MaxOutcomePerSubmission;
 	type MaxSizePerOutcome = MaxSizePerOutcome;
 }

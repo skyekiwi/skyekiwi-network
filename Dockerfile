@@ -1,4 +1,4 @@
-FROM skyekiwi/skyekiwi-network:0.1
+FROM skyekiwi/skyekiwi-network:undefined
 
 ARG EnvironmentVariable
 

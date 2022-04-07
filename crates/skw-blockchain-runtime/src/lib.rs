@@ -324,7 +324,7 @@ impl pallet_registry::Config for Runtime {
 
 
 parameter_types! {
-	pub const DeplayThreshold: u32 = 5_000;
+	pub const DelayThreshold: u32 = 5_000;
 	pub const MaxOutcomePerSubmission: u64 = 10_000;
 	pub const MaxSizePerOutcome: u64 = 500_000;
 }
@@ -332,7 +332,7 @@ parameter_types! {
 impl pallet_parentchain::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
-	type DeplayThreshold = DeplayThreshold;
+	type DelayThreshold = DelayThreshold;
 	type MaxOutcomePerSubmission = MaxOutcomePerSubmission;
 	type MaxSizePerOutcome = MaxSizePerOutcome;
 }

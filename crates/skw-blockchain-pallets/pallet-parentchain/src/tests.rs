@@ -44,7 +44,7 @@ fn it_submit_results() {
 			Parentchain::submit_outcome( 
 				Origin::signed(ALICE), 1, 0,
 
-				[0u8; 32], [1u8; 32],
+				[0u8; 32],
 
 				vec![], vec![]
 			)
@@ -93,7 +93,7 @@ fn it_correctly_limit_beacon_turns_on_1_confirm() {
 		assert_ok!(
 			Parentchain::submit_outcome( 
 				Origin::signed(ALICE), 1, 0,
-				[0u8; 32], [1u8; 32], vec![], vec![]
+				[0u8; 32], vec![], vec![]
 			)
 		);
 
@@ -101,7 +101,7 @@ fn it_correctly_limit_beacon_turns_on_1_confirm() {
 		assert_noop!(
 			Parentchain::submit_outcome( 
 				Origin::signed(BOB), 1, 0,
-				[0u8; 32], [1u8; 32], vec![], vec![]
+				[0u8; 32], vec![], vec![]
 			),
 			ParentchainError::<Test>::Unauthorized
 		);
@@ -110,14 +110,14 @@ fn it_correctly_limit_beacon_turns_on_1_confirm() {
 		assert_noop!(
 			Parentchain::submit_outcome( 
 				Origin::signed(ALICE), 2, 0,
-				[0u8; 32], [1u8; 32], vec![], vec![]
+				[0u8; 32], vec![], vec![]
 			),
 			ParentchainError::<Test>::Unauthorized
 		);
 		assert_ok!(
 			Parentchain::submit_outcome( 
 				Origin::signed(BOB), 2, 0,
-				[0u8; 32], [1u8; 32], vec![], vec![]
+				[0u8; 32], vec![], vec![]
 			)
 		);
 
@@ -161,25 +161,25 @@ fn it_correctly_limit_beacon_turns_on_3_confirm() {
 		);
 
 		// for block_num 1; Alice, Bob, Charlie can submit; Dave will fail
-		assert_ok!( Parentchain::submit_outcome( Origin::signed(ALICE), 1, 0, [0u8; 32], [1u8; 32], vec![], vec![] ) );
-		assert_ok!( Parentchain::submit_outcome( Origin::signed(BOB), 1, 0, [0u8; 32], [1u8; 32], vec![], vec![] ) );
-		assert_ok!( Parentchain::submit_outcome( Origin::signed(CHARLIE), 1, 0, [0u8; 32], [1u8; 32], vec![], vec![] ) );
+		assert_ok!( Parentchain::submit_outcome( Origin::signed(ALICE), 1, 0, [0u8; 32], vec![], vec![] ) );
+		assert_ok!( Parentchain::submit_outcome( Origin::signed(BOB), 1, 0, [0u8; 32], vec![], vec![] ) );
+		assert_ok!( Parentchain::submit_outcome( Origin::signed(CHARLIE), 1, 0, [0u8; 32], vec![], vec![] ) );
 		assert_noop!(
 			Parentchain::submit_outcome( 
 				Origin::signed(DAVE), 1, 0,
-				[0u8; 32], [1u8; 32], vec![], vec![]
+				[0u8; 32], vec![], vec![]
 			),
 			ParentchainError::<Test>::Unauthorized
 		);
 
 		// for block_num 2; Alice fail; Bob, Charlie, Dave success
-		assert_ok!( Parentchain::submit_outcome( Origin::signed(BOB), 2, 0, [0u8; 32], [1u8; 32], vec![], vec![] ) );
-		assert_ok!( Parentchain::submit_outcome( Origin::signed(CHARLIE), 2, 0, [0u8; 32], [1u8; 32], vec![], vec![] ) );
-		assert_ok!( Parentchain::submit_outcome( Origin::signed(DAVE), 2, 0, [0u8; 32], [1u8; 32], vec![], vec![] ) );
+		assert_ok!( Parentchain::submit_outcome( Origin::signed(BOB), 2, 0, [0u8; 32], vec![], vec![] ) );
+		assert_ok!( Parentchain::submit_outcome( Origin::signed(CHARLIE), 2, 0, [0u8; 32], vec![], vec![] ) );
+		assert_ok!( Parentchain::submit_outcome( Origin::signed(DAVE), 2, 0, [0u8; 32], vec![], vec![] ) );
 		assert_noop!(
 			Parentchain::submit_outcome( 
 				Origin::signed(ALICE), 2, 0,
-				[0u8; 32], [1u8; 32], vec![], vec![]
+				[0u8; 32], vec![], vec![]
 			),
 			ParentchainError::<Test>::Unauthorized
 		);
@@ -214,7 +214,7 @@ fn it_validates_outcome() {
 		assert_ok!( 
 			Parentchain::submit_outcome( 
 				Origin::signed(ALICE), 
-				1, 0, [0u8; 32], [1u8; 32], 
+				1, 0, [0u8; 32],
 				vec![], vec![] 
 			) 
 		);
@@ -222,7 +222,7 @@ fn it_validates_outcome() {
 		assert_ok!( 
 			Parentchain::submit_outcome( 
 				Origin::signed(ALICE), 
-				2, 0, [0u8; 32], [1u8; 32], 
+				2, 0, [0u8; 32],
 				vec![ 11 ], vec![ [0u8; 100].to_vec() ] 
 			) 
 		);
@@ -231,7 +231,7 @@ fn it_validates_outcome() {
 		assert_noop!(
 			Parentchain::submit_outcome( 
 				Origin::signed(ALICE), 3, 0,
-				[0u8; 32], [1u8; 32], 
+				[0u8; 32],
 				vec![ 11 ], vec![]
 			),
 			ParentchainError::<Test>::InvalidOutcome
@@ -241,7 +241,7 @@ fn it_validates_outcome() {
 		assert_noop!(
 			Parentchain::submit_outcome( 
 				Origin::signed(ALICE), 4, 0,
-				[0u8; 32], [1u8; 32], 
+				[0u8; 32],
 				vec![ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21], 
 				vec![ 
 					[0u8; 100].to_vec(), [0u8; 100].to_vec(), [0u8; 100].to_vec(), [0u8; 100].to_vec(), [0u8; 100].to_vec(), 
@@ -258,7 +258,7 @@ fn it_validates_outcome() {
 		assert_noop!(
 			Parentchain::submit_outcome( 
 				Origin::signed(ALICE), 
-				5, 0, [0u8; 32], [1u8; 32], 
+				5, 0, [0u8; 32],
 				vec![ 22 ], vec![ [0u8; 1050].to_vec() ] 
 			),
 			ParentchainError::<Test>::InvalidOutcome
@@ -288,7 +288,7 @@ fn it_validate_state_root_n_file_hash() {
 		assert_ok!( 
 			Parentchain::submit_outcome( 
 				Origin::signed(ALICE), 
-				1, 0, [0u8; 32], [1u8; 32], 
+				1, 0, [0u8; 32],
 				vec![], vec![] 
 			) 
 		);
@@ -296,7 +296,7 @@ fn it_validate_state_root_n_file_hash() {
 		assert_noop!( 
 			Parentchain::submit_outcome( 
 				Origin::signed(BOB), 
-				1, 0, [1u8; 32], [1u8; 32], 
+				1, 0, [1u8; 32], 
 				vec![], vec![] 
 			),
 			ParentchainError::<Test>::InconsistentState

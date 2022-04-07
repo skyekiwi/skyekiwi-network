@@ -95,11 +95,10 @@ pub mod pallet {
 			ensure!(metadata.len() == T::IPFSCIDLength::get() as usize, Error::<T>::MetadataNotValid);
 			
 			let id = <CurrentSecretId<T>>::get();
-			let new_id = id.saturating_add(1);
 
 			<Metadata<T>>::insert(&id, metadata);
 			<Owner<T>>::insert(&id, who);
-			<CurrentSecretId<T>>::set(new_id);
+			<CurrentSecretId<T>>::set(id.saturating_add(1));
 			Self::deposit_event(Event::<T>::SecretRegistered(id));
 			
 			Ok(())

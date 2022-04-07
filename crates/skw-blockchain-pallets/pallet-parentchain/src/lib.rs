@@ -31,7 +31,7 @@ pub mod pallet {
 
 		/// Maximum delay between receiving a call and submitting result for it
 		#[pallet::constant]
-		type DeplayThreshold: Get<<Self as frame_system::Config>::BlockNumber>;
+		type DelayThreshold: Get<<Self as frame_system::Config>::BlockNumber>;
 
 		/// Maximum number of outcomes allowed per submission 
 		#[pallet::constant]
@@ -57,12 +57,6 @@ pub mod pallet {
 	#[pallet::getter(fn state_root_at)]
 	pub(super) type StateRoot<T: Config> = StorageDoubleMap<_, Twox64Concat, ShardId, 
 		Twox64Concat, T::BlockNumber, [u8; 32]>;
-	
-	/// state dump file checksum of offchain runtime
-	#[pallet::storage]
-	#[pallet::getter(fn state_file_hash_at)]
-	pub(super) type StateFileHash<T: Config> = StorageDoubleMap<_, Twox64Concat, ShardId,
-	Twox64Concat, T::BlockNumber, [u8; 32]>;
 
 	/// confirmations received for offchain runtime for blocks 
 	#[pallet::storage]
@@ -114,11 +108,9 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_outcome(outcome_call_index.len() as u32))]
 		pub fn submit_outcome(
 			origin: OriginFor<T>,
-			block_number: T::BlockNumber,
-			shard_id: ShardId,
+			block_number: T::BlockNumber, shard_id: ShardId,
 
 			state_root: [u8; 32],
-			state_file_hash: [u8; 32],
 
 			outcome_call_index: Vec<CallIndex>,
 			outcome: Vec<Vec<u8>>,
@@ -128,7 +120,7 @@ pub mod pallet {
 			ensure!(pallet_registry::Pallet::<T>::is_valid_shard_id(shard_id), Error::<T>::InvalidShardId);
 			ensure!(pallet_registry::Pallet::<T>::is_valid_secret_keeper(&who), Error::<T>::Unauthorized);
 			let now = frame_system::Pallet::<T>::block_number();
-			ensure!(now <= block_number + T::DeplayThreshold::get(), Error::<T>::OutcomeSubmissionTooLate);
+			ensure!(now <= block_number + T::DelayThreshold::get(), Error::<T>::OutcomeSubmissionTooLate);
 
 			// by default - confirmation at 1
 			let threshold = Self::shard_confirmation_threshold(shard_id).unwrap_or(1);
@@ -185,7 +177,6 @@ pub mod pallet {
 			}
 
 			<StateRoot<T>>::insert(&shard_id, &block_number, &state_root);
-			<StateFileHash<T>>::insert(&shard_id, &block_number, &state_file_hash);
 
 			// emit BlockSynced only at the first time!
 			Self::deposit_event(Event::<T>::BlockSynced(block_number));
