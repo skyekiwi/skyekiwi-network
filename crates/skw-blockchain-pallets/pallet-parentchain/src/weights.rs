@@ -10,7 +10,7 @@
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("skw_alpha"), DB CACHE: 128
 
 // Executed Command:
-// /Users/songzhou/Desktop/skyekiwi-network/target/release/skyekiwi-node
+// /home/songzhou28/skyekiwi-network/target/release/skyekiwi-node
 // benchmark
 // --chain=skw_alpha
 // --steps=50
@@ -20,8 +20,8 @@
 // --execution=wasm
 // --wasm-execution=compiled
 // --heap-pages=4096
-// --output=/Users/songzhou/Desktop/skyekiwi-network/crates/skw-blockchain-pallets/pallet-parentchain/src/weights.rs
-// --template=/Users/songzhou/Desktop/skyekiwi-network/misc/frame-weight-template.hbs
+// --output=/home/songzhou28/skyekiwi-network/crates/skw-blockchain-pallets/pallet-parentchain/src/weights.rs
+// --template=/home/songzhou28/skyekiwi-network/misc/frame-weight-template.hbs
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
@@ -41,7 +41,7 @@ pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Parentchain ShardConfirmationThreshold (r:1 w:1)
 	fn set_shard_confirmation_threshold() -> Weight {
-		(3_000_000 as Weight)
+		(5_726_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
@@ -55,9 +55,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Parentchain StateFileHash (r:0 w:1)
 	// Storage: Parentchain Outcome (r:0 w:1)
 	fn submit_outcome(s: u32, ) -> Weight {
-		(6_452_000 as Weight)
-			// Standard Error: 49_000
-			.saturating_add((37_139_000 as Weight).saturating_mul(s as Weight))
+		(15_642_000 as Weight)
+			// Standard Error: 36_000
+			.saturating_add((70_012_000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(T::DbWeight::get().reads(7 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(s as Weight)))
@@ -68,7 +68,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 impl WeightInfo for () {
 	// Storage: Parentchain ShardConfirmationThreshold (r:1 w:1)
 	fn set_shard_confirmation_threshold() -> Weight {
-		(3_000_000 as Weight)
+		(5_726_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
@@ -82,9 +82,9 @@ impl WeightInfo for () {
 	// Storage: Parentchain StateFileHash (r:0 w:1)
 	// Storage: Parentchain Outcome (r:0 w:1)
 	fn submit_outcome(s: u32, ) -> Weight {
-		(6_452_000 as Weight)
-			// Standard Error: 49_000
-			.saturating_add((37_139_000 as Weight).saturating_mul(s as Weight))
+		(15_642_000 as Weight)
+			// Standard Error: 36_000
+			.saturating_add((70_012_000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(RocksDbWeight::get().reads(7 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
 			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(s as Weight)))

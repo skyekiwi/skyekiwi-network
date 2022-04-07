@@ -10,7 +10,7 @@
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("skw_alpha"), DB CACHE: 128
 
 // Executed Command:
-// /Users/songzhou/Desktop/skyekiwi-network/target/release/skyekiwi-node
+// /home/songzhou28/skyekiwi-network/target/release/skyekiwi-node
 // benchmark
 // --chain=skw_alpha
 // --steps=50
@@ -20,8 +20,8 @@
 // --execution=wasm
 // --wasm-execution=compiled
 // --heap-pages=4096
-// --output=/Users/songzhou/Desktop/skyekiwi-network/crates/skw-blockchain-pallets/pallet-registry/src/weights.rs
-// --template=/Users/songzhou/Desktop/skyekiwi-network/misc/frame-weight-template.hbs
+// --output=/home/songzhou28/skyekiwi-network/crates/skw-blockchain-pallets/pallet-registry/src/weights.rs
+// --template=/home/songzhou28/skyekiwi-network/misc/frame-weight-template.hbs
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
@@ -45,14 +45,14 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Registry SecretKeepers (r:1 w:1)
 	// Storage: Registry PublicKey (r:0 w:1)
 	fn register_secret_keeper() -> Weight {
-		(14_000_000 as Weight)
+		(26_885_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
 	// Storage: Registry Expiration (r:1 w:1)
 	// Storage: Registry PublicKey (r:1 w:1)
 	fn renew_registration() -> Weight {
-		(15_000_000 as Weight)
+		(27_478_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
@@ -60,7 +60,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Registry PublicKey (r:1 w:1)
 	// Storage: Registry SecretKeepers (r:1 w:1)
 	fn remove_registration() -> Weight {
-		(18_000_000 as Weight)
+		(33_739_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
@@ -70,7 +70,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Registry BeaconCount (r:1 w:1)
 	// Storage: Registry BeaconIndex (r:0 w:1)
 	fn register_running_shard() -> Weight {
-		(14_000_000 as Weight)
+		(26_498_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
@@ -82,14 +82,14 @@ impl WeightInfo for () {
 	// Storage: Registry SecretKeepers (r:1 w:1)
 	// Storage: Registry PublicKey (r:0 w:1)
 	fn register_secret_keeper() -> Weight {
-		(14_000_000 as Weight)
+		(26_885_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
 	}
 	// Storage: Registry Expiration (r:1 w:1)
 	// Storage: Registry PublicKey (r:1 w:1)
 	fn renew_registration() -> Weight {
-		(15_000_000 as Weight)
+		(27_478_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 	}
@@ -97,7 +97,7 @@ impl WeightInfo for () {
 	// Storage: Registry PublicKey (r:1 w:1)
 	// Storage: Registry SecretKeepers (r:1 w:1)
 	fn remove_registration() -> Weight {
-		(18_000_000 as Weight)
+		(33_739_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
 	}
@@ -107,7 +107,7 @@ impl WeightInfo for () {
 	// Storage: Registry BeaconCount (r:1 w:1)
 	// Storage: Registry BeaconIndex (r:0 w:1)
 	fn register_running_shard() -> Weight {
-		(14_000_000 as Weight)
+		(26_498_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
 	}

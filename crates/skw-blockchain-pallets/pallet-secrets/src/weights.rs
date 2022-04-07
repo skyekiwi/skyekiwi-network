@@ -10,7 +10,7 @@
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("skw_alpha"), DB CACHE: 128
 
 // Executed Command:
-// /Users/songzhou/Desktop/skyekiwi-network/target/release/skyekiwi-node
+// /home/songzhou28/skyekiwi-network/target/release/skyekiwi-node
 // benchmark
 // --chain=skw_alpha
 // --steps=50
@@ -20,8 +20,8 @@
 // --execution=wasm
 // --wasm-execution=compiled
 // --heap-pages=4096
-// --output=/Users/songzhou/Desktop/skyekiwi-network/crates/skw-blockchain-pallets/pallet-secrets/src/weights.rs
-// --template=/Users/songzhou/Desktop/skyekiwi-network/misc/frame-weight-template.hbs
+// --output=/home/songzhou28/skyekiwi-network/crates/skw-blockchain-pallets/pallet-secrets/src/weights.rs
+// --template=/home/songzhou28/skyekiwi-network/misc/frame-weight-template.hbs
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
@@ -49,38 +49,38 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Secrets Metadata (r:0 w:1)
 	// Storage: Secrets Owner (r:0 w:1)
 	fn register_secret() -> Weight {
-		(11_000_000 as Weight)
+		(20_823_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
 	// Storage: Secrets Owner (r:1 w:0)
 	// Storage: Secrets Operator (r:0 w:1)
 	fn nominate_member() -> Weight {
-		(11_000_000 as Weight)
+		(22_337_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Secrets Owner (r:1 w:0)
 	// Storage: Secrets Operator (r:1 w:1)
 	fn remove_member() -> Weight {
-		(13_000_000 as Weight)
+		(24_289_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Secrets Operator (r:0 w:1)
 	fn force_nominate_member() -> Weight {
-		(9_000_000 as Weight)
+		(17_179_000 as Weight)
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Secrets Operator (r:1 w:1)
 	fn force_remove_member() -> Weight {
-		(10_000_000 as Weight)
+		(20_049_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Secrets Owner (r:1 w:1)
 	fn force_change_owner() -> Weight {
-		(3_000_000 as Weight)
+		(6_581_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
@@ -88,14 +88,14 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Secrets Owner (r:1 w:0)
 	// Storage: Secrets Metadata (r:1 w:1)
 	fn update_metadata() -> Weight {
-		(15_000_000 as Weight)
+		(27_599_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Secrets Owner (r:1 w:1)
 	// Storage: Secrets Metadata (r:1 w:1)
 	fn burn_secret() -> Weight {
-		(16_000_000 as Weight)
+		(31_393_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
@@ -107,38 +107,38 @@ impl WeightInfo for () {
 	// Storage: Secrets Metadata (r:0 w:1)
 	// Storage: Secrets Owner (r:0 w:1)
 	fn register_secret() -> Weight {
-		(11_000_000 as Weight)
+		(20_823_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
 	}
 	// Storage: Secrets Owner (r:1 w:0)
 	// Storage: Secrets Operator (r:0 w:1)
 	fn nominate_member() -> Weight {
-		(11_000_000 as Weight)
+		(22_337_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Secrets Owner (r:1 w:0)
 	// Storage: Secrets Operator (r:1 w:1)
 	fn remove_member() -> Weight {
-		(13_000_000 as Weight)
+		(24_289_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Secrets Operator (r:0 w:1)
 	fn force_nominate_member() -> Weight {
-		(9_000_000 as Weight)
+		(17_179_000 as Weight)
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Secrets Operator (r:1 w:1)
 	fn force_remove_member() -> Weight {
-		(10_000_000 as Weight)
+		(20_049_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Secrets Owner (r:1 w:1)
 	fn force_change_owner() -> Weight {
-		(3_000_000 as Weight)
+		(6_581_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
@@ -146,14 +146,14 @@ impl WeightInfo for () {
 	// Storage: Secrets Owner (r:1 w:0)
 	// Storage: Secrets Metadata (r:1 w:1)
 	fn update_metadata() -> Weight {
-		(15_000_000 as Weight)
+		(27_599_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 	// Storage: Secrets Owner (r:1 w:1)
 	// Storage: Secrets Metadata (r:1 w:1)
 	fn burn_secret() -> Weight {
-		(16_000_000 as Weight)
+		(31_393_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 	}

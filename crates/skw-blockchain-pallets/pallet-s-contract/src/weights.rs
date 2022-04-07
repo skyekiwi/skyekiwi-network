@@ -10,7 +10,7 @@
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("skw_alpha"), DB CACHE: 128
 
 // Executed Command:
-// /Users/songzhou/Desktop/skyekiwi-network/target/release/skyekiwi-node
+// /home/songzhou28/skyekiwi-network/target/release/skyekiwi-node
 // benchmark
 // --chain=skw_alpha
 // --steps=50
@@ -20,8 +20,8 @@
 // --execution=wasm
 // --wasm-execution=compiled
 // --heap-pages=4096
-// --output=/Users/songzhou/Desktop/skyekiwi-network/crates/skw-blockchain-pallets/pallet-s-contract/src/weights.rs
-// --template=/Users/songzhou/Desktop/skyekiwi-network/misc/frame-weight-template.hbs
+// --output=/home/songzhou28/skyekiwi-network/crates/skw-blockchain-pallets/pallet-s-contract/src/weights.rs
+// --template=/home/songzhou28/skyekiwi-network/misc/frame-weight-template.hbs
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
@@ -45,7 +45,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: SContract ShardSecretIndex (r:1 w:0)
 	// Storage: SContract ShardOperator (r:1 w:1)
 	fn add_authorized_shard_operator() -> Weight {
-		(5_000_000 as Weight)
+		(8_799_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
@@ -60,7 +60,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: SContract ShardPublicKey (r:0 w:1)
 	// Storage: SContract ShardHighCallIndex (r:0 w:1)
 	fn initialize_shard() -> Weight {
-		(27_000_000 as Weight)
+		(53_369_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(9 as Weight))
 	}
@@ -69,7 +69,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: SContract CallHistory (r:1 w:1)
 	// Storage: SContract CallRecord (r:0 w:1)
 	fn register_contract() -> Weight {
-		(23_000_000 as Weight)
+		(47_634_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(4 as Weight))
 	}
@@ -77,7 +77,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: SContract CallHistory (r:1 w:1)
 	// Storage: SContract CallRecord (r:0 w:1)
 	fn push_call() -> Weight {
-		(19_000_000 as Weight)
+		(35_371_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
@@ -88,7 +88,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Secrets Metadata (r:1 w:1)
 	// Storage: SContract ShardHighCallIndex (r:1 w:1)
 	fn shard_rollup() -> Weight {
-		(28_000_000 as Weight)
+		(49_894_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(6 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
@@ -99,7 +99,7 @@ impl WeightInfo for () {
 	// Storage: SContract ShardSecretIndex (r:1 w:0)
 	// Storage: SContract ShardOperator (r:1 w:1)
 	fn add_authorized_shard_operator() -> Weight {
-		(5_000_000 as Weight)
+		(8_799_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
@@ -114,7 +114,7 @@ impl WeightInfo for () {
 	// Storage: SContract ShardPublicKey (r:0 w:1)
 	// Storage: SContract ShardHighCallIndex (r:0 w:1)
 	fn initialize_shard() -> Weight {
-		(27_000_000 as Weight)
+		(53_369_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(9 as Weight))
 	}
@@ -123,7 +123,7 @@ impl WeightInfo for () {
 	// Storage: SContract CallHistory (r:1 w:1)
 	// Storage: SContract CallRecord (r:0 w:1)
 	fn register_contract() -> Weight {
-		(23_000_000 as Weight)
+		(47_634_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
 	}
@@ -131,7 +131,7 @@ impl WeightInfo for () {
 	// Storage: SContract CallHistory (r:1 w:1)
 	// Storage: SContract CallRecord (r:0 w:1)
 	fn push_call() -> Weight {
-		(19_000_000 as Weight)
+		(35_371_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
 	}
@@ -142,7 +142,7 @@ impl WeightInfo for () {
 	// Storage: Secrets Metadata (r:1 w:1)
 	// Storage: SContract ShardHighCallIndex (r:1 w:1)
 	fn shard_rollup() -> Weight {
-		(28_000_000 as Weight)
+		(49_894_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(6 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 	}
