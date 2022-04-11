@@ -6632,6 +6632,14 @@ name = "skw-contract-sys"
 version = "0.1.0"
 
 [[package]]
+name = "skw-myers-diff"
+version = "0.0.0"
+dependencies = [
+ "bencher",
+ "rand 0.8.5",
+]
+
+[[package]]
 name = "skw-vm-engine"
 version = "0.0.0"
 dependencies = [

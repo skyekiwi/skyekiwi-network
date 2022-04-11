@@ -25,6 +25,9 @@ members = [
     'crates/skw-contract-sys',
     'crates/skw-contract-sim',
 
+    # a Myers Diff algo impl
+    'crates/skw-myers-diff',
+
     # sgx enclave host
     'crates/skw-sgx-ipfs',
 ]
