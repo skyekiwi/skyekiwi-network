@@ -24,16 +24,24 @@ pub fn decode_hex(s: &str) -> Vec<u8> {
 struct CliArgs {
     #[clap(long)]
     state_file: PathBuf,
+    
     #[clap(long)]
     state_root: String,
+
+    #[clap(long)]
+    state_patch: Option<String>,
 
     #[clap(long)]
     params: Option<String>,
     
     #[clap(long)]
+    dump_state: bool,
+
+    #[clap(long)]
     timings: bool,
 }
 
+pub type StatePatch = Vec<u8>;
 #[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
 struct InputParams {
     origin: Option<String>,
@@ -70,6 +78,7 @@ struct InterfaceOutcome {
 struct Outputs {
     ops: Vec<InterfaceOutcome>,
     state_root: CryptoHash,
+    state_patch: StatePatch,
 }
 
 fn main() {
@@ -79,7 +88,10 @@ fn main() {
         tracing_span_tree::span_tree().enable();
     }
 
+
     let decoded_call = bs58::decode(&cli_args.params.unwrap_or_default()).into_vec().unwrap();
+    let state_patch: StatePatch = bs58::decode(&cli_args.state_patch.unwrap_or_default()).into_vec().unwrap();
+
     let params: Input = BorshDeserialize::try_from_slice(&decoded_call).expect("input parsing failed");
 
     let mut outcomes = Outputs::default();
@@ -92,7 +104,14 @@ fn main() {
     let state_path = cli_args.state_file.to_str().expect("state path invalid");
 
     let store = create_store();
-    store.load_state_from_file(state_path).unwrap();
+    match state_patch.len() {
+        0 => {
+            store.read_from_patch(state_path, &state_patch[..]).unwrap();
+        }, 
+        _ => {
+            store.load_state_from_file(state_path).unwrap();
+        }
+    }
 
     script.init(
         &store,
@@ -224,12 +243,13 @@ fn main() {
         script.sync_state_root();
     }
     
-    script.write_to_file(&cli_args.state_file, &mut state_root);
+    if cli_args.dump_state {
+        script.write_to_file(&cli_args.state_file, &mut state_root);
+    }
 
     outcomes.state_root = state_root;
 
     let mut buffer: Vec<u8> = Vec::new();
-    // println!("{:?}", outcomes);
     outcomes.serialize(&mut buffer).unwrap();
 
     println!("{:?}", bs58::encode(buffer).into_string());

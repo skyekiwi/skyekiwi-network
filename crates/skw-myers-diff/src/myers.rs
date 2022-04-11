@@ -136,26 +136,27 @@ fn common_prefix_len(a: WrappedBytes, b: WrappedBytes) -> usize {
         return 0;
     }
 
-    let mut t = 0;
-    while t < a_len && t < b_len && a.inner_get(t..t + 1) == b.inner_get(t..t + 1) {
-        t += 1;
-    }
-    t
-    // let mut m = 0;
-    // let mut ma = std::cmp::min(a.len(), b.len());
-    // let mut mid = ma;
-    // let mut start = 0;
-
-    // while m < mid {
-    //     if a.inner_get(start .. m) == b.inner_get(start .. m) {
-    //         m = mid; start = m;
-    //     } else {
-    //         ma = mid;
-    //     }
-    //     mid = (ma - m) / 2 + m;
+    // let mut t = 0;
+    // while t < a_len && t < b_len && a.inner_get(t..t + 1) == b.inner_get(t..t + 1) {
+    //     t += 1;
     // }
 
-    // mid
+    // t
+    
+    let mut m = 0;
+    let mut ma = std::cmp::min(a.len(), b.len());
+    let mut mid = ma;
+
+    while m < mid {
+        if a.inner_get(0 .. mid) == b.inner_get(0 .. mid) {
+            m = mid;
+        } else {
+            ma = mid;
+        }
+        mid = (ma - m) / 2 + m;
+    }
+
+    mid
 }
 
 fn common_suffix_len(a: WrappedBytes, b: WrappedBytes) -> usize {
@@ -438,6 +439,33 @@ fn test_common_prefix_length() {
 
     assert_eq!(common_prefix_len(wrapped_a, wrapped_b), 6);
 }
+
+#[test]
+fn test_common_prefix_length_random() {
+
+    macro_rules! random_bytes{
+        ($len:expr) => ({
+            let mut bytes = [0_u8; $len];
+            for byte in bytes.iter_mut() {
+                *byte = rand::random::<u8>();
+            }
+            bytes
+        })
+    }
+    let a = random_bytes!(1000);
+    let b = random_bytes!(10000);
+
+    let mut t = 0;
+    while t < a.len() && t < b.len() && a[t] == b[t] {
+        t += 1;
+    }
+    
+    let wrapped_a = WrappedBytes::new(&a[..], ..);
+    let wrapped_b = WrappedBytes::new(&b[..], ..);
+
+    assert_eq!(common_prefix_len(wrapped_a, wrapped_b), t);
+}
+
 
 #[test]
 fn test_common_suffix_length() {

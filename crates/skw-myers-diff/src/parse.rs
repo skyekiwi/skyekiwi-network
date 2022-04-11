@@ -39,13 +39,14 @@ pub fn diff_ops_to_bytes(ops: Vec<ConsolidatedDiffOp>) -> Vec<u8> {
                 v_op.extend_from_slice(&ins[..]);
                 v.extend_from_slice(&v_op);
             },
-            ConsolidatedDiffOp::Delete(offset, len) => {
-                let mut v_op = Vec::new();
-                v_op.push(2);
-                v_op.extend_from_slice(&pad_size(offset));
-                v_op.extend_from_slice(&pad_size(len));
-                v.extend_from_slice(&v_op);
-            },
+            _ => {}
+            // ConsolidatedDiffOp::Delete(offset, len) => {
+            //     let mut v_op = Vec::new();
+            //     v_op.push(2);
+            //     v_op.extend_from_slice(&pad_size(offset));
+            //     v_op.extend_from_slice(&pad_size(len));
+            //     v.extend_from_slice(&v_op);
+            // },
         }
     }
     v
@@ -73,13 +74,14 @@ pub fn bytes_to_diff_ops(bytes: &[u8]) -> Vec<ConsolidatedDiffOp> {
                 ops.push(ConsolidatedDiffOp::Insert(v.to_vec()));
                 i += a;
             },
-            2 => {
-                ops.push(ConsolidatedDiffOp::Delete(
-                    unpad_size(&bytes[i..i + 4].try_into().expect("Invalid size")), 
-                    unpad_size(&bytes[i + 4..i + 8].try_into().expect("Invalid size"))
-                ));
-                i += 8;
-            },
+            // 2 => {
+            //     ops.push(ConsolidatedDiffOp::Delete(
+            //         unpad_size(&bytes[i..i + 4].try_into().expect("Invalid size")), 
+            //         unpad_size(&bytes[i + 4..i + 8].try_into().expect("Invalid size"))
+            //     ));
+            //     i += 8;
+            // },
+            2 => {}
             _ => {
                 panic!("Invalid op type");
             },
@@ -121,14 +123,14 @@ fn test_diff_ops_to_bytes() {
     let ops = vec![
         ConsolidatedDiffOp::Equal(0, 1),
         ConsolidatedDiffOp::Insert(vec![1, 2, 3]),
-        ConsolidatedDiffOp::Delete(0, 1),
+        // ConsolidatedDiffOp::Delete(0, 1),
     ];
     let bytes = diff_ops_to_bytes(ops);
     let ops = bytes_to_diff_ops(&bytes);
     assert_eq!(ops, vec![
         ConsolidatedDiffOp::Equal(0, 1),
         ConsolidatedDiffOp::Insert(vec![1, 2, 3]),
-        ConsolidatedDiffOp::Delete(0, 1),
+        // ConsolidatedDiffOp::Delete(0, 1),
     ]);
 }
 
