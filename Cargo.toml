@@ -27,6 +27,7 @@ members = [
 
     # a Myers Diff algo impl
     'crates/skw-myers-diff',
+    'crates/skw-vm-patch',
 
     # sgx enclave host
     'crates/skw-sgx-ipfs',

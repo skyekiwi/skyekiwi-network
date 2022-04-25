@@ -8,7 +8,7 @@ import type { CallRecord } from './types';
 import level from 'level';
 import { getLogger, hexToU8a, u8aToString } from '@skyekiwi/util';
 import { 
-  Calls, ExecutionSummary, ShardMetadata, Block, LocalMetadata, parseCalls, Contract, Outcomes
+  Calls, ExecutionSummary, ShardMetadata, Block, LocalMetadata, parseCalls, Contract,
 } from '@skyekiwi/s-contract/borsh';
 
 import { DBOps } from './types';
@@ -121,7 +121,7 @@ export class Indexer {
           const callIndex = Number(evt.event.data[2]);
 
           let call
-          const encodedCall = (await api.query.sContract.callRecord(shardId, callIndex)).toJSON() as CallRecord;
+          const encodedCall = (await api.query.sContract.callRecord(callIndex)).toJSON() as CallRecord;
           if (encodedCall[0] === '0x') {
             call = new Calls({ops: [] });
           }
@@ -150,7 +150,7 @@ export class Indexer {
     // 2. build calls
     if (calls) {
       for (const call of calls) {
-        const callContent = (await api.query.sContract.callRecord(shardId, call)).toJSON() as CallRecord;
+        const callContent = (await api.query.sContract.callRecord(call)).toJSON() as CallRecord;
         let encodedCall
         if (callContent[0] === '0x') {
           encodedCall = ""
@@ -169,7 +169,7 @@ export class Indexer {
     });
     this.#ops.push(Storage.writeBlockRecord(shardId, blockNumber, block));
 
-    logger.info(`block import complete at block# ${blockNumber}, imported ${calls ? calls.length : 0} calls and ${contracts ? contracts.length : 0} contracts`);
+    logger.info(`📦 block import complete at block# ${blockNumber}, imported ${calls ? calls.length : 0} calls and ${contracts ? contracts.length : 0} contracts`);
     
     return true;
   }
@@ -209,10 +209,6 @@ export class Indexer {
 
       this.#ops.push(Storage.writeShardMetadataRecord(shard, shardInfo));
     }
-  }
-
-  public writeOutcomes(shardId: number, callIndex: number, outcomes: Outcomes): void {
-    this.#ops.push(Storage.writeCallOutcome(shardId, callIndex, outcomes));
   }
   public async writeAll (): Promise<void> {
     if (this.#active) {

@@ -65,7 +65,7 @@ export class ShardManager {
     return null
   }
 
-  public async maybeSubmitExecutionReport (api: ApiPromise, db: Level.LevelDB, blockNumber: number, fileHash: Uint8Array): Promise<SubmittableExtrinsic[]> {
+  public async maybeSubmitExecutionReport (api: ApiPromise, db: Level.LevelDB, blockNumber: number): Promise<SubmittableExtrinsic[]> {
     const logger = getLogger(`shardManager.maybeSubmitExecutionReport`); 
 
     const tx = [];
@@ -74,7 +74,7 @@ export class ShardManager {
       const shardMetadata = await Storage.getShardMetadataRecord(db, shard);
       if (this.beaconIsTurn(blockNumber, shardMetadata)) {
 
-        logger.info(`in turn and submitting executing report for blockNumber ${blockNumber}`);
+        logger.info(`📤 in turn and buffering executing report for blockNumber ${blockNumber}`);
 
         const block = await Storage.getBlockRecord(db, shard, blockNumber);
 
@@ -96,7 +96,7 @@ export class ShardManager {
 
         tx.push(
           api.tx.parentchain.submitOutcome(
-            blockNumber, 0, stateRoot, fileHash,
+            blockNumber, 0, stateRoot,
             callIndex, outcomes
           )
         )
@@ -108,25 +108,36 @@ export class ShardManager {
 
   // if curBlockNumber is undefined -> forceSubmitAllTx
   public async maybeSubmitTxBatch(api: ApiPromise, buffer: QueuedTransaction[], curBlockNumber?: number): Promise<QueuedTransaction[]> {    
+    const logger = getLogger(`shardManager.maybeSubmitTxBatch`); 
+
+    let highBlockNumber = 0;
     const submissionFilter = (it: QueuedTransaction) => {
-      if (!curBlockNumber) return true;
-      return it.blockNumber < curBlockNumber - 5 && it.blockNumber !== -1
+      highBlockNumber = Math.max(highBlockNumber, it.blockNumber);
+      return it.blockNumber !== -1
+      // if (!curBlockNumber) return true;
+      
+      // // we might be VERY behind
+      // return it.blockNumber > curBlockNumber - 10 && it.blockNumber !== -1
     };
 
     let tx: SubmittableExtrinsic[] = buffer
       .filter(it => submissionFilter(it))
       .map(it => it.transaction)
-    await sendTx(api.tx.utiliy.batchAll(tx), this.#keyring);
     
-    let res = buffer.filter(it => !submissionFilter(it))
-    if (res.length === 0) {
-      res = [{
-        transaction: null,
-        blockNumber: -1
-      }]
+    if (tx.length >= 30 || highBlockNumber > curBlockNumber - 1) {
+      logger.info(`🚀 submitting ${tx.length} transactions`);
+      await sendTx(api.tx.utility.batchAll(tx), this.#keyring);  
+      let res = buffer.filter(it => !submissionFilter(it))
+      if (res.length === 0) {
+        res = [{
+          transaction: null,
+          blockNumber: -1
+        }]
+      }
+      return res;
     }
 
-    return res;
+    return buffer;
   }
 
   private beaconIsTurn (

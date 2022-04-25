@@ -1,9 +1,21 @@
 import { ApiPromise } from '@polkadot/api';
-import { LevelDB } from 'level'
-import {buildCalls, buildOutcomes} from '@skyekiwi/s-contract/borsh';
+import Level, { LevelDB } from 'level'
+import { LocalMetadata, ExecutionSummary, buildCalls, buildOutcomes} from '@skyekiwi/s-contract/borsh';
 import { getLogger, hexToU8a, u8aToString} from '@skyekiwi/util';
 import { Storage } from './host/storage'
 import { CallRecord } from './host/types';
+
+const overwriteLocalMetadata = async (db: Level.LevelDB, localMetadata: LocalMetadata) => {
+    await Storage.writeAll(db, [
+        Storage.writeMetadata(localMetadata),
+    ]);
+}
+
+const overwriteExecutionSummary = async (db: Level.LevelDB, executionSummary: ExecutionSummary) => {
+    await Storage.writeAll(db, [
+        Storage.writeExecutionSummary(executionSummary),
+    ]);
+}
 
 const validateIndexer = async (db: LevelDB, api: ApiPromise, start?: number, end?: number): Promise<number> => {
     const logger = getLogger("validation.indexer")
@@ -25,10 +37,16 @@ const validateIndexer = async (db: LevelDB, api: ApiPromise, start?: number, end
                     const remoteCallHistroy = (await api.query.sContract.callHistory(0, i)).toJSON() as unknown as number[];
                     if (!remoteCallHistroy) {
                         logger.error(`BlockNumber#${i} remote call history is null, while local call is not, exiting`);
+                        
+                        metadata.high_local_block = i - 1;
+                        await overwriteLocalMetadata(db, metadata);
                         return i - 1;
                     }
                     if (remoteCallHistroy.length !== localBlock.calls.length) {
                         logger.error(`BlockNumber#${i} remote call history length is ${remoteCallHistroy.length}, while local call is ${localBlock.calls.length}, exiting`);
+                        
+                        metadata.high_local_block = i - 1;
+                        await overwriteLocalMetadata(db, metadata);
                         return i - 1;
                     }
 
@@ -38,6 +56,9 @@ const validateIndexer = async (db: LevelDB, api: ApiPromise, start?: number, end
                     // 1. validate call history
                     if (remoteCallIdSum !== localCallIdSum) {
                         logger.error(`BlockNumber#${i} remote call id sum is ${remoteCallIdSum}, while local call id sum is ${localCallIdSum}, exiting`);
+                        
+                        metadata.high_local_block = i - 1;
+                        await overwriteLocalMetadata(db, metadata);
                         return i - 1;
                     }
 
@@ -45,7 +66,7 @@ const validateIndexer = async (db: LevelDB, api: ApiPromise, start?: number, end
                         let remoteCallContent;
 
                         // 2. Validate call record optional? it is very hard for this part to go wrong. 
-                        const remoteCallRecord = (await api.query.sContract.callRecord(0, callId)).toJSON() as unknown as CallRecord;
+                        const remoteCallRecord = (await api.query.sContract.callRecord(callId)).toJSON() as unknown as CallRecord;
                         if (remoteCallRecord[0] === "0x") {
                             remoteCallContent = ""
                         } else {
@@ -56,16 +77,27 @@ const validateIndexer = async (db: LevelDB, api: ApiPromise, start?: number, end
                             const localCallRecord = await Storage.getCallsRecord(db, 0, callId);
                             if (remoteCallContent !== buildCalls(localCallRecord)) {
                                 logger.error(`local callRecord at ${callId} does not match remote callRecord`);
+                                
+                                metadata.high_local_block = i - 1;
+                                await overwriteLocalMetadata(db, metadata);
                                 return i - 1;
                             }
                         } catch(e) {
                             logger.error(`BlockNumber#${i} callId#${callId} failed to fetch local db records`);
+                            
+                            metadata.high_local_block = i - 1;
+                            await overwriteLocalMetadata(db, metadata);
                             return i - 1;
                         }
                     }
                 }
             } catch(e) {
+
                 logger.error(`Block#${i} local record pulling fault`);
+                logger.error(e);
+                
+                metadata.high_local_block = i - 1;
+                await overwriteLocalMetadata(db, metadata);
                 return i - 1;
             }
         }
@@ -91,40 +123,66 @@ const validateExecutor = async (db: LevelDB, api: ApiPromise, start?: number, en
         end = end ? end : executionSummary.high_local_execution_block;
 
         if (executionSummary.high_local_execution_block > metadata.high_local_block) {
-            logger.error("!Fatal Error!  high_local_execution_block > high_local_block, exiting.");
+            logger.error("!Fatal Error!  high_local_execution_block > high_local_block, resetting.");
+
+            executionSummary.high_local_execution_block = 1;
+            await overwriteExecutionSummary(db, executionSummary);
             return -1;
         }
 
         for (let i = start; i <= end; i ++) {
             try {
                 const localBlock = await Storage.getBlockRecord(db, 0, i);
-
-                // have calls
-                if (localBlock && localBlock.calls && localBlock.calls.length) {
-
-                    logger.info(`validating block #${i}`);
-
-                    for (const callId of localBlock.calls) {
-                        let remoteCallOutcomeContent;
-                        const remoteCallOutcome = (await api.query.parentchain.outcome(callId)).toJSON() as unknown as string;
+                
+                try {
+                    const blockSummary = await Storage.getBlockSummary(db, 0, i);
+                    
+                    // because the pulling is success - the block has calls
+                    if (!blockSummary.block_state_root ||
+                        !blockSummary.call_state_patch_from_previous_block || 
+                        !blockSummary.contract_state_patch_from_previous_block) {
                         
-                        if (remoteCallOutcome === "0x") {
-                            remoteCallOutcomeContent = ""
-                        } else {
-                            remoteCallOutcomeContent = u8aToString(hexToU8a(remoteCallOutcome.substring(2)));
-                        }
+                        // should init patching 
+                        executionSummary.high_local_execution_block = i - 1;
+                        await overwriteExecutionSummary(db, executionSummary);
+                        return i - 1;
+                    }
 
-                        try {
-                            const localCallOutcome = await Storage.getOutcomesRecord(db, 0, callId);
-                            if (remoteCallOutcomeContent !== buildOutcomes(localCallOutcome)) {
-                                logger.error(`local callOutcome at ${callId} does not match remote callOutcome`);
+                    // have calls
+                    if (localBlock && localBlock.calls && localBlock.calls.length) {
+
+                        logger.info(`validating block #${i}`);
+
+                        for (const callId of localBlock.calls) {
+                            let remoteCallOutcomeContent;
+                            const remoteCallOutcome = (await api.query.parentchain.outcome(callId)).toJSON() as unknown as string;
+                            
+                            if (remoteCallOutcome === "0x") {
+                                remoteCallOutcomeContent = ""
+                            } else {
+                                remoteCallOutcomeContent = u8aToString(hexToU8a(remoteCallOutcome.substring(2)));
+                            }
+
+                            try {
+                                const localCallOutcome = await Storage.getOutcomesRecord(db, 0, callId);
+                                if (remoteCallOutcomeContent !== buildOutcomes(localCallOutcome)) {
+
+                                    console.log(remoteCallOutcomeContent, localCallOutcome);
+                                    logger.error(`local callOutcome at ${callId} does not match remote callOutcome`);
+                                    return i - 1;
+                                }
+                            } catch(e) {
+                                logger.error(`BlockNumber#${i} callId#${callId} failed to fetch local db records`);
                                 return i - 1;
                             }
-                        } catch(e) {
-                            logger.error(`BlockNumber#${i} callId#${callId} failed to fetch local db records`);
-                            return i - 1;
                         }
                     }
+                } catch(err) {
+                    if (localBlock && localBlock.calls && localBlock.calls.length) {
+                        logger.error(`pulling block summary error at #${i}`);
+                    } 
+
+                    // else pass - empty block
                 }
             } catch(e) {
                 logger.error(`Block#${i} local record pulling fault`);
@@ -143,7 +201,7 @@ const validateExecutor = async (db: LevelDB, api: ApiPromise, start?: number, en
 const validateStatusMessageTests = async (db: LevelDB, api: ApiPromise) => {    
     const logger = getLogger("validation.state_message_tests")
 
-    const highCallIndex = (await api.query.sContract.currentCallIndex(0)).toJSON() as unknown as number;
+    const highCallIndex = (await api.query.sContract.currentCallIndex()).toJSON() as unknown as number;
 
     for (let i = 0; i < highCallIndex; i ++) {
         logger.info(`validating call #${i}`);

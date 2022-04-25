@@ -755,79 +755,79 @@
   resolved "https://registry.yarnpkg.com/@scure/base/-/base-1.0.0.tgz#109fb595021de285f05a7db6806f2f48296fcee7"
   integrity sha512-gIVaYhUsy+9s58m/ETjSJVKHhKTBMmcRb9cEV5/5dwvfDlfORjKrFsDeDHWRrm6RjcPvCLZFwGJjAjLj1gg4HA==
 
-"@skyekiwi/crypto@0.6.2-9":
-  version "0.6.2-9"
-  resolved "https://registry.yarnpkg.com/@skyekiwi/crypto/-/crypto-0.6.2-9.tgz#2b31357bbb3e8295362238d37a2e472df4c41013"
-  integrity sha512-qhDW018jAiEgUHaeo9Q8O72mJ1BLIz3E4DRUQO5MM3Aw5z8N7hYjFpjC+0ZhkM6xRvokpXnMGDHw6kMvPjAKGg==
+"@skyekiwi/crypto@0.6.2-10":
+  version "0.6.2-10"
+  resolved "https://registry.yarnpkg.com/@skyekiwi/crypto/-/crypto-0.6.2-10.tgz#258aa802841d5a5fde9176e11d2c5c6eaef26def"
+  integrity sha512-NmJoHcPEkN37zNfluqRzqJX+NdA6xdWJKHOkf6elJ52DCn1tOSSm/HbkW04RbKYZqsnCjL3Z32JXl1Cip93HxQ==
   dependencies:
-    "@skyekiwi/metadata" "0.6.2-9"
-    "@skyekiwi/util" "0.6.2-9"
+    "@skyekiwi/metadata" "0.6.2-10"
+    "@skyekiwi/util" "0.6.2-10"
     ethers "^5.5.4"
     tweetnacl "^1.0.3"
 
-"@skyekiwi/driver@0.6.2-9":
-  version "0.6.2-9"
-  resolved "https://registry.yarnpkg.com/@skyekiwi/driver/-/driver-0.6.2-9.tgz#b92388f1fb5a490f90c1c7558e71492ae53024e9"
-  integrity sha512-37ySiFovlpcPanMmPPqvQUgAb8onpV/NceXbEGmtMBECEPR0mkMvFyAypaH1mm0i8rwaM5MQghj9GDHfpPeTNA==
+"@skyekiwi/driver@0.6.2-10":
+  version "0.6.2-10"
+  resolved "https://registry.yarnpkg.com/@skyekiwi/driver/-/driver-0.6.2-10.tgz#79ee26040688c33a82ae539de146b204cb63715a"
+  integrity sha512-Dv3XDNXpB5VB8hDZFGa4U6MYvctcbwLfbr7dE5F6P0/OgnWXSDWzgc7dk3536UtzETpmYRLhCnnUe1AX2mpFrg==
   dependencies:
     "@polkadot/types" "^7.7.1"
-    "@skyekiwi/crypto" "0.6.2-9"
-    "@skyekiwi/file" "0.6.2-9"
-    "@skyekiwi/ipfs" "0.6.2-9"
-    "@skyekiwi/metadata" "0.6.2-9"
-    "@skyekiwi/util" "0.6.2-9"
+    "@skyekiwi/crypto" "0.6.2-10"
+    "@skyekiwi/file" "0.6.2-10"
+    "@skyekiwi/ipfs" "0.6.2-10"
+    "@skyekiwi/metadata" "0.6.2-10"
+    "@skyekiwi/util" "0.6.2-10"
 
-"@skyekiwi/file@0.6.2-9":
-  version "0.6.2-9"
-  resolved "https://registry.yarnpkg.com/@skyekiwi/file/-/file-0.6.2-9.tgz#f8f7010f8454e1e322a518dbfdeed92575a90167"
-  integrity sha512-BAFtfmEGxuHyFUYifKeQNt+2fuhZKlplIRfJ0I6lSMZwM4Mg+T6SYpL1CELydZQ1gotGQLHNB/oKiTmAVrRlpA==
+"@skyekiwi/file@0.6.2-10":
+  version "0.6.2-10"
+  resolved "https://registry.yarnpkg.com/@skyekiwi/file/-/file-0.6.2-10.tgz#7ecf8715292251247d5142f1dc3e91676bafa05d"
+  integrity sha512-Wi5KoUuNzK58N8ThO+UYSDRDhj1vADmfXSWVe92TuJKbk3yeapzObbR1PJfQI3CcqRtic0nVySiIQh81ljE1gg==
   dependencies:
     file-saver "^2.0.5"
     pako "^2.0.4"
 
-"@skyekiwi/ipfs@0.6.2-9":
-  version "0.6.2-9"
-  resolved "https://registry.yarnpkg.com/@skyekiwi/ipfs/-/ipfs-0.6.2-9.tgz#e5c6d7daa7667b90221e7308e8ebf3caef2fd102"
-  integrity sha512-fAFfxSFfahQGz8LUfEkCoBO7dfespCWOT5NhCsPt3NG58aI797+jTuxj+/4TZhJ1L+T+b5U7AdK17XKasYPu/Q==
+"@skyekiwi/ipfs@0.6.2-10":
+  version "0.6.2-10"
+  resolved "https://registry.yarnpkg.com/@skyekiwi/ipfs/-/ipfs-0.6.2-10.tgz#3caca61c703220f7cde2573319e44225207c4712"
+  integrity sha512-zB90fbjIs0P0DuqQfcIKb1T4jgRdyKiUVoNgrPCP5PQXiOl8PMJ0l7blqnIIMnzCOg6Qu7QYMsfGUHQUsrlw2g==
   dependencies:
-    "@skyekiwi/util" "0.6.2-9"
+    "@skyekiwi/util" "0.6.2-10"
     superagent "^7.1.1"
 
-"@skyekiwi/metadata@0.6.2-9":
-  version "0.6.2-9"
-  resolved "https://registry.yarnpkg.com/@skyekiwi/metadata/-/metadata-0.6.2-9.tgz#85f9d26ed217a8331031d1d2e09e59d8a97e4f0b"
-  integrity sha512-ZbwIOZeaQRsNVHKhd8AUGA5Mvchaeu47rBfzMvLN4IIhQhkJwtDvwD/xDOMAVB1Yjku9le9aVw7zFgeSjyaVIg==
+"@skyekiwi/metadata@0.6.2-10":
+  version "0.6.2-10"
+  resolved "https://registry.yarnpkg.com/@skyekiwi/metadata/-/metadata-0.6.2-10.tgz#449e2163a4506ee511f1172dbe017d9b745d5a4e"
+  integrity sha512-D9vT8aNWhtvmU8YbDk9KPTestp14ZeqzoH7kVoFkJ830mmm72x6C6arwzOdHt86taps9jEwxh+bU6t5eKIzDvQ==
   dependencies:
     "@polkadot/util-crypto" "^8.3.3"
-    "@skyekiwi/crypto" "0.6.2-9"
-    "@skyekiwi/ipfs" "0.6.2-9"
-    "@skyekiwi/util" "0.6.2-9"
+    "@skyekiwi/crypto" "0.6.2-10"
+    "@skyekiwi/ipfs" "0.6.2-10"
+    "@skyekiwi/util" "0.6.2-10"
     tweetnacl "^1.0.3"
 
-"@skyekiwi/s-contract@0.6.2-9":
-  version "0.6.2-9"
-  resolved "https://registry.yarnpkg.com/@skyekiwi/s-contract/-/s-contract-0.6.2-9.tgz#42024dfbaf69f8f223b22a0d4b493ce4c7b72a7b"
-  integrity sha512-nMdNyalJL3/UbLsJKOmA/v2yciP+Bz9ntY56eiH0QMPJ6iZHBjzG/ZbH8Cs6prYANYkmF2pGzEewMSGewklFSQ==
+"@skyekiwi/s-contract@0.6.2-10":
+  version "0.6.2-10"
+  resolved "https://registry.yarnpkg.com/@skyekiwi/s-contract/-/s-contract-0.6.2-10.tgz#f2a97347ec096ad9e4ede72c4aed668e14307336"
+  integrity sha512-DMy/MUiQ58vvlCZngG7UbrWHVpgY7WQUfyU+si3cyoy8mltRzObouQgyT38r8+03qsM00q0vj1gZwteVu3JPPg==
   dependencies:
-    "@skyekiwi/util" "0.6.2-9"
+    "@skyekiwi/util" "0.6.2-10"
     bn.js "4.12"
     borsh "^0.7.0"
 
-"@skyekiwi/secret-registry@0.6.2-9":
-  version "0.6.2-9"
-  resolved "https://registry.yarnpkg.com/@skyekiwi/secret-registry/-/secret-registry-0.6.2-9.tgz#8f2df4ebacc95396945ad6cdf19695888962dbd1"
-  integrity sha512-KutTilw415Rj5J5cuOgE2Rjsbz8xVljEIwADb4nNyvJOr19q/XQcxCUzXYjWMsjbchIQ8T9lsUCb/cDVrERXLQ==
+"@skyekiwi/secret-registry@0.6.2-10":
+  version "0.6.2-10"
+  resolved "https://registry.yarnpkg.com/@skyekiwi/secret-registry/-/secret-registry-0.6.2-10.tgz#799496c331c3c20976b63e8e33f85729d55c3c7e"
+  integrity sha512-phlVbaxZ7jDo0TetovcscNq9GWEJ8CEbGoZ8zSeSBtMURq6WfPFh2YUoHIXu4XWglTaRMGBj9B+5P1ygrwkQ6g==
   dependencies:
     "@polkadot/api" "^7.7.1"
     "@polkadot/keyring" "^8.3.3"
     "@polkadot/types" "^7.7.1"
     "@polkadot/wasm-crypto" "^4.5.1"
-    "@skyekiwi/util" "0.6.2-9"
+    "@skyekiwi/util" "0.6.2-10"
 
-"@skyekiwi/util@0.6.2-9":
-  version "0.6.2-9"
-  resolved "https://registry.yarnpkg.com/@skyekiwi/util/-/util-0.6.2-9.tgz#bdd6b7da109998e46952dacc2f6fc557df0bdd55"
-  integrity sha512-6+7Ftgw2+BzqhGYxR347XDqTq8OHIirSDxLpnXfaz2tELX8RK0mdY2sjLk267STdk8LHKiCC7fdhpSxQcRGzBg==
+"@skyekiwi/util@0.6.2-10":
+  version "0.6.2-10"
+  resolved "https://registry.yarnpkg.com/@skyekiwi/util/-/util-0.6.2-10.tgz#4f9a9cb9417e0f8f873622363afe8a043d6b92d6"
+  integrity sha512-LrMYuzQaNojhzW5IFE8iZfNBkw34ceqpxzNKgVL19PYosrcx2JQb3WHCmO+n9DKs1Mw9ZK3BX5kfDQJfBKvDDQ==
   dependencies:
     "@polkadot/api" "^7.7.1"
     "@polkadot/keyring" "^8.3.3"

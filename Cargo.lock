@@ -6718,6 +6718,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "skw-vm-patch"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "clap 3.0.0-beta.2",
+ "clap_derive",
+ "skw-myers-diff",
+]
+
+[[package]]
 name = "skw-vm-pool"
 version = "0.0.0"
 dependencies = [

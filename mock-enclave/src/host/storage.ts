@@ -137,13 +137,13 @@ export class Storage {
     };
   }
 
-  public static writeBlockSummary (shardId: number, blockS: BlockSummary): DBOps {
-    const key = Storage.getShardMetadataIndex(shardId);
+  public static writeBlockSummary (shardId: number, blockNumber: number, blockS: BlockSummary): DBOps {
+    const key = Storage.getBlockSummaryIndex(shardId, blockNumber);
 
     return {
       type: 'put',
       key: key,
-      value: buildShardMetadata(shardm)
+      value: buildBlockSummary(blockS)
     };
   }
 
@@ -214,5 +214,12 @@ export class Storage {
     db: level.LevelDB
   ): Promise<ExecutionSummary> {
     return parseExecutionSummary(await db.get('EXECUTION_SUMMARY'));
+  }
+
+  public static async getBlockSummary (
+    db: level.LevelDB, shardId: number, blockNumber: number
+  ): Promise<BlockSummary> {
+    const key = Storage.getBlockSummaryIndex(shardId, blockNumber);
+    return parseBlockSummary(await db.get(key));
   }
 }
