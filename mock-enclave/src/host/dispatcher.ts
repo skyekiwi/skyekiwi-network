@@ -30,7 +30,6 @@ export class Dispatcher {
     const contract = await Storage.getContractRecord(db, contractName);
     const content = await IPFS.cat(contract.wasm_blob);
 
-    console.log(content)
     // can this be exploited?
     fs.writeFileSync(wasmPath, hexToU8a(content));
     logger.info(`wasm blobk downloaded to ${wasmPath}`);

@@ -124,9 +124,9 @@ export class ShardManager {
       .filter(it => submissionFilter(it))
       .map(it => it.transaction)
     
-    if (tx.length >= 30 || highBlockNumber > curBlockNumber - 1) {
+    if (tx.length >= 2 || highBlockNumber > curBlockNumber - 1) {
       logger.info(`🚀 submitting ${tx.length} transactions`);
-      await sendTx(api.tx.utility.batchAll(tx), this.#keyring);  
+      await sendTx(api.tx.utility.batch(tx), this.#keyring);  
       let res = buffer.filter(it => !submissionFilter(it))
       if (res.length === 0) {
         res = [{

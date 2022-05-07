@@ -103,8 +103,6 @@ const processCalls = async (
   }
 
   dbOps.push(Storage.writeBlockSummary(0, blockNumber, blockSummary));
-
-  console.log(blockNumber)
   dbOps.push(Storage.writeExecutionSummary(new ExecutionSummary({
     high_local_execution_block: blockNumber,
   })))
@@ -192,78 +190,82 @@ const main = async () => {
     for (let blockNumber = executionSummary.high_local_execution_block; 
       blockNumber < localMetadata.high_local_block; blockNumber ++ ) 
     {
-
-      console.log(blockNumber, localMetadata.high_local_block)
-      logger.info(`🙌 sending block number ${blockNumber} for execution`);
-      const block = await Storage.getBlockRecord(db, 0, blockNumber);
-     
-      let callsOfBlock: {[key: number]: Calls} = {}
-      // check whether to register the secret keeper & push to the tx buffer
-      if (blockNumber % 20 === 0) {
-        const txs = await shard.maybeRegisterSecretKeeper(api, blockNumber);
-        txBuffer.push(
-          ...[... (txs ? txs : [])].map(tx => ({
-              transaction: tx,
-              blockNumber: blockNumber
-            })
-          )
-        );
-      }
-
-      // the main process of executing
-      if (dispatcher.isDispatchable(db, blockNumber)) {
-
-        let deploymentCalls: number[] = [];
-        if (block.contracts && block.contracts.length > 0) {
-          for (const contractName of block.contracts) {
-            const [newCalls, deploymentCallIndex] = await dispatcher.dispatchNewContract(db, contractName);
-            deploymentCalls.push(deploymentCallIndex);
-            callsOfBlock[deploymentCallIndex] = newCalls;
-          }
+      try {
+        await Storage.getBlockSummary(db, 0, blockNumber)
+      } catch(e) {
+        // the block has not been executed
+        // console.log(blockNumber, localMetadata.high_local_block)
+        logger.info(`🙌 sending block number ${blockNumber} for execution`);
+        const block = await Storage.getBlockRecord(db, 0, blockNumber);
+      
+        let callsOfBlock: {[key: number]: Calls} = {}
+        // check whether to register the secret keeper & push to the tx buffer
+        if (blockNumber % 20 === 0) {
+          const txs = await shard.maybeRegisterSecretKeeper(api, blockNumber);
+          txBuffer.push(
+            ...[... (txs ? txs : [])].map(tx => ({
+                transaction: tx,
+                blockNumber: blockNumber
+              })
+            )
+          );
         }
 
-        if (block.calls && block.calls.length > 0) {
-          for (let call of block.calls) {
-            if (deploymentCalls.filter(i => i === call).length === 0) {
-              const newCalls = await dispatcher.dispatchCalls(db, call)
-              callsOfBlock[call] = newCalls;
+        // the main process of executing
+        if (dispatcher.isDispatchable(db, blockNumber)) {
+
+          let deploymentCalls: number[] = [];
+          if (block.contracts && block.contracts.length > 0) {
+            for (const contractName of block.contracts) {
+              const [newCalls, deploymentCallIndex] = await dispatcher.dispatchNewContract(db, contractName);
+              deploymentCalls.push(deploymentCallIndex);
+              callsOfBlock[deploymentCallIndex] = newCalls;
             }
           }
+
+          if (block.calls && block.calls.length > 0) {
+            for (let call of block.calls) {
+              if (deploymentCalls.filter(i => i === call).length === 0) {
+                const newCalls = await dispatcher.dispatchCalls(db, call)
+                callsOfBlock[call] = newCalls;
+              }
+            }
+          }
+
+          if (Object.keys(callsOfBlock).length > 0) {
+            const [dbOps, newStateRoot] = await processCalls(
+              callsOfBlock, 
+              blockNumber,
+              localMetadata.latest_state_root,
+            );
+            localMetadata.latest_state_root = newStateRoot; 
+
+            // console.log(localMetadata)
+
+            dbOps.push(Storage.writeMetadata(localMetadata));
+            await Storage.writeAll(db, dbOps);
+          }
         }
 
-        if (Object.keys(callsOfBlock).length > 0) {
-          const [dbOps, newStateRoot] = await processCalls(
-            callsOfBlock, 
-            blockNumber,
-            localMetadata.latest_state_root,
+        const conf = (await api.query.parentchain.confirmation(0, block.block_number)).toJSON();
+        if (
+            // no reports has been submitted yet || confirmation is below the threshold?
+            (conf === null) && (
+              (block.calls && block.calls.length !== 0) || 
+              (block.contracts && block.contracts.length !== 0)
+            ) && dispatcher.isDispatchable(db, block.block_number)
+        ) {
+          // console.log("submitting report for ", block.block_number)
+          txBuffer.push(
+            ...[... (await shard.maybeSubmitExecutionReport(api, db, block.block_number))].map(tx => ({
+                transaction: tx,
+                blockNumber: blockNumber
+              })
+            )
           );
-          localMetadata.latest_state_root = newStateRoot; 
 
-          console.log(localMetadata)
-
-          dbOps.push(Storage.writeMetadata(localMetadata));
-          await Storage.writeAll(db, dbOps);
+          txBuffer = await shard.maybeSubmitTxBatch(api, txBuffer, (await api.query.system.number()).toJSON() as number);
         }
-      }
-
-      const conf = (await api.query.parentchain.confirmation(0, block.block_number)).toJSON();
-      if (
-          // no reports has been submitted yet || confirmation is below the threshold?
-          (conf === null) && (
-            (block.calls && block.calls.length !== 0) || 
-            (block.contracts && block.contracts.length !== 0)
-          ) && dispatcher.isDispatchable(db, block.block_number)
-      ) {
-        console.log("submitting report for ", block.block_number)
-        txBuffer.push(
-          ...[... (await shard.maybeSubmitExecutionReport(api, db, block.block_number))].map(tx => ({
-              transaction: tx,
-              blockNumber: blockNumber
-            })
-          )
-        );
-
-        txBuffer = await shard.maybeSubmitTxBatch(api, txBuffer, (await api.query.system.number()).toJSON() as number);
       }
     }
 

@@ -11,7 +11,7 @@ try {
   // pass, deplying on railway
 }
 
-function runValidatorNode(seed, dbPath, p2pPort, wsPort, rpcPort, name, bootnodes,) {
+function runValidatorNode(seed, dbPath, p2pPort, wsPort, rpcPort, name, bootnodes, nodeNumber) {
 
   const node = path.join(__dirname, "../target/release/skyekiwi-node");
 
@@ -52,9 +52,9 @@ function runEndpoint(bootnodes) {
   execSync(`${node} \
     --base-path ../tmp/full \
     --chain crates/skw-blockchain-node/res/alphaRaw.json \
-    --port 30333 \
-    --ws-port 9944 \
-    --rpc-port 9935 \
+    --port ${30333 + Number(nodeNumber)} \
+    --ws-port ${9944 + Number(nodeNumber)} \
+    --rpc-port ${9935 + Number(nodeNumber)} \
     --telemetry-url "wss://telemetry.polkadot.io/submit/ 0" \
     --rpc-methods Unsafe \
     --name Endpoint \
@@ -69,6 +69,7 @@ function runEndpoint(bootnodes) {
 const main = () => {
 
   const mode = process.argv[2]
+  const nodeNum = process.argv[3]
   const bootnode = process.env.BOOTNODES;
 
   switch (mode) {
@@ -76,7 +77,7 @@ const main = () => {
       runEndpoint(bootnode);
       break;
     case 'validator':
-      runValidatorAlone(0);
+      runValidatorAlone(nodeNum);
       break;
     default:
       runEndpoint(bootnode);
@@ -89,7 +90,7 @@ function runValidatorAlone (num) {
   const dbPath = path.join(__dirname, `../tmp/db${num}`);
   const seed = process.env.SEED;
   const bootnode = process.env.BOOTNODES;
-  runValidatorNode(seed, dbPath, 30333, 9944, 9933, `node-${num}`, bootnode);
+  runValidatorNode(seed, dbPath, 30333, 9944, 9933, `node-${num}`, bootnode, num);
 }
 
 main()

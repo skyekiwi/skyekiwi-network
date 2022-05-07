@@ -18,7 +18,7 @@
     "main:test": "node ./skw-tools-scripts/main-test.cjs",
     "vm-interface:run": "node ./skw-tools-scripts/vm-interface-run.cjs",
     "docker:build": "node ./skw-tools-scripts/docker-build.cjs",
-    "railway:run": "node ./skw-tools-scripts/run-node.cjs",
+    "railway:run": "node ./skw-tools-scripts/run-testnet-local.cjs",
     "mock-enclave:start": "cd mock-enclave && yarn start",
     "mock-enclave:vm": "cd mock-enclave && yarn vm",
     "mock-enclave:serve": "cd mock-enclave && yarn serve",
