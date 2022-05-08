@@ -25,9 +25,10 @@ const genesis = async () => {
   const logger = getLogger("genesis");
 
   await waitReady();
-  const rootKeypair = (new Keyring({ type: 'sr25519' })).addFromUri("//Alice");
+  const rootKeypair = (new Keyring({ type: 'sr25519' })).addFromUri(process.env.ROOT_SEED);
 
-  const provider = new WsProvider('ws://127.0.0.1:9944');
+  // const provider = new WsProvider('ws://127.0.0.1:9944');
+  const provider = new WsProvider('wss://staging.rpc.skye.kiwi');
   const api = await ApiPromise.create({ provider: provider });
 
   const shardKey = new Uint8Array([
@@ -125,21 +126,34 @@ const genesis = async () => {
     api.tx.parentchain.setShardConfirmationThreshold(0, 1)
   );
 
-   const wasmBlob = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/status_message_collections.wasm')));
+  const wasmBlobSM = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/status_message_collections.wasm')));
+  const wasmBlobFT = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/fungible_token.wasm')));
 
-  const ipfs = new IPFS();
-  const cid = await ipfs.add(u8aToHex(wasmBlob));
+  const cidSM = await IPFS.add(u8aToHex(wasmBlobSM));
+  const cidFT = await IPFS.add(u8aToHex(wasmBlobFT));
   const deploymentCalls = new Calls({ ops: [ ] });
-  const deployContract = api.tx.sContract.registerContract(
-    "status_message_collections", cid.cid.toString(), buildCalls(deploymentCalls), 0
-  );
+  
+  const deployContract = [
+    api.tx.sContract.registerContract(
+      "status_message_collections", cidSM.cid.toString(), buildCalls(deploymentCalls), 0
+    ),
+    // api.tx.sContract.registerContract(
+    //   "skw_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
+    // ),
+    // api.tx.sContract.registerContract(
+    //   "dot_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
+    // ),
+    // api.tx.sContract.registerContract(
+    //   "usdt_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
+    // )
+  ];
 
   const submitInitialize = api.tx.utility.batch(
     [
       ...fundAccounts,
       registerSecretKeeper, registerShard,
       authorizeRoot, initializeShard, shardConfirmationThreshold,
-      deployContract,
+      ...deployContract,
     ]
   );
   await sendTx(submitInitialize, rootKeypair, logger);

@@ -27,13 +27,11 @@ function runValidatorNodeZero() {
   // insert the keys into localDB
   execSync(`${node} key insert \
     --base-path ${dbPath} \
-    --chain=skw_alpha \
     --scheme Sr25519 \
     --suri "${seed}" \
     --key-type aura && \
   ${node} key insert \
     --base-path ${dbPath} \
-    --chain=skw_alpha \
     --scheme Ed25519 \
     --suri "${seed}" \
     --key-type gran`);
@@ -41,14 +39,14 @@ function runValidatorNodeZero() {
   // start the node
   execSync(`${node} \
     --base-path ${dbPath} \
-    --chain=skw_alpha \
     --port 30333 \
     --ws-port 9944 \
     --rpc-port 9935 \
     --telemetry-url "wss://telemetry.polkadot.io/submit/ 0" \
     --validator \
+    --rpc-cors all \
     --unsafe-rpc-external \
-    --unsafe-ws-external 
+    --unsafe-ws-external \
     --prometheus-external `);
 }
 
@@ -60,17 +58,14 @@ function runValidatorNodeOne() {
     if (!bootnodes) {
       throw new Error("Bootnodes not found")
     }
-
-    // insert the keys into localDB
+        // insert the keys into localDB
     execSync(`${node} key insert \
       --base-path ${dbPath} \
-      --chain=skw_alpha \
       --scheme Sr25519 \
       --suri "${seed}" \
       --key-type aura && \
     ${node} key insert \
       --base-path ${dbPath} \
-      --chain=skw_alpha \
       --scheme Ed25519 \
       --suri "${seed}" \
       --key-type gran`);
@@ -78,15 +73,13 @@ function runValidatorNodeOne() {
     // start the node
     execSync(`${node} \
       --base-path ${dbPath} \
-      --chain=skw_alpha \
-      --port 30334 \
-      --ws-port 9945 \
-      --rpc-port 9936 \
-      --telemetry-url "wss://telemetry.polkadot.io/submit/ 0" \
+      --port 30333 \
+      --ws-port 9944 \
+      --rpc-port 9935 \
+      --rpc-cors all \
       --validator \
       --unsafe-rpc-external \
-      --unsafe-ws-external 
-      --prometheus-external \
+      --unsafe-ws-external \
       --bootnodes ${bootnodes}`);
   }
   

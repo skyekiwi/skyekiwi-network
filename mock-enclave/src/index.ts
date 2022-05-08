@@ -193,11 +193,19 @@ const main = async () => {
       try {
         await Storage.getBlockSummary(db, 0, blockNumber)
       } catch(e) {
+
         // the block has not been executed
-        // console.log(blockNumber, localMetadata.high_local_block)
-        logger.info(`🙌 sending block number ${blockNumber} for execution`);
         const block = await Storage.getBlockRecord(db, 0, blockNumber);
-      
+        if (
+          !block ||
+          (!block.calls || block.calls.length === 0) && 
+          (!block.contracts || block.contracts.length === 0)
+        ) {
+          // empty block
+          continue;
+        }
+
+        logger.info(`🙌 sending block number ${blockNumber} for execution`);
         let callsOfBlock: {[key: number]: Calls} = {}
         // check whether to register the secret keeper & push to the tx buffer
         if (blockNumber % 20 === 0) {

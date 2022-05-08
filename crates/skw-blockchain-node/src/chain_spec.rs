@@ -76,7 +76,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 	))
 }
 
-pub fn alpha_config() -> Result<ChainSpec, String> {
+pub fn testnet_alpha_config() -> Result<ChainSpec, String> {
     ChainSpec::from_json_bytes(&include_bytes!("../../../chain-spec/alphaRaw.json")[..])
 }
 

@@ -191,9 +191,8 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		pub fn validate_outcome(call: &Vec<u8>) -> bool {
-			call.len() < T::MaxSizePerOutcome::get() as usize
+		pub fn validate_outcome(outcome: &Vec<u8>) -> bool {
+			outcome.len() < T::MaxSizePerOutcome::get() as usize
 		}
 	}
 }
-
