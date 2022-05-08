@@ -6,11 +6,10 @@ import Level from 'level';
 import fs from 'fs';
 
 import {IPFS} from '@skyekiwi/ipfs'
-import {  Calls, Call, Outcomes } from '@skyekiwi/s-contract';
+import {  Calls, Call } from '@skyekiwi/s-contract';
 import { hexToU8a } from '@polkadot/util';
 import { getLogger } from '@skyekiwi/util';
 import { Storage } from './storage';
-import {Indexer} from './indexer'
 
 /* eslint-disable sort-keys, camelcase, @typescript-eslint/ban-ts-comment */
 export class Dispatcher {
@@ -21,17 +20,15 @@ export class Dispatcher {
   }
 
   public async dispatchNewContract(
-    indexer: Indexer, db: Level.LevelDB, 
-    contractName: string, stateRoot: Uint8Array,
-    executor: (calls: Calls, stateRoot: Uint8Array) => Outcomes
-  ): Promise<Uint8Array> {
+    db: Level.LevelDB, contractName: string,
+  ): Promise<[Calls, number]> {
+
+    console.log(`vaidating ${contractName}`)
     const logger = getLogger('dispatcher.dispatchNewContract');
 
     const wasmPath = path.join(__dirname, "../../wasm/", contractName + '.wasm');
     const contract = await Storage.getContractRecord(db, contractName);
-    const ipfs = new IPFS();
-
-    const content = await ipfs.cat(contract.wasm_blob);
+    const content = await IPFS.cat(contract.wasm_blob);
 
     // can this be exploited?
     fs.writeFileSync(wasmPath, hexToU8a(content));
@@ -69,20 +66,14 @@ export class Dispatcher {
     }
 
     const c = new Calls({ "ops": verifiedOps});
-    logger.info(`calls validated for ${contractName}, sending to executor`);
+    logger.info(`👀 calls validated for ${contractName}, buffering`);
 
-    const o = executor(c, stateRoot)
-
-    logger.info(`outcome received for contract deployment of ${contractName}, writing to DB`);
-    indexer.writeOutcomes(0, contract.deployment_call_index, o);
-    return o.state_root;
+    return [c, contract.deployment_call_index];
   }
 
   public async dispatchCalls(
-    indexer: Indexer, db: Level.LevelDB, 
-    callsIndex: number, stateRoot: Uint8Array,
-    executor: (calls: Calls, stateRoot: Uint8Array) => Outcomes
-  ): Promise<Uint8Array> {
+    db: Level.LevelDB, callsIndex: number
+  ): Promise<Calls> {
 
     const logger = getLogger('dispatcher.dispatchCalls');
 
@@ -95,12 +86,12 @@ export class Dispatcher {
       it.receiver = it.receiver.toLowerCase();
     })
 
-    logger.info(`call validated for ${callsIndex}, sending to executor`)
-    const o = executor(new Calls({ ops: ops }), stateRoot);
+    logger.info(`👀 call validated for ${callsIndex}, sending to executor`)
+    return new Calls({ ops: ops });
+  }
 
-    indexer.writeOutcomes(0, callsIndex, o);
-    logger.info(`outcome received for ${callsIndex}, writing to DB`);
-
-    return o.state_root;
+  public combineCalls(dest: Calls, src: Calls): Calls {
+    const ops = dest.ops.concat(src.ops);
+    return new Calls({ ops: ops });
   }
 }

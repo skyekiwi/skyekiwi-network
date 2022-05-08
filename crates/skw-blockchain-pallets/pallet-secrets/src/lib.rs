@@ -11,6 +11,9 @@ mod mock;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+pub mod weights;
+pub use weights::WeightInfo;
+
 pub type SecretId = u64;
 pub type CallIndex = u64;
 pub type ShardId = u64;
@@ -25,11 +28,12 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		
+		type WeightInfo: WeightInfo;
+
+		/// the length of acceptable IPFS CID, default at 46 bytes
 		#[pallet::constant]
 		type IPFSCIDLength: Get<u32>;
 
-		#[pallet::constant]
-		type MaxActiveShards: Get<u64>;
 		// type ForceOrigin: EnsureOrigin<Self::Origin>;
 	}
 
@@ -81,7 +85,8 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2, 3))]
+		/// write a metadata to the secret registry and assign a secret_id
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_secret())]
 		pub fn register_secret(
 			origin: OriginFor<T>, 
 			metadata: Vec<u8>
@@ -90,17 +95,17 @@ pub mod pallet {
 			ensure!(metadata.len() == T::IPFSCIDLength::get() as usize, Error::<T>::MetadataNotValid);
 			
 			let id = <CurrentSecretId<T>>::get();
-			let new_id = id.saturating_add(1);
 
 			<Metadata<T>>::insert(&id, metadata);
 			<Owner<T>>::insert(&id, who);
-			<CurrentSecretId<T>>::set(new_id);
+			<CurrentSecretId<T>>::set(id.saturating_add(1));
 			Self::deposit_event(Event::<T>::SecretRegistered(id));
 			
 			Ok(())
 		}
 		
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
+		/// nominate an operator to a secret
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::nominate_member())]
 		pub fn nominate_member(
 			origin: OriginFor<T>,
 			secret_id: SecretId,
@@ -115,7 +120,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
+		/// remove an operator to a secret
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_member())]
 		pub fn remove_member(
 			origin: OriginFor<T>,
 			secret_id: SecretId,
@@ -130,49 +136,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
-		pub fn force_nominate_member(
-			origin: OriginFor<T>,
-			secret_id: SecretId,
-			member: T::AccountId
-		) -> DispatchResult {
-			ensure_root(origin)?;
-
-			<Operator<T>>::insert(secret_id, &member, true);
-			Self::deposit_event(Event::<T>::MembershipGranted(secret_id, member));
-
-			Ok(())
-		}
-
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
-		pub fn force_remove_member(
-			origin: OriginFor<T>,
-			secret_id: SecretId,
-			member: T::AccountId
-		) -> DispatchResult {
-			ensure_root(origin)?;
-
-			<Operator<T>>::take(&secret_id, &member);
-			Self::deposit_event(Event::<T>::MembershipRevoked(secret_id, member));
-			
-			Ok(())
-		}
-
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
-		pub fn force_change_owner(
-			origin: OriginFor<T>,
-			secret_id: SecretId,
-			member: T::AccountId
-		) -> DispatchResult {
-			ensure_root(origin)?;
-
-			<Owner<T>>::mutate(&secret_id, |owner| {
-				* owner = Some(member);
-			});
-			Ok(())
-		}
-
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
+		/// update the metadata of a secret
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_metadata())]
 		pub fn update_metadata(
 			origin: OriginFor<T>,
 			secret_id: SecretId,
@@ -189,7 +154,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1, 1))]
+		/// destroy a secret and all its records
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::burn_secret())]
 		pub fn burn_secret(
 			origin: OriginFor<T>,
 			secret_id: SecretId,
@@ -204,6 +170,52 @@ pub mod pallet {
 			
 			Self::deposit_event(Event::<T>::SecretBurnt(secret_id));
 			
+			Ok(())
+		}
+
+		/// (ROOT ONLY) forcefuly nominate an operator to a secret
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::force_nominate_member())]
+		pub fn force_nominate_member(
+			origin: OriginFor<T>,
+			secret_id: SecretId,
+			member: T::AccountId
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			// no checks here!
+			<Operator<T>>::insert(secret_id, &member, true);
+			Self::deposit_event(Event::<T>::MembershipGranted(secret_id, member));
+
+			Ok(())
+		}
+
+		/// (ROOT ONLY) forcefuly remove an operator to a secret
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::force_remove_member())]
+		pub fn force_remove_member(
+			origin: OriginFor<T>,
+			secret_id: SecretId,
+			member: T::AccountId
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			<Operator<T>>::take(&secret_id, &member);
+			Self::deposit_event(Event::<T>::MembershipRevoked(secret_id, member));
+			
+			Ok(())
+		}
+
+		/// (ROOT ONLY) forcefuly change owner of a secret
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::force_change_owner())]
+		pub fn force_change_owner(
+			origin: OriginFor<T>,
+			secret_id: SecretId,
+			member: T::AccountId
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			<Owner<T>>::mutate(&secret_id, |owner| {
+				* owner = Some(member);
+			});
 			Ok(())
 		}
 	}

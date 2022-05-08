@@ -291,9 +291,9 @@ parameter_types! {
 }
 
 impl pallet_secrets::Config for Runtime {
+	type WeightInfo = ();
 	type Event = Event;
 	type IPFSCIDLength = IPFSCIDLength;
-	type MaxActiveShards = MaxActiveShards;
 }
 
 parameter_types! {
@@ -304,9 +304,9 @@ parameter_types! {
 }
 
 impl pallet_s_contract::Config for Runtime {
+	type WeightInfo = ();
 	type Event = Event;
 	type MaxCallLength = MaxCallLength;
-	type MaxOutputLength = MaxOutputLength;
 	type MinContractNameLength = MinContractNameLength;
 	type MaxContractNameLength = MaxContractNameLength;
 }
@@ -316,6 +316,7 @@ parameter_types! {
 }
 
 impl pallet_registry::Config for Runtime {
+	type WeightInfo = ();
 	type Event = Event;
 	type RegistrationDuration = RegistrationDuration;
 	type MaxActiveShards = MaxActiveShards;
@@ -323,14 +324,15 @@ impl pallet_registry::Config for Runtime {
 
 
 parameter_types! {
-	pub const DeplayThreshold: u32 = 5_000;
+	pub const DelayThreshold: u32 = 5_000;
 	pub const MaxOutcomePerSubmission: u64 = 10_000;
 	pub const MaxSizePerOutcome: u64 = 500_000;
 }
 
 impl pallet_parentchain::Config for Runtime {
+	type WeightInfo = ();
 	type Event = Event;
-	type DeplayThreshold = DeplayThreshold;
+	type DelayThreshold = DelayThreshold;
 	type MaxOutcomePerSubmission = MaxOutcomePerSubmission;
 	type MaxSizePerOutcome = MaxSizePerOutcome;
 }
@@ -532,7 +534,11 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, frame_system, SystemBench::<Runtime>);
 			list_benchmark!(list, extra, pallet_balances, Balances);
 			list_benchmark!(list, extra, pallet_timestamp, Timestamp);
+			
 			list_benchmark!(list, extra, pallet_secrets, Secrets);
+			list_benchmark!(list, extra, pallet_s_contract, SContract);
+			list_benchmark!(list, extra, pallet_parentchain, Parentchain);
+			list_benchmark!(list, extra, pallet_registry, Registry);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -566,7 +572,12 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+
 			add_benchmark!(params, batches, pallet_secrets, Secrets);
+			add_benchmark!(params, batches, pallet_s_contract, SContract);
+			add_benchmark!(params, batches, pallet_parentchain, Parentchain);
+			add_benchmark!(params, batches, pallet_registry, Registry);
+
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

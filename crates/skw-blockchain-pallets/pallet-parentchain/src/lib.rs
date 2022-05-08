@@ -2,6 +2,8 @@
 use sp_std::prelude::*;
 pub use pallet::*;
 
+pub mod weights;
+pub use weights::WeightInfo;
 
 #[cfg(test)]
 mod tests;
@@ -9,8 +11,8 @@ mod tests;
 #[cfg(test)]
 mod mock;
 
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 pub type CallIndex = u64;
 pub type ShardId = u64;
@@ -25,12 +27,17 @@ pub mod pallet {
 	pub trait Config: frame_system::Config + pallet_registry::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		#[pallet::constant]
-		type DeplayThreshold: Get<<Self as frame_system::Config>::BlockNumber>;
+		type WeightInfo: WeightInfo;
 
+		/// Maximum delay between receiving a call and submitting result for it
+		#[pallet::constant]
+		type DelayThreshold: Get<<Self as frame_system::Config>::BlockNumber>;
+
+		/// Maximum number of outcomes allowed per submission 
 		#[pallet::constant]
 		type MaxOutcomePerSubmission: Get<u64>;
 
+		/// Maximum length of sizze for each outcome submitted
 		#[pallet::constant]
 		type MaxSizePerOutcome: Get<u64>;
 	}
@@ -39,26 +46,25 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 	
+	/// Threshold of outcome submission from SecretKeepers needed to confirm a block
 	#[pallet::storage]
 	#[pallet::getter(fn shard_confirmation_threshold)]
 	pub(super) type ShardConfirmationThreshold<T: Config> = StorageMap<_, Twox64Concat, 
 		ShardId, u64>;
 
+	/// state_root of offchain runtime
 	#[pallet::storage]
 	#[pallet::getter(fn state_root_at)]
 	pub(super) type StateRoot<T: Config> = StorageDoubleMap<_, Twox64Concat, ShardId, 
 		Twox64Concat, T::BlockNumber, [u8; 32]>;
-	
-	#[pallet::storage]
-	#[pallet::getter(fn state_file_hash_at)]
-	pub(super) type StateFileHash<T: Config> = StorageDoubleMap<_, Twox64Concat, ShardId,
-	Twox64Concat, T::BlockNumber, [u8; 32]>;
 
+	/// confirmations received for offchain runtime for blocks 
 	#[pallet::storage]
 	#[pallet::getter(fn confirmation_of)]
 	pub(super) type Confirmation<T: Config> = StorageDoubleMap<_, Twox64Concat, ShardId,
 	Twox64Concat, T::BlockNumber, u64>;
 
+	/// outcome received each call 
 	#[pallet::storage]
 	#[pallet::getter(fn outcome_of)]
 	pub(super) type Outcome<T: Config> = StorageMap<_, Twox64Concat, 
@@ -84,7 +90,8 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(0, 1))]
+		/// (ROOT ONLY) set the confirmation threshold for a shard
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_shard_confirmation_threshold())]
 		pub fn set_shard_confirmation_threshold(
 			origin: OriginFor<T>,
 			shard_id: ShardId,
@@ -97,14 +104,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(8, 10))]
+		/// submit a batch of outcomes for a block
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_outcome(outcome_call_index.len() as u32))]
 		pub fn submit_outcome(
 			origin: OriginFor<T>,
-			block_number: T::BlockNumber,
-			shard_id: ShardId,
+			block_number: T::BlockNumber, shard_id: ShardId,
 
 			state_root: [u8; 32],
-			state_file_hash: [u8; 32],
 
 			outcome_call_index: Vec<CallIndex>,
 			outcome: Vec<Vec<u8>>,
@@ -114,7 +120,7 @@ pub mod pallet {
 			ensure!(pallet_registry::Pallet::<T>::is_valid_shard_id(shard_id), Error::<T>::InvalidShardId);
 			ensure!(pallet_registry::Pallet::<T>::is_valid_secret_keeper(&who), Error::<T>::Unauthorized);
 			let now = frame_system::Pallet::<T>::block_number();
-			ensure!(now <= block_number + T::DeplayThreshold::get(), Error::<T>::OutcomeSubmissionTooLate);
+			ensure!(now <= block_number + T::DelayThreshold::get(), Error::<T>::OutcomeSubmissionTooLate);
 
 			// by default - confirmation at 1
 			let threshold = Self::shard_confirmation_threshold(shard_id).unwrap_or(1);
@@ -171,7 +177,6 @@ pub mod pallet {
 			}
 
 			<StateRoot<T>>::insert(&shard_id, &block_number, &state_root);
-			<StateFileHash<T>>::insert(&shard_id, &block_number, &state_file_hash);
 
 			// emit BlockSynced only at the first time!
 			Self::deposit_event(Event::<T>::BlockSynced(block_number));
@@ -186,9 +191,8 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		pub fn validate_outcome(call: &Vec<u8>) -> bool {
-			call.len() < T::MaxSizePerOutcome::get() as usize
+		pub fn validate_outcome(outcome: &Vec<u8>) -> bool {
+			outcome.len() < T::MaxSizePerOutcome::get() as usize
 		}
 	}
 }
-

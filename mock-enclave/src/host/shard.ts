@@ -14,6 +14,8 @@ import { ShardMetadata, buildOutcomes } from '@skyekiwi/s-contract/borsh';
 import { getLogger, sendTx, u8aToHex } from '@skyekiwi/util';
 
 import {Storage} from './storage'
+import { SubmittableExtrinsic } from '@polkadot/api/promise/types';
+import { QueuedTransaction } from './types';
 
 export class ShardManager {
   #keyring: KeyringPair
@@ -37,7 +39,7 @@ export class ShardManager {
     this.#keyring = new Keyring({ type: 'sr25519' }).addFromUri(seed);
   }
 
-  public async maybeRegisterSecretKeeper (api: ApiPromise, blockNumber: number): Promise<void> {
+  public async maybeRegisterSecretKeeper (api: ApiPromise, blockNumber: number): Promise<SubmittableExtrinsic[]> {
     const logger = getLogger(`shardManager.maybeRegisterSecretKeeper`); 
     const allExtrinsics = [];
 
@@ -57,21 +59,22 @@ export class ShardManager {
         allExtrinsics.push(api.tx.registry.registerRunningShard(shard));
       }
 
-      const all = api.tx.utility.batch(allExtrinsics);
-
-      await sendTx(all, this.#keyring);
+      return allExtrinsics;
     }
+    
+    return null
   }
 
-  public async maybeSubmitExecutionReport (api: ApiPromise, db: Level.LevelDB, blockNumber: number) {
-    const logger = getLogger(`shardManager.maybeRegisterSecretKeeper`); 
+  public async maybeSubmitExecutionReport (api: ApiPromise, db: Level.LevelDB, blockNumber: number): Promise<SubmittableExtrinsic[]> {
+    const logger = getLogger(`shardManager.maybeSubmitExecutionReport`); 
 
+    const tx = [];
     for (const shard of this.#shards) {
 
       const shardMetadata = await Storage.getShardMetadataRecord(db, shard);
       if (this.beaconIsTurn(blockNumber, shardMetadata)) {
 
-        logger.info(`in turn and submitting executing report for blockNumber ${blockNumber}`);
+        logger.info(`📤 in turn and buffering executing report for blockNumber ${blockNumber}`);
 
         const block = await Storage.getBlockRecord(db, shard, blockNumber);
 
@@ -91,13 +94,50 @@ export class ShardManager {
           stateRoot = o.state_root;
         }
 
-        const tx = api.tx.parentchain.submitOutcome(
-          blockNumber, 0, stateRoot, new Uint8Array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]),
-          callIndex, outcomes
+        tx.push(
+          api.tx.parentchain.submitOutcome(
+            blockNumber, 0, stateRoot,
+            callIndex, outcomes
+          )
         )
-        await sendTx(tx, this.#keyring);
       }
     }
+
+    return tx;
+  }
+
+  // if curBlockNumber is undefined -> forceSubmitAllTx
+  public async maybeSubmitTxBatch(api: ApiPromise, buffer: QueuedTransaction[], curBlockNumber?: number): Promise<QueuedTransaction[]> {    
+    const logger = getLogger(`shardManager.maybeSubmitTxBatch`); 
+
+    let highBlockNumber = 0;
+    const submissionFilter = (it: QueuedTransaction) => {
+      highBlockNumber = Math.max(highBlockNumber, it.blockNumber);
+      return it.blockNumber !== -1
+      // if (!curBlockNumber) return true;
+      
+      // // we might be VERY behind
+      // return it.blockNumber > curBlockNumber - 10 && it.blockNumber !== -1
+    };
+
+    let tx: SubmittableExtrinsic[] = buffer
+      .filter(it => submissionFilter(it))
+      .map(it => it.transaction)
+    
+    if (tx.length >= 2 || highBlockNumber > curBlockNumber - 1) {
+      logger.info(`🚀 submitting ${tx.length} transactions`);
+      await sendTx(api.tx.utility.batch(tx), this.#keyring);  
+      let res = buffer.filter(it => !submissionFilter(it))
+      if (res.length === 0) {
+        res = [{
+          transaction: null,
+          blockNumber: -1
+        }]
+      }
+      return res;
+    }
+
+    return buffer;
   }
 
   private beaconIsTurn (

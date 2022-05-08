@@ -1,0 +1,18 @@
+[package]
+name = "skw-vm-patch"
+version = '0.1.0'
+authors = ['SkyeKiwi <hello@skye.kiwi>', "Near Inc <max@nearprotocol.com>"]
+edition = '2018'
+homepage = 'https://skye.kiwi'
+repository = 'https://github.com/skyekiwi/skyekiwi-network'
+license = 'GPL-3.0'
+readme = 'README.md'
+description = """
+Patch a series of state to the original state file
+"""
+
+[dependencies]
+skw-myers-diff = { path = "../skw-myers-diff" }
+clap = "=3.0.0-beta.2"
+clap_derive = "=3.0.0-beta.2"
+bs58 = "0.4.0"

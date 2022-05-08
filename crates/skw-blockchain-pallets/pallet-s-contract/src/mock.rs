@@ -63,22 +63,21 @@ parameter_types! {
 }
 
 impl pallet_secrets::Config for Test {
+	type WeightInfo = ();
 	type Event = Event;
 	type IPFSCIDLength = IPFSCIDLength;
-	type MaxActiveShards = MaxActiveShards;
 }
 
 parameter_types! {
 	pub const MaxCallLength: u32 = 512;
-	pub const MaxOutputLength: u32 = 1024;
 	pub const MinContractNameLength: u32 = 1;
 	pub const MaxContractNameLength: u32 = 32;
 }
 
 impl pallet_s_contract::Config for Test {
+	type WeightInfo = ();
 	type Event = Event;
 	type MaxCallLength = MaxCallLength;
-	type MaxOutputLength = MaxOutputLength;
 	type MinContractNameLength = MinContractNameLength;
 	type MaxContractNameLength = MaxContractNameLength;
 }

@@ -8,7 +8,7 @@ import type { CallRecord } from './types';
 import level from 'level';
 import { getLogger, hexToU8a, u8aToString } from '@skyekiwi/util';
 import { 
-  Calls, ExecutionSummary, ShardMetadata, Block, LocalMetadata, parseCalls, Contract, Outcomes
+  Calls, ExecutionSummary, ShardMetadata, Block, LocalMetadata, parseCalls, Contract,
 } from '@skyekiwi/s-contract/borsh';
 
 import { DBOps } from './types';
@@ -18,22 +18,18 @@ import { Storage } from './storage';
 export class Indexer {
   #db: level.LevelDB
   #ops: DBOps[]
+  #active: boolean
 
-  public init (db: level.LevelDB): void {
-    this.#ops = [];
+  constructor(db: level.LevelDB) {
     this.#db = db;
+    this.#ops = []
+    this.#active = true;
   }
 
   public async done() {
     await this.writeAll();
-    this.#db.close();
-  }
-
-  public async runBlocks(from: number, to: number, dispatcher: (block: Block) => Promise<void>): Promise<void> {
-    for (let i = from; i < to; i ++ ) {
-      const block = await Storage.getBlockRecord(this.#db, 0, i);
-      await dispatcher(block)
-    }
+    this.#active = false;
+    await this.#db.close();
   }
 
   public async initialzeLocalDatabase (): Promise<void> {
@@ -54,17 +50,20 @@ export class Indexer {
     this.#ops = [];
   }
 
-  public async fetchAll (api: ApiPromise): Promise<void> {
+  public async fetchAll (api: ApiPromise, start?: number): Promise<void> {
     const logger = getLogger('indexer.fetchAll');
 
     const localMetadata = await Storage.getMetadata(this.#db);
     const highLocalBlock = localMetadata.high_local_block ? localMetadata.high_local_block : 0;
 
+    start = start ? start : highLocalBlock;
+
+    let fetchingCount = 0;
+
     logger.info(`highest local block at ${localMetadata.high_local_block}`);
+    let currentBlockNumber = highLocalBlock;
 
-    let currentBlockNumber = highLocalBlock + 1;
-
-    while (true) {
+    while (true && this.#active) {
       logger.debug(`fetching all info from block# ${currentBlockNumber}`);
 
       for (const shardId of localMetadata.shard_id) {
@@ -87,6 +86,18 @@ export class Indexer {
         this.#ops.push(Storage.writeMetadata(localMetadata));
         break;
       }
+
+      fetchingCount = fetchingCount + 1;
+
+      if (fetchingCount === 1000) {
+        fetchingCount = 0;
+        logger.info("writting some calls to local DB")
+
+        const localMetadata = await Storage.getMetadata(this.#db);
+        localMetadata.high_local_block = currentBlockNumber;
+        this.#ops.push(Storage.writeMetadata(localMetadata));
+        await this.writeAll();
+      }
     }
   }
 
@@ -97,8 +108,7 @@ export class Indexer {
     let contracts: string[] = []
 
     // 1. build new contract deployments
-    const blockHash = ((await api.query.system.blockHash(blockNumber)).toJSON()) as string;
-
+    const blockHash = ((await api.rpc.chain.getBlockHash(blockNumber)).toJSON()) as string;
     if (blockHash === '0x0000000000000000000000000000000000000000000000000000000000000000')
       return false;
     const events = (await api.query.system.events.at(blockHash)).toHuman() as unknown as EventRecord[];
@@ -110,10 +120,8 @@ export class Indexer {
           const contractName = evt.event.data[1].toString();
           const callIndex = Number(evt.event.data[2]);
 
-          console.log(contractName);
-          // console.log(u8aToString( hexToU8a(contractName.substring(2)) ))
           let call
-          const encodedCall = (await api.query.sContract.callRecord(shardId, callIndex)).toJSON() as CallRecord;
+          const encodedCall = (await api.query.sContract.callRecord(callIndex)).toJSON() as CallRecord;
           if (encodedCall[0] === '0x') {
             call = new Calls({ops: [] });
           }
@@ -142,7 +150,7 @@ export class Indexer {
     // 2. build calls
     if (calls) {
       for (const call of calls) {
-        const callContent = (await api.query.sContract.callRecord(shardId, call)).toJSON() as CallRecord;
+        const callContent = (await api.query.sContract.callRecord(call)).toJSON() as CallRecord;
         let encodedCall
         if (callContent[0] === '0x') {
           encodedCall = ""
@@ -161,12 +169,12 @@ export class Indexer {
     });
     this.#ops.push(Storage.writeBlockRecord(shardId, blockNumber, block));
 
-    logger.info(`block import complete at block# ${blockNumber}, imported ${calls ? calls.length : 0} calls and ${contracts ? contracts.length : 0} contracts`);
+    logger.info(`📦 block import complete at block# ${blockNumber}, imported ${calls ? calls.length : 0} calls and ${contracts ? contracts.length : 0} contracts`);
     
     return true;
   }
 
-  public async fetchOnce (api: ApiPromise, address: string): Promise<void> {
+  public async fetchShardInfo (api: ApiPromise, address: string): Promise<void> {
     const localMetadata = await Storage.getMetadata(this.#db);
 
     for (const shard of localMetadata.shard_id) {
@@ -200,14 +208,12 @@ export class Indexer {
       }
 
       this.#ops.push(Storage.writeShardMetadataRecord(shard, shardInfo));
-      console.log(this.#ops)
     }
   }
-
-  public writeOutcomes(shardId: number, callIndex: number, outcomes: Outcomes): void {
-    this.#ops.push(Storage.writeCallOutcome(shardId, callIndex, outcomes));
-  }
   public async writeAll (): Promise<void> {
-    await Storage.writeAll(this.#db, this.#ops);
+    if (this.#active) {
+      await Storage.writeAll(this.#db, this.#ops);
+      this.#ops = []
+    }
   }
 }

@@ -7,7 +7,8 @@ import { Driver } from '@skyekiwi/driver';
 import { AsymmetricEncryption, DefaultSealer, EncryptionSchema } from '@skyekiwi/crypto';
 
 import fs from 'fs'
-import BN from 'bn.js'
+import {IPFS} from '@skyekiwi/ipfs'
+
 import { getLogger } from '@skyekiwi/util';
 import { Keyring } from '@polkadot/keyring'
 import { waitReady } from '@polkadot/wasm-crypto'
@@ -24,9 +25,10 @@ const genesis = async () => {
   const logger = getLogger("genesis");
 
   await waitReady();
-  const rootKeypair = (new Keyring({ type: 'sr25519' })).addFromUri("//Alice");
+  const rootKeypair = (new Keyring({ type: 'sr25519' })).addFromUri(process.env.ROOT_SEED);
 
-  const provider = new WsProvider('ws://127.0.0.1:9944');
+  // const provider = new WsProvider('ws://127.0.0.1:9944');
+  const provider = new WsProvider('wss://staging.rpc.skye.kiwi');
   const api = await ApiPromise.create({ provider: provider });
 
   const shardKey = new Uint8Array([
@@ -120,11 +122,38 @@ const genesis = async () => {
       }
   )
 
+  const shardConfirmationThreshold = api.tx.sudo.sudo(
+    api.tx.parentchain.setShardConfirmationThreshold(0, 1)
+  );
+
+  const wasmBlobSM = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/status_message_collections.wasm')));
+  const wasmBlobFT = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/fungible_token.wasm')));
+
+  const cidSM = await IPFS.add(u8aToHex(wasmBlobSM));
+  const cidFT = await IPFS.add(u8aToHex(wasmBlobFT));
+  const deploymentCalls = new Calls({ ops: [ ] });
+  
+  const deployContract = [
+    api.tx.sContract.registerContract(
+      "status_message_collections", cidSM.cid.toString(), buildCalls(deploymentCalls), 0
+    ),
+    // api.tx.sContract.registerContract(
+    //   "skw_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
+    // ),
+    // api.tx.sContract.registerContract(
+    //   "dot_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
+    // ),
+    // api.tx.sContract.registerContract(
+    //   "usdt_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
+    // )
+  ];
+
   const submitInitialize = api.tx.utility.batch(
     [
       ...fundAccounts,
       registerSecretKeeper, registerShard,
-      authorizeRoot, initializeShard,
+      authorizeRoot, initializeShard, shardConfirmationThreshold,
+      ...deployContract,
     ]
   );
   await sendTx(submitInitialize, rootKeypair, logger);

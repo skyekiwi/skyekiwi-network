@@ -13,7 +13,8 @@ import {
   Shard, buildShard, parseShard,
   ShardMetadata, buildShardMetadata, parseShardMetadata,
   LocalMetadata, buildLocalMetadata, parseLocalMetadata,
-  ExecutionSummary, buildExecutionSummary, parseExecutionSummary
+  ExecutionSummary, buildExecutionSummary, parseExecutionSummary,
+  BlockSummary, buildBlockSummary, parseBlockSummary,
 } from '@skyekiwi/s-contract/borsh';
 
 const numberPadding = (n: number, pad: number): string => {
@@ -41,6 +42,13 @@ export class Storage {
     const block = numberPadding(blockNumber, 16);
 
     return shard + block + 'BLOC';
+  }
+
+  public static getBlockSummaryIndex (shardId: number, blockNumber: number): string {
+    const shard = numberPadding(shardId, 4);
+    const block = numberPadding(blockNumber, 16);
+
+    return shard + block + 'BSUM';
   }
 
   public static getContractIndex (contractName: string): string {
@@ -129,6 +137,16 @@ export class Storage {
     };
   }
 
+  public static writeBlockSummary (shardId: number, blockNumber: number, blockS: BlockSummary): DBOps {
+    const key = Storage.getBlockSummaryIndex(shardId, blockNumber);
+
+    return {
+      type: 'put',
+      key: key,
+      value: buildBlockSummary(blockS)
+    };
+  }
+
   public static writeExecutionSummary (a: ExecutionSummary): DBOps {
     return {
       type: 'put',
@@ -196,5 +214,12 @@ export class Storage {
     db: level.LevelDB
   ): Promise<ExecutionSummary> {
     return parseExecutionSummary(await db.get('EXECUTION_SUMMARY'));
+  }
+
+  public static async getBlockSummary (
+    db: level.LevelDB, shardId: number, blockNumber: number
+  ): Promise<BlockSummary> {
+    const key = Storage.getBlockSummaryIndex(shardId, blockNumber);
+    return parseBlockSummary(await db.get(key));
   }
 }

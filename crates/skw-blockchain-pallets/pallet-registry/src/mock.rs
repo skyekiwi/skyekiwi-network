@@ -61,6 +61,7 @@ parameter_types! {
 }
 
 impl pallet_registry::Config for Test {
+	type WeightInfo = ();
 	type Event = Event;
 	type RegistrationDuration = RegistrationDuration;
 	type MaxActiveShards = MaxActiveShards;

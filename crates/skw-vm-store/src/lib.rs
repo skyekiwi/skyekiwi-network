@@ -24,7 +24,7 @@ use skw_vm_primitives::contract_runtime::{CryptoHash, ContractCode, AccountId, S
 use skw_vm_primitives::receipt::{DelayedReceiptIndices, Receipt, ReceivedData};
 use skw_vm_primitives::serialize::to_base;
 use skw_vm_primitives::trie_key::{trie_key_parsers, TrieKey};
-
+use skw_myers_diff::{diff, diff_ops_to_bytes, bytes_to_diff_ops};
 pub use crate::refcount::decode_value_with_rc;
 use crate::refcount::encode_value_with_rc;
 use crate::db::{
@@ -110,6 +110,51 @@ impl Store {
         )
     }
 
+    pub fn generate_patch_on_air(&self, origin_filename_prefix: &str) -> Result<Vec<u8>, std::io::Error> {
+        let origin_file = File::open(
+            Path::new(&format!("{}__state_dump__{:?}", origin_filename_prefix, DBCol::ColState))
+        )?;
+        let mut origin = Vec::new();
+        BufReader::new(origin_file).read(&mut origin[..])?;
+
+        let dest = self.save_to_buf(DBCol::ColState)?;
+        let diff = diff(&origin[..], &dest[..]);
+        Ok(diff_ops_to_bytes(diff))
+    }
+
+    pub fn generate_patch(origin_filename_prefix: &str, dest_file_name_prefix: &str) -> Result<Vec<u8>, std::io::Error> {
+        let origin_file = File::open(
+            Path::new(&format!("{}__state_dump__{:?}", origin_filename_prefix, DBCol::ColState))
+        )?;
+        let dest_file = File::open(
+            Path::new(&format!("{}__state_dump__{:?}", dest_file_name_prefix, DBCol::ColState))
+        )?;
+
+        let mut origin = Vec::new();
+        let mut dest = Vec::new();
+
+        BufReader::new(origin_file).read(&mut origin[..])?;
+        BufReader::new(dest_file).read(&mut dest[..])?;
+
+        let diff = diff(&origin[..], &dest[..]);
+        Ok(diff_ops_to_bytes(diff))
+    }
+
+    pub fn read_from_patch(&self, origin_filename_prefix: &str, patch: &[u8]) -> Result<(), std::io::Error> {
+        let origin_file = File::open(
+            Path::new(&format!("{}__state_dump__{:?}", origin_filename_prefix, DBCol::ColState))
+        )?;
+
+        let diff = bytes_to_diff_ops(patch);
+        
+        let mut origin = Vec::new();
+        BufReader::new(origin_file).read(&mut origin[..])?;
+        let dest = skw_myers_diff::patch(diff, &origin[..]);
+
+        self.load_from_buf(DBCol::ColState, &dest)?;
+        Ok(())
+    }
+
     pub fn save_state_to_file(&self, filename_prefix: &str) -> Result<(), std::io::Error> {
         self.save_to_file(DBCol::ColState,
             Path::new(&format!("{}__state_dump__{:?}", filename_prefix, DBCol::ColState))
@@ -130,6 +175,48 @@ impl Store {
             file.write_u32::<LittleEndian>(value.len() as u32)?;
             file.write_all(&value)?;
         }
+        Ok(())
+    }
+
+    pub fn save_to_buf(&self, column: DBCol) -> Result<Vec<u8>, std::io::Error> {
+        let mut res = Vec::new();
+        for (key, value) in self.storage.iter_without_rc_logic(column) {
+            res.write_u32::<LittleEndian>(key.len() as u32)?;
+            res.write_all(&key)?;
+            res.write_u32::<LittleEndian>(value.len() as u32)?;
+            res.write_all(&value)?;
+        }
+        Ok(res)
+    }
+
+    pub fn print_db(&self) -> Result<(), std::io::Error> {
+        for (key, value) in self.storage.iter_without_rc_logic(DBCol::ColState) {
+            println!("Key {:?}", &key);
+            println!("Value {:?}", &value);
+        }
+        Ok(())
+    }
+
+    pub fn load_from_buf(&self, column: DBCol, mut buf: &[u8]) -> Result<(), std::io::Error> {
+        let mut transaction = self.storage.transaction();
+        let mut key = Vec::new();
+        let mut value = Vec::new();
+        loop {
+            let key_len = match buf.read_u32::<LittleEndian>() {
+                Ok(key_len) => key_len as usize,
+                Err(ref err) if err.kind() == std::io::ErrorKind::UnexpectedEof => break,
+                Err(err) => return Err(err),
+            };
+            key.resize(key_len, 0);
+            buf.read_exact(&mut key)?;
+
+            let value_len = buf.read_u32::<LittleEndian>()? as usize;
+            value.resize(value_len, 0);
+            buf.read_exact(&mut value)?;
+
+            transaction.put(column, &key, &value);
+        }
+        self.storage.write(transaction);
         Ok(())
     }
 
@@ -537,6 +624,49 @@ mod tests {
             let store = create_store();
             store.load_state_from_file("./mock/test").unwrap();
             assert_eq!(store.get(ColState, &[1]), Some(vec![1]));
+        }
+    }
+
+    // #[test]
+    // fn test_read_empty_file() {
+    //     let store = create_store();
+    //     store.load_state_from_file("./mock/empty").unwrap();
+    //     store.print_db();
+    // }
+
+    #[test]
+    fn test_file_patching() {
+        {
+            let store = create_store();
+            assert_eq!(store.get(ColState, &[1]), None);
+            {
+                let mut store_update = store.store_update();
+                store_update.update_refcount(ColState, &[1], &[1], 1);
+                store_update.update_refcount(ColState, &[2], &[2], 1);
+                store_update.update_refcount(ColState, &[3], &[3], 1);
+                store_update.commit().unwrap();
+            }
+            assert_eq!(store.get(ColState, &[1]), Some(vec![1]));
+
+            store.save_state_to_file("./mock/test").unwrap();
+        }
+
+        let patch_bytes = || {
+            let store = create_store();
+            store.load_state_from_file("./mock/test").unwrap();
+            {
+                let mut store_update = store.store_update();
+                store_update.update_refcount(ColState, &[4], &[4], 1);
+                store_update.commit().unwrap();
+            }
+            
+            store.generate_patch_on_air("./mock/test").unwrap()
+        };
+
+        {
+            let store = create_store();
+            store.read_from_patch("./mock/test", &patch_bytes()).unwrap();
+            assert_eq!(store.get(ColState, &[4]), Some(vec![4]));
         }
     }
 }

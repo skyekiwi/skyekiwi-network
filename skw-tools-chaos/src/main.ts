@@ -6,24 +6,22 @@ import path from 'path'
 
 import { waitReady } from '@polkadot/wasm-crypto'
 import {genesis} from './genesis'
-import { deployContract } from './deploy';
-
-// whether do we want to fund all accounts - enable for first run OR blockchain reset 
-const g = true;
 
 const main = async () => {
 
   await waitReady();
-
-  if (g) await genesis()
-  await deployContract()
-
+  
   // spawn all workers
-
   const pm2Path = path.join(__dirname, '../node_modules/.bin/pm2')
   const tsnodePath = path.join(__dirname, '../node_modules/.bin/ts-node')
   const indexPath = path.join(__dirname, './index.ts')
   const logBasePath = path.join(__dirname, './logs')
+
+  // 1. launch the blockchain
+  // execSync(`${pm2Path} start "${blockchainNode} --tmp --dev"`);
+
+  // 2. genesis config & deploy one contract
+  if (process.argv[2] === 'genesis') await genesis()
 
   try {
     // remove all previous log files
@@ -31,12 +29,13 @@ const main = async () => {
   } catch(e) {
     // pass
   }
-  // each account will make 10 random push calls
-  const callCounts = 1000;
 
-  for (let i = 1; i <= 100; i++) {
+  // each account will make 10 random push calls
+  const callCounts = 10;
+
+  for (let i = 1; i <= 20; i++) {
     execSync(`${pm2Path} start "${tsnodePath} ${indexPath} ${i} ${callCounts}" --log ${logBasePath}/${i}.log`);
-  }  
+  }
 }
 
 main();

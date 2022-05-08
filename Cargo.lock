@@ -4215,26 +4215,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-naming"
-version = "3.0.0"
-dependencies = [
- "env_logger 0.9.0",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "test-env-log",
-]
-
-[[package]]
 name = "pallet-parentchain"
 version = "3.0.0"
 dependencies = [
@@ -6652,6 +6632,14 @@ name = "skw-contract-sys"
 version = "0.1.0"
 
 [[package]]
+name = "skw-myers-diff"
+version = "0.0.0"
+dependencies = [
+ "bencher",
+ "rand 0.8.5",
+]
+
+[[package]]
 name = "skw-vm-engine"
 version = "0.0.0"
 dependencies = [
@@ -6727,6 +6715,16 @@ dependencies = [
  "skw-vm-runtime",
  "skw-vm-store",
  "tracing-span-tree",
+]
+
+[[package]]
+name = "skw-vm-patch"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "clap 3.0.0-beta.2",
+ "clap_derive",
+ "skw-myers-diff",
 ]
 
 [[package]]
@@ -6817,6 +6815,7 @@ dependencies = [
  "num_cpus",
  "rand 0.7.3",
  "serde_json",
+ "skw-myers-diff",
  "skw-vm-primitives",
  "strum 0.20.0",
  "tempfile",
@@ -6840,6 +6839,7 @@ version = "3.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
+ "hex-literal 0.3.4",
  "jsonrpc-core",
  "pallet-transaction-payment-rpc",
  "sc-basic-authorship",

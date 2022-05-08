@@ -1,0 +1,18 @@
+[package]
+name = "skw-myers-diff"
+version = "0.0.0"
+license = "GPL-3.0"
+authors = ["SkyeKiwi <hello@skye.kiwi>", "Near Inc <hello@nearprotocol.com>"]
+publish = false
+# Please update rust-toolchain.toml as well when changing version here:
+rust-version = "1.56.0"
+edition = "2021"
+
+[dev-dependencies]
+bencher = "0.1"
+rand = "0.8.5"
+
+[[bench]]
+name = "diff_patch"
+path = "src/bench.rs"
+harness = false

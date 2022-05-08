@@ -20,7 +20,7 @@ export class Chaos {
     await waitReady();
     
     const keyring = new Keyring({ type: 'sr25519' }).addFromUri(`//${accountIndex}`)
-    const provider = new WsProvider('ws://127.0.0.1:9944');
+    const provider = new WsProvider('wss://staging.rpc.skye.kiwi');
     const api = await ApiPromise.create({ provider: provider });
 
     for (let i = 0 ; i < loop; i ++) {
@@ -62,7 +62,7 @@ export class Chaos {
       await sendTx(pushCall, keyring, logger);
 
       const random = Math.floor(Math.random() * (1000 - 1)) + 1;
-      await sleep(random);
+      await sleep(random * 100);
     }
   }
 }
