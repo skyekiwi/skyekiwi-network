@@ -5,7 +5,7 @@ const execSync = require('./execSync.cjs');
 console.log('$ yarn blockchain:build', process.argv.slice(2).join(' '));
 
 function buildBlockchain() {
-  execSync('cargo build -p skyekiwi-node --release');
+  execSync('cargo build -p skyekiwi-node --release --features runtime-benchmarks');
 }
 
 buildBlockchain()

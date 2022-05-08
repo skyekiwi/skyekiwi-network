@@ -81,12 +81,27 @@ function runValidatorNodeOne() {
       --unsafe-rpc-external \
       --unsafe-ws-external \
       --bootnodes ${bootnodes}`);
-  }
+}
+
+function runFullnode() {
+  const dbPath = path.join(__dirname, `../tmp/fullnode`);
+
+  // start the node
+  execSync(`${node} \
+    --base-path ${dbPath} \
+    --port 30333 \
+    --ws-port 9944 \
+    --rpc-port 9935 \
+    --rpc-cors all \
+    --unsafe-rpc-external \
+    --unsafe-ws-external`);
+}
   
 
 const main = () => {
   const nodeNum = process.argv[2]
   if (nodeNum == 0) runValidatorNodeZero();
-  else runValidatorNodeOne();
+  else if (nodeNum == 1) runValidatorNodeOne();
+  else runFullnode();
 }
 main()

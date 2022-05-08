@@ -2,7 +2,10 @@
   "name": "SkyeKiwi Testnet Alpha",
   "id": "skw_alpha",
   "chainType": "Live",
-  "bootNodes": [],
+  "bootNodes": [
+    "/ip4/143.198.109.80/tcp/30333/p2p/12D3KooWDoTCJqiPm4XS1BreTJCoeFVB9bN31bY71EE1QNyecz5d",
+    "/ip4/174.138.30.193/tcp/30333/p2p/12D3KooWBGsWqRMGwNjdcva9piicxGoUPmz1xr2cS65DZLJiFgK7"
+  ],
   "telemetryEndpoints": null,
   "protocolId": "skw",
   "properties": null,
