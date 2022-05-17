@@ -78,6 +78,7 @@ function runValidatorNodeOne() {
       --rpc-port 9935 \
       --rpc-cors all \
       --validator \
+      --telemetry-url "wss://telemetry.polkadot.io/submit/ 0" \
       --unsafe-rpc-external \
       --unsafe-ws-external \
       --bootnodes ${bootnodes}`);
@@ -93,6 +94,7 @@ function runFullnode() {
     --ws-port 9944 \
     --rpc-port 9935 \
     --rpc-cors all \
+    --telemetry-url "wss://telemetry.polkadot.io/submit/ 0" \
     --unsafe-rpc-external \
     --unsafe-ws-external`);
 }
