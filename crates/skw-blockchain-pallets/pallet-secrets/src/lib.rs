@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use sp_std::prelude::*;
 pub use pallet::*;
 
 #[cfg(test)]
@@ -14,16 +13,14 @@ mod benchmarking;
 pub mod weights;
 pub use weights::WeightInfo;
 
-pub type SecretId = u64;
-pub type CallIndex = u64;
-pub type ShardId = u64;
-
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
+	use frame_support::{ pallet_prelude::* };
 	use frame_system::pallet_prelude::*;
-	use super::*;
-	
+	use skw_blockchain_primitives::{SecretId};
+	use super::WeightInfo;
+	use sp_std::vec::Vec;
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -44,7 +41,7 @@ pub mod pallet {
 	/// Secret Metadata of generic secrets & contracts
 	#[pallet::storage]
 	#[pallet::getter(fn metadata_of)]
-	pub(super) type Metadata<T: Config> = StorageMap<_, Twox64Concat, SecretId, Vec<u8>>;
+	pub(super) type Metadata<T: Config> = StorageMap<_, Twox64Concat, SecretId, BoundedVec<u8, T::IPFSCIDLength>>;
 
 	/// owner of a generic secret - not useful for contracts
 	#[pallet::storage]
@@ -86,17 +83,17 @@ pub mod pallet {
 	impl<T:Config> Pallet<T> {
 
 		/// write a metadata to the secret registry and assign a secret_id
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_secret())]
+		#[pallet::weight(<T as Config>::WeightInfo::register_secret())]
 		pub fn register_secret(
 			origin: OriginFor<T>, 
 			metadata: Vec<u8>
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			ensure!(metadata.len() == T::IPFSCIDLength::get() as usize, Error::<T>::MetadataNotValid);
-			
+			let who = ensure_signed(origin)?;			
 			let id = <CurrentSecretId<T>>::get();
 
-			<Metadata<T>>::insert(&id, metadata);
+			let bounded_metadata = BoundedVec::<u8, T::IPFSCIDLength>::try_from(metadata)
+				.map_err(|_| Error::<T>::MetadataNotValid)?;
+			<Metadata<T>>::insert(&id, &bounded_metadata);
 			<Owner<T>>::insert(&id, who);
 			<CurrentSecretId<T>>::set(id.saturating_add(1));
 			Self::deposit_event(Event::<T>::SecretRegistered(id));
@@ -105,7 +102,7 @@ pub mod pallet {
 		}
 		
 		/// nominate an operator to a secret
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::nominate_member())]
+		#[pallet::weight(<T as Config>::WeightInfo::nominate_member())]
 		pub fn nominate_member(
 			origin: OriginFor<T>,
 			secret_id: SecretId,
@@ -121,7 +118,7 @@ pub mod pallet {
 		}
 
 		/// remove an operator to a secret
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_member())]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_member())]
 		pub fn remove_member(
 			origin: OriginFor<T>,
 			secret_id: SecretId,
@@ -137,25 +134,26 @@ pub mod pallet {
 		}
 
 		/// update the metadata of a secret
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_metadata())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_metadata())]
 		pub fn update_metadata(
 			origin: OriginFor<T>,
 			secret_id: SecretId,
 			metadata: Vec<u8>
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			ensure!(metadata.len() == T::IPFSCIDLength::get() as usize, Error::<T>::MetadataNotValid);
+			let who = ensure_signed(origin)?;	
 			ensure!(Self::authorize_access(who, secret_id) == true, Error::<T>::AccessDenied);
+			let bounded_metadata = BoundedVec::<u8, T::IPFSCIDLength>::try_from(metadata)
+				.map_err(|_| Error::<T>::MetadataNotValid)?;
 
 			// so far, it is garenteed the secret_id is valid 
-			<Metadata<T>>::mutate(&secret_id, |meta| *meta = Some(metadata));
+			<Metadata<T>>::mutate(&secret_id, |meta| *meta = Some(bounded_metadata));
 			Self::deposit_event(Event::<T>::SecretUpdated(secret_id));
 			
 			Ok(())
 		}
 
 		/// destroy a secret and all its records
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::burn_secret())]
+		#[pallet::weight(<T as Config>::WeightInfo::burn_secret())]
 		pub fn burn_secret(
 			origin: OriginFor<T>,
 			secret_id: SecretId,
@@ -174,7 +172,7 @@ pub mod pallet {
 		}
 
 		/// (ROOT ONLY) forcefuly nominate an operator to a secret
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::force_nominate_member())]
+		#[pallet::weight(<T as Config>::WeightInfo::force_nominate_member())]
 		pub fn force_nominate_member(
 			origin: OriginFor<T>,
 			secret_id: SecretId,
@@ -190,7 +188,7 @@ pub mod pallet {
 		}
 
 		/// (ROOT ONLY) forcefuly remove an operator to a secret
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::force_remove_member())]
+		#[pallet::weight(<T as Config>::WeightInfo::force_remove_member())]
 		pub fn force_remove_member(
 			origin: OriginFor<T>,
 			secret_id: SecretId,
@@ -205,7 +203,7 @@ pub mod pallet {
 		}
 
 		/// (ROOT ONLY) forcefuly change owner of a secret
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::force_change_owner())]
+		#[pallet::weight(<T as Config>::WeightInfo::force_change_owner())]
 		pub fn force_change_owner(
 			origin: OriginFor<T>,
 			secret_id: SecretId,

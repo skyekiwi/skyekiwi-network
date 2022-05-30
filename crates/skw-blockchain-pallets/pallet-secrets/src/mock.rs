@@ -1,6 +1,6 @@
-#![cfg(test)]
 use crate as pallet_secrets;
-use frame_support::parameter_types;
+
+use frame_support::traits::{ConstU16, ConstU32, ConstU64};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -23,11 +23,6 @@ frame_support::construct_runtime!(
 	}
 );
 
-parameter_types! {
-	pub const BlockHashCount: u64 = 250;
-	pub const SS58Prefix: u8 = 42;
-}
-
 impl system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
@@ -43,26 +38,22 @@ impl system::Config for Test {
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
-	type BlockHashCount = BlockHashCount;
+	type BlockHashCount = ConstU64<250>;
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
-	type SS58Prefix = SS58Prefix;
+	type SS58Prefix = ConstU16<42>;
 	type OnSetCode = ();
-}
-
-parameter_types! {
-	pub const IPFSCIDLength: u32 = 46;
-	pub const MaxActiveShards: u64 = 0;
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 impl pallet_secrets::Config for Test {
-	type Event = Event;
-	type IPFSCIDLength = IPFSCIDLength;
 	type WeightInfo = ();
+	type Event = Event;
+	type IPFSCIDLength = ConstU32<46>;
 }
 
 // Build genesis storage according to the mock runtime.

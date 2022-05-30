@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use sp_std::prelude::*;
 pub use pallet::*;
 
 #[cfg(test)]
@@ -14,15 +13,15 @@ mod benchmarking;
 pub mod weights;
 pub use weights::WeightInfo;
 
-type ShardId = u64;
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
+	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use frame_support::sp_runtime::traits::Saturating;
+	use super::WeightInfo;
+	use skw_blockchain_primitives::{ShardId, compress_hex_key};
 	use frame_support::sp_runtime::SaturatedConversion;
-	use super::*;
-	
+	use sp_std::vec::Vec;
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -31,12 +30,16 @@ pub mod pallet {
 		
 		/// duration of the validity of registrations
 		#[pallet::constant]
-		type RegistrationDuration: Get<u32>;
+		type RegistrationDuration: Get<Self::BlockNumber>;
 
 		/// maximum number of shards allowed
 		#[pallet::constant]
-		type MaxActiveShards: Get<u64>;
+		type MaxActiveShards: Get<u32>;
 
+		/// maximum number of shards allowed
+		#[pallet::constant]
+		type MaxSecretKeepers: Get<u32>;
+		
 		// type ForceOrigin: EnsureOrigin<Self::Origin>;
 	}
 
@@ -47,33 +50,29 @@ pub mod pallet {
 	/// a list of all active secret keepers
 	#[pallet::storage]
 	#[pallet::getter(fn secret_keepers)]
-	pub(super) type SecretKeepers<T: Config> = StorageValue<_, 
-		Vec< T::AccountId >, OptionQuery >;
+	pub(super) type SecretKeepers<T: Config> = StorageValue<_, BoundedVec< T::AccountId, T::MaxSecretKeepers >, OptionQuery >;
 	
 	/// registration expiration block number for each secret keepers
 	#[pallet::storage]
 	#[pallet::getter(fn expiration_of)]
-	pub(super) type Expiration<T: Config> = StorageMap<_, Twox64Concat, 
-		T::AccountId, T::BlockNumber>;
+	pub(super) type Expiration<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, T::BlockNumber>;
 
 	/// identity publlic key of each secret keepers, used to receive the secret
 	#[pallet::storage]
 	#[pallet::getter(fn public_key_of)]
-	pub(super) type PublicKey<T: Config> = StorageMap<_, Twox64Concat, 
-		T::AccountId, Vec<u8>>;
+	pub(super) type PublicKey<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, [u8; 32]>;
 	
 	/// members of each shard
 	#[pallet::storage]
 	#[pallet::getter(fn shard_members_of)]
-	pub(super) type ShardMembers<T: Config> = StorageMap<_, Twox64Concat, ShardId, Vec<T::AccountId>>;
+	pub(super) type ShardMembers<T: Config> = StorageMap<_, Twox64Concat, ShardId, BoundedVec<T::AccountId, T::MaxSecretKeepers>>;
 
 	// Beacons are identifier of when a secret keeper is supposed to submit a outcome
 
 	/// beacon index of each secret keeper, first come first serve
 	#[pallet::storage]
 	#[pallet::getter(fn beacon_index_of)]
-	pub(super) type BeaconIndex<T: Config> = StorageDoubleMap<_, Twox64Concat, ShardId,
-	Twox64Concat, T::AccountId, u64>;
+	pub(super) type BeaconIndex<T: Config> = StorageDoubleMap<_, Twox64Concat, ShardId, Twox64Concat, T::AccountId, u64>;
 
 	/// total number of members in a shard - numbers of nodes playing the beacon game
 	#[pallet::storage]
@@ -96,13 +95,15 @@ pub mod pallet {
 		RegistrationNotFound,
 		Unexpected,
 		InvalidShardId,
+		InvalidPublicKey,
+		SecretKeeperAtFullCapacity,
 	}
 
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
 
 		/// register a secret keeper
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_secret_keeper())]
+		#[pallet::weight(<T as Config>::WeightInfo::register_secret_keeper())]
 		pub fn register_secret_keeper(
 			origin: OriginFor<T>,
 			public_key: Vec<u8>,
@@ -114,24 +115,26 @@ pub mod pallet {
 			ensure!(Self::validate_signature(signature), Error::<T>::InvalidSecretKeeper);
 
 			// TODO: check for key validity
-			let pk = Self::compress_hex_key(&public_key);
+			let pk = compress_hex_key(&public_key);
+			// TODO: switch to primiive publicKey type
+			let bounded_pk: [u8; 32] = pk.try_into().map_err(|_| Error::<T>::InvalidPublicKey)?;
 
 			if !Self::try_insert_secret_keeper(	who.clone() ) {
 				return Err(Error::<T>::Unexpected.into());
 			}
 
 			let now = frame_system::Pallet::<T>::block_number();
-			let expiration = now.saturating_add( T::RegistrationDuration::get().into() );
+			let expiration = now + T::RegistrationDuration::get();
 
 			<Expiration<T>>::insert(&who, expiration);
-			<PublicKey<T>>::insert(&who, pk);
+			<PublicKey<T>>::insert(&who, bounded_pk);
 			
 			Self::deposit_event(Event::<T>::SecretKeeperRegistered(who));
 			Ok(())
 		}
 
 		/// renew registration by submitting a new signature and public key
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::renew_registration())]
+		#[pallet::weight(<T as Config>::WeightInfo::renew_registration())]
 		pub fn renew_registration(
 			origin: OriginFor<T>,
 			public_key: Vec<u8>,
@@ -143,20 +146,22 @@ pub mod pallet {
 			ensure!(Self::validate_signature(signature), Error::<T>::InvalidSecretKeeper);
 
 			// TODO: check for key validity
-			let pk = Self::compress_hex_key(&public_key);
+			let pk = compress_hex_key(&public_key);
+			let bounded_pk = pk.try_into().map_err(|_| Error::<T>::InvalidPublicKey)?;
+
 
 			let now = frame_system::Pallet::<T>::block_number();
-			let expiration = now.saturating_add( T::RegistrationDuration::get().into() );
+			let expiration = now + T::RegistrationDuration::get();
 
 			<Expiration<T>>::mutate(&who, |expir| *expir = Some(expiration));
-			<PublicKey<T>>::mutate(&who, |p| *p = Some(pk));
+			<PublicKey<T>>::mutate(&who, |p| *p = Some(bounded_pk));
 			
 			Self::deposit_event(Event::<T>::SecretKeeperRenewed(who));
 			Ok(())
 		}
 
 		/// remove ones own registration record
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_registration())]
+		#[pallet::weight(<T as Config>::WeightInfo::remove_registration())]
 		pub fn remove_registration(
 			origin: OriginFor<T>,
 		) -> DispatchResult {
@@ -174,7 +179,7 @@ pub mod pallet {
 		}
 
 		/// register all active shards one is running
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_running_shard())]
+		#[pallet::weight(<T as Config>::WeightInfo::register_running_shard())]
 		pub fn register_running_shard(
 			origin: OriginFor<T>,
 			shard: ShardId,
@@ -187,12 +192,12 @@ pub mod pallet {
 			let shard_members = match shard_members {
 				None => {
 					// first member of the shard
-					let mut shard_members = Vec::new();
-					shard_members.push(who.clone());
+					let mut shard_members = BoundedVec::<T::AccountId, T::MaxSecretKeepers>::default();
+					shard_members.try_push(who.clone()).map_err(|_| Error::<T>::SecretKeeperAtFullCapacity)?;
 					shard_members
 				},
 				Some(mut shard_members) => {
-					shard_members.push(who.clone());
+					shard_members.try_push(who.clone()).map_err(|_| Error::<T>::SecretKeeperAtFullCapacity)?;
 					shard_members
 				}
 			};
@@ -219,13 +224,16 @@ pub mod pallet {
 
 			let mut secret_keepers = match Self::secret_keepers() {
 				Some(sk) => sk,
-				None => Vec::new()
+				None => BoundedVec::<T::AccountId, T::MaxSecretKeepers>::default()
 			};
 
-			secret_keepers.push( account_id );
-			<SecretKeepers<T>>::set( Some(secret_keepers) );
-
-			true
+			let res = secret_keepers.try_push( account_id );
+			if res == Ok(()) {
+				<SecretKeepers<T>>::put(secret_keepers);
+				true
+			} else {
+				false
+			}
 		}
 
 		pub fn try_remove_registration(
@@ -259,7 +267,7 @@ pub mod pallet {
 		}
 
 		pub fn is_valid_shard_id(shard: ShardId) -> bool {
-			shard <= T::MaxActiveShards::get()
+			shard <= T::MaxActiveShards::get().into()
 		}
 
 		pub fn is_beacon_turn(
@@ -315,14 +323,6 @@ pub mod pallet {
 					beacon_index <= block_number % beacon_count + threshold - 1 - beacon_count
 				)
 			)
-		}
-
-		// TODO: move this to a shared crate
-		pub fn compress_hex_key(s: &Vec<u8>) -> Vec<u8> {
-			(0..s.len())
-				.step_by(2)
-				.map(|i| s[i] * 16 + s[i + 1])
-				.collect()
 		}
 	}
 }

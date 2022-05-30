@@ -2,9 +2,11 @@ use super::*;
 
 use frame_system::RawOrigin;
 use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_suite};
+
 #[allow(unused)]
 use crate::Pallet as Parentchain;
 use pallet_registry::Pallet as Registry;
+use sp_std::vec::Vec;
 
 const PUBLIC_KEY: &str = "38d58afd1001bb265bce6ad24ff58239c62e1c98886cda9d7ccf41594f37d52f";
 fn decode_hex_uncompressed(s: &str) -> Vec<u8> {

@@ -5,37 +5,42 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use sp_std::prelude::*;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-use sp_runtime::{
-	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature,
-	transaction_validity::{TransactionValidity, TransactionSource},
-};
-use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, AccountIdLookup, Verify, IdentifyAccount, NumberFor,
+use pallet_grandpa::{
+	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
-use pallet_grandpa::fg_primitives;
-use sp_version::RuntimeVersion;
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_runtime::{
+	create_runtime_str, generic, impl_opaque_keys,
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify},
+	transaction_validity::{TransactionSource, TransactionValidity},
+	ApplyExtrinsicResult, MultiSignature,
+};
+use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
+use sp_version::RuntimeVersion;
 
+// A few exports that help ease life for downstream crates.
+pub use frame_support::{
+	construct_runtime, parameter_types,
+	traits::{
+		ConstU128, ConstU32, ConstU64, ConstU8, KeyOwnerProofSystem, Randomness, StorageInfo,
+	},
+	weights::{
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+		IdentityFee, Weight,
+	},
+	StorageValue,
+};
+pub use frame_system::Call as SystemCall;
+pub use pallet_balances::Call as BalancesCall;
+pub use pallet_timestamp::Call as TimestampCall;
+use pallet_transaction_payment::CurrencyAdapter;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-pub use pallet_timestamp::Call as TimestampCall;
-pub use pallet_balances::Call as BalancesCall;
-pub use sp_runtime::{Permill, Perbill};
-pub use frame_support::{
-	construct_runtime, parameter_types, StorageValue,
-	traits::{KeyOwnerProofSystem, Randomness},
-	weights::{
-		Weight, IdentityFee,
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-	},
-};
-use pallet_transaction_payment::CurrencyAdapter;
+pub use sp_runtime::{Perbill, Permill};
 
 pub use pallet_secrets;
 pub use pallet_s_contract;
@@ -101,6 +106,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
+	state_version: 1,
 };
 
 /// This determines the average expected block time that we are targeting.
@@ -193,20 +199,17 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = SS58Prefix;
 	/// The set code logic, just the default since we're not a parachain.
 	type OnSetCode = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
+
 
 impl pallet_randomness_collective_flip::Config for Runtime {}
-
-parameter_types! {
-	pub const MaxAuthorities: u32 = 32;
-}
 
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
-	type MaxAuthorities = MaxAuthorities;
+	type MaxAuthorities = ConstU32<32>;
 }
-
 
 impl pallet_grandpa::Config for Runtime {
 	type Event = Event;
@@ -225,29 +228,19 @@ impl pallet_grandpa::Config for Runtime {
 	type HandleEquivocation = ();
 
 	type WeightInfo = ();
-	type MaxAuthorities = MaxAuthorities;
-}
-
-
-parameter_types! {
-	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
+	type MaxAuthorities = ConstU32<32>;
 }
 
 impl pallet_timestamp::Config for Runtime {
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
 	type OnTimestampSet = Aura;
-	type MinimumPeriod = MinimumPeriod;
+	type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub const ExistentialDeposit: u128 = 500;
-	pub const MaxLocks: u32 = 50;
-}
-
 impl pallet_balances::Config for Runtime {
-	type MaxLocks = MaxLocks;
+	type MaxLocks = ConstU32<50>;
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 8];
 	/// The type for recording an account's balance.
@@ -255,21 +248,16 @@ impl pallet_balances::Config for Runtime {
 	/// The ubiquitous event type.
 	type Event = Event;
 	type DustRemoval = ();
-	type ExistentialDeposit = ExistentialDeposit;
+	type ExistentialDeposit = ConstU128<500>;
 	type AccountStore = System;
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
 
-parameter_types! {
-	pub const TransactionByteFee: Balance = 1;
-	pub OperationalFeeMultiplier: u8 = 5;
-}
-
 impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction = CurrencyAdapter<Balances, ()>;
-	type TransactionByteFee = TransactionByteFee;
-	type OperationalFeeMultiplier = OperationalFeeMultiplier;
+	type OperationalFeeMultiplier = ConstU8<5>;
 	type WeightToFee = IdentityFee<Balance>;
+	type LengthToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
 }
 
@@ -285,56 +273,35 @@ impl pallet_utility::Config for Runtime {
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub const IPFSCIDLength: u32 = 46;
-	pub const MaxActiveShards: u64 = 0;
-}
-
-impl pallet_secrets::Config for Runtime {
-	type WeightInfo = ();
-	type Event = Event;
-	type IPFSCIDLength = IPFSCIDLength;
-}
-
-parameter_types! {
-	pub const MaxCallLength: u32 = 100_000;
-	pub const MaxOutputLength: u32 = 500_000;
-	pub const MinContractNameLength: u32 = 1;
-	pub const MaxContractNameLength: u32 = 32;
-}
-
-impl pallet_s_contract::Config for Runtime {
-	type WeightInfo = ();
-	type Event = Event;
-	type MaxCallLength = MaxCallLength;
-	type MinContractNameLength = MinContractNameLength;
-	type MaxContractNameLength = MaxContractNameLength;
-}
-
-parameter_types! {
-	pub const RegistrationDuration: u32 = 1_000_000_000;
-}
-
 impl pallet_registry::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
-	type RegistrationDuration = RegistrationDuration;
-	type MaxActiveShards = MaxActiveShards;
-}
-
-
-parameter_types! {
-	pub const DelayThreshold: u32 = 5_000;
-	pub const MaxOutcomePerSubmission: u64 = 10_000;
-	pub const MaxSizePerOutcome: u64 = 500_000;
+	type RegistrationDuration = ConstU32<100_000>;
+	type MaxActiveShards = ConstU32<1_000>;
+	type MaxSecretKeepers = ConstU32<5_000>;
 }
 
 impl pallet_parentchain::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
-	type DelayThreshold = DelayThreshold;
-	type MaxOutcomePerSubmission = MaxOutcomePerSubmission;
-	type MaxSizePerOutcome = MaxSizePerOutcome;
+	type DelayThreshold = ConstU32<1_000>;
+	type MaxOutcomePerSubmission = ConstU32<1_000>;
+	type MaxSizePerOutcome = ConstU32<100_000>;
+}
+
+impl pallet_secrets::Config for Runtime {
+	type WeightInfo = ();
+	type Event = Event;
+	type IPFSCIDLength = ConstU32<46>;
+}
+
+impl pallet_s_contract::Config for Runtime {
+	type WeightInfo = ();
+	type Event = Event;
+	type MaxCallLength = ConstU32<100_1000>;
+	type MinContractNameLength = ConstU32<1>;
+	type MaxContractNameLength = ConstU32<32>;
+	type MaxCallPerBlock = ConstU32<1_000>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -369,16 +336,19 @@ pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
+	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckEra<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>
+	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
+/// The payload being signed in transactions.
+pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
 	Runtime,
@@ -387,6 +357,24 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 >;
+
+#[cfg(feature = "runtime-benchmarks")]
+#[macro_use]
+extern crate frame_benchmarking;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benches {
+	define_benchmarks!(
+		[frame_benchmarking, BaselineBench::<Runtime>]
+		[frame_system, SystemBench::<Runtime>]
+		[pallet_balances, Balances]
+		[pallet_timestamp, Timestamp]
+		[pallet_s_contract, SContract]
+		[pallet_secrets, Secrets]
+		[pallet_registry, Registry]
+		[pallet_parentchain, Parentchain]
+	);
+}
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
@@ -519,39 +507,35 @@ impl_runtime_apis! {
 		}
 	}
 
-#[cfg(feature = "runtime-benchmarks")]
+	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 		fn benchmark_metadata(extra: bool) -> (
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
-			use frame_benchmarking::{list_benchmark, Benchmarking, BenchmarkList};
+			use frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 			use frame_system_benchmarking::Pallet as SystemBench;
+			use baseline::Pallet as BaselineBench;
 
 			let mut list = Vec::<BenchmarkList>::new();
-
-			list_benchmark!(list, extra, frame_system, SystemBench::<Runtime>);
-			list_benchmark!(list, extra, pallet_balances, Balances);
-			list_benchmark!(list, extra, pallet_timestamp, Timestamp);
-			
-			list_benchmark!(list, extra, pallet_secrets, Secrets);
-			list_benchmark!(list, extra, pallet_s_contract, SContract);
-			list_benchmark!(list, extra, pallet_parentchain, Parentchain);
-			list_benchmark!(list, extra, pallet_registry, Registry);
+			list_benchmarks!(list, extra);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
-			return (list, storage_info)
+			(list, storage_info)
 		}
 
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
+			use frame_benchmarking::{baseline, Benchmarking, BenchmarkBatch, TrackedStorageKey};
 
 			use frame_system_benchmarking::Pallet as SystemBench;
+			use baseline::Pallet as BaselineBench;
+
 			impl frame_system_benchmarking::Config for Runtime {}
+			impl baseline::Config for Runtime {}
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -568,19 +552,33 @@ impl_runtime_apis! {
 
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
+			add_benchmarks!(params, batches);
 
-			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-			add_benchmark!(params, batches, pallet_balances, Balances);
-			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+			// add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
+			// add_benchmark!(params, batches, pallet_balances, Balances);
+			// add_benchmark!(params, batches, pallet_timestamp, Timestamp);
 
-			add_benchmark!(params, batches, pallet_secrets, Secrets);
-			add_benchmark!(params, batches, pallet_s_contract, SContract);
-			add_benchmark!(params, batches, pallet_parentchain, Parentchain);
-			add_benchmark!(params, batches, pallet_registry, Registry);
+			// add_benchmark!(params, batches, pallet_secrets, Secrets);
+			// add_benchmark!(params, batches, pallet_s_contract, SContract);
+			// add_benchmark!(params, batches, pallet_parentchain, Parentchain);
+			// add_benchmark!(params, batches, pallet_registry, Registry);
 
-
-			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
+		}
+	}
+
+	#[cfg(feature = "try-runtime")]
+	impl frame_try_runtime::TryRuntime<Block> for Runtime {
+		fn on_runtime_upgrade() -> (Weight, Weight) {
+			// NOTE: intentional unwrap: we don't want to propagate the error backwards, and want to
+			// have a backtrace here. If any of the pre/post migration checks fail, we shall stop
+			// right here and right now.
+			let weight = Executive::try_runtime_upgrade().unwrap();
+			(weight, BlockWeights::get().max_block)
+		}
+
+		fn execute_block_no_check(block: Block) -> Weight {
+			Executive::execute_block_no_check(block)
 		}
 	}
 }

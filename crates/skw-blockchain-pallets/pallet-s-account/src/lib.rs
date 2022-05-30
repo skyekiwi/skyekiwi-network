@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use sp_std::prelude::*;
 pub use pallet::*;
 
 pub mod weights;
@@ -14,9 +13,6 @@ mod mock;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-pub type CallIndex = u64;
-pub type ShardId = u64;
-
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{
@@ -27,8 +23,9 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use super::*;
+	use sp_std::vec::Vec;
 	
-	use skw_blockchain_primitives::{ShardId};	
+	use skw_blockchain_primitives::{ShardId, CallIndex};	
 	pub type BalanceOf<T> = pallet_treasury::BalanceOf<T>;
 
 	#[pallet::config]

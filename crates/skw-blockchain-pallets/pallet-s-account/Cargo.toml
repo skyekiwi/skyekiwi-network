@@ -12,31 +12,33 @@ version = '3.0.0'
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
-[dev-dependencies]
-pallet-balances= { default-features = false, git = 'https://github.com/paritytech/substrate.git',  tag = 'monthly-2021-12', version = '4.0.0-dev'}
-test-env-log = "0.2.7"
-log = "*"
-env_logger="*"
-
 [dependencies]
 skw-blockchain-primitives = { path = "../primitives" }
 pallet-secrets = { version = "3.0.0", default-features = false, path = "../pallet-secrets" }
 pallet-treasury= { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
 pallet-s-contract = { version = "3.0.0", default-features = false, path = "../pallet-s-contract" }
 pallet-parentchain = { version = "3.0.0", default-features = false, path = "../pallet-parentchain" }
-codec = {default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0'}
-frame-benchmarking = { default-features = false, git = 'https://github.com/paritytech/substrate.git', optional = true, tag = 'monthly-2021-12', version = '4.0.0-dev'}
-frame-support = {default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
-frame-system = { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
-scale-info = { default-features = false, features = ['derive'], version = '1.0'}
-sp-std = { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
-sp-core = { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
-sp-io = { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
-sp-runtime = { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = [
+	"derive",
+] }
+scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
+frame-support = { default-features = false, version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22"}
+frame-system = { default-features = false, version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22" }
+frame-benchmarking = { default-features = false, version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22", optional = true }
+
+[dev-dependencies]
+pallet-balances= { default-features = false, version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22"} 
+sp-core = { default-features = false, version = "6.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22" }
+sp-io = { default-features = false, version = "6.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22" }
+sp-runtime = { default-features = false, version = "6.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22" }
 
 [features]
 default = ['std']
-runtime-benchmarks = ['frame-benchmarking']
+runtime-benchmarks = [
+    'frame-benchmarking/runtime-benchmarks',
+    'frame-support/runtime-benchmarks',
+    'frame-system/runtime-benchmarks',
+]
 std = [
     'codec/std',
     'scale-info/std',

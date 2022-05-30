@@ -13,6 +13,5 @@ Patch a series of state to the original state file
 
 [dependencies]
 skw-myers-diff = { path = "../skw-myers-diff" }
-clap = "=3.0.0-beta.2"
-clap_derive = "=3.0.0-beta.2"
+clap = { version = "3.1.6", features = ["derive"] }
 bs58 = "0.4.0"

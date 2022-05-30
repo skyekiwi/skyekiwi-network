@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-use sp_std::prelude::*;
 pub use pallet::*;
 
 pub mod weights;
@@ -19,9 +18,11 @@ pub type ShardId = u64;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
+	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use super::*;
+	use skw_blockchain_primitives::{ShardId, CallIndex};
+	use sp_std::vec::Vec;	
+	use super::WeightInfo;
 	
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_registry::Config {
@@ -35,11 +36,11 @@ pub mod pallet {
 
 		/// Maximum number of outcomes allowed per submission 
 		#[pallet::constant]
-		type MaxOutcomePerSubmission: Get<u64>;
+		type MaxOutcomePerSubmission: Get<u32>;
 
 		/// Maximum length of sizze for each outcome submitted
 		#[pallet::constant]
-		type MaxSizePerOutcome: Get<u64>;
+		type MaxSizePerOutcome: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -68,7 +69,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn outcome_of)]
 	pub(super) type Outcome<T: Config> = StorageMap<_, Twox64Concat, 
-		CallIndex, Vec<u8>>;
+		CallIndex, BoundedVec<u8, T::MaxSizePerOutcome>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -91,7 +92,7 @@ pub mod pallet {
 	impl<T:Config> Pallet<T> {
 
 		/// (ROOT ONLY) set the confirmation threshold for a shard
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_shard_confirmation_threshold())]
+		#[pallet::weight(<T as Config>::WeightInfo::set_shard_confirmation_threshold())]
 		pub fn set_shard_confirmation_threshold(
 			origin: OriginFor<T>,
 			shard_id: ShardId,
@@ -105,7 +106,7 @@ pub mod pallet {
 		}
 
 		/// submit a batch of outcomes for a block
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_outcome(outcome_call_index.len() as u32))]
+		#[pallet::weight(<T as Config>::WeightInfo::submit_outcome(outcome_call_index.len() as u32))]
 		pub fn submit_outcome(
 			origin: OriginFor<T>,
 			block_number: T::BlockNumber, shard_id: ShardId,
@@ -173,7 +174,10 @@ pub mod pallet {
 			ensure!(confirms <= threshold, Error::<T>::Unexpected);
 
 			for (i, call_index) in outcome_call_index.iter().enumerate() {
-				<Outcome<T>>::insert(&call_index, &outcome[i]);
+				let bounded_outcome = BoundedVec::<u8, T::MaxSizePerOutcome>::try_from(outcome[i].clone())
+					.map_err(|_| Error::<T>::InvalidOutcome)?;
+
+				<Outcome<T>>::insert(&call_index, &bounded_outcome);
 			}
 
 			<StateRoot<T>>::insert(&shard_id, &block_number, &state_root);

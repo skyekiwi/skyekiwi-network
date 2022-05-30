@@ -1,6 +1,6 @@
 use pallet_secrets::Event as SecretsEvent;
-use crate::{Event as SContractEvent, PublicKey};
-
+use crate::{Event as SContractEvent };
+use skw_blockchain_primitives::PublicKey;
 use frame_support::{assert_ok};
 use crate::mock::{Event, *};
 
@@ -57,8 +57,8 @@ fn it_register_secret_contracts() {
 		let init_call = SContract::call_record_of(history[0]).unwrap();
 		let call_record = SContract::call_record_of(history[1]).unwrap();
 
-		assert_eq! (init_call, (ENCODED_CALL.as_bytes().to_vec(), ALICE));
-		assert_eq! (call_record, (ENCODED_CALL2.as_bytes().to_vec(), ALICE));
+		assert_eq! (init_call, (ENCODED_CALL.as_bytes().to_vec().try_into().unwrap(), ALICE));
+		assert_eq! (call_record, (ENCODED_CALL2.as_bytes().to_vec().try_into().unwrap(), ALICE));
 
 	});
 }

@@ -2,7 +2,7 @@
 use pallet_secrets;
 use crate as pallet_s_contract;
 
-use frame_support::parameter_types;
+use frame_support::traits::{ConstU16, ConstU32, ConstU64};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -26,11 +26,6 @@ frame_support::construct_runtime!(
 	}
 );
 
-parameter_types! {
-	pub const BlockHashCount: u64 = 250;
-	pub const SS58Prefix: u8 = 42;
-}
-
 impl system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
@@ -46,40 +41,31 @@ impl system::Config for Test {
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
-	type BlockHashCount = BlockHashCount;
+	type BlockHashCount = ConstU64<250>;
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
-	type SS58Prefix = SS58Prefix;
+	type SS58Prefix = ConstU16<42>;
 	type OnSetCode = ();
-}
-
-parameter_types! {
-	pub const IPFSCIDLength: u32 = 46;
-	pub const MaxActiveShards: u64 = 0;
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 impl pallet_secrets::Config for Test {
 	type WeightInfo = ();
 	type Event = Event;
-	type IPFSCIDLength = IPFSCIDLength;
-}
-
-parameter_types! {
-	pub const MaxCallLength: u32 = 512;
-	pub const MinContractNameLength: u32 = 1;
-	pub const MaxContractNameLength: u32 = 32;
+	type IPFSCIDLength = ConstU32<46>;
 }
 
 impl pallet_s_contract::Config for Test {
 	type WeightInfo = ();
 	type Event = Event;
-	type MaxCallLength = MaxCallLength;
-	type MinContractNameLength = MinContractNameLength;
-	type MaxContractNameLength = MaxContractNameLength;
+	type MaxCallLength = ConstU32<100_1000>;
+	type MinContractNameLength = ConstU32<1>;
+	type MaxContractNameLength = ConstU32<32>;
+	type MaxCallPerBlock = ConstU32<1_000>;
 }
 
 // Build genesis storage according to the mock runtime.

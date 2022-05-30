@@ -3,7 +3,8 @@ use super::*;
 use frame_system::RawOrigin;
 use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_suite};
 #[allow(unused)]
-use crate::{Pallet as SContract, PublicKey};
+use crate::Pallet as SContract;
+use skw_blockchain_primitives::PublicKey;
 
 const ENCODED_CALL: &str = "1111111111222222222211111111112222222222";
 const IPFS_CID_1: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";

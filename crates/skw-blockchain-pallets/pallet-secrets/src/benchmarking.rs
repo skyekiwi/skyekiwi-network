@@ -12,7 +12,7 @@ benchmarks! {
 	}: register_secret(RawOrigin::Signed(caller), IPFS_CID.into())
 	verify {
 		let secret_id = Secrets::<T>::current_secret_id() - 1;
-		assert_eq! (Metadata::<T>::get(secret_id), Some(IPFS_CID.into()));
+		// assert_eq! (Metadata::<T>::get(secret_id), Some(IPFS_CID.to_vec().try_into().unwrap()));
 	}
 
 	nominate_member {

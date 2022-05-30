@@ -12,16 +12,13 @@ version = '3.0.0'
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
-[dev-dependencies]
-test-env-log = "0.2.7"
-log = "*"
-env_logger="*"
-
 [dependencies]
-sp-std = { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
+sp-std = { version = "4.0.0-dev", default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22" }
 borsh = { default-features = false, version =  '0.9'}
 
 [features]
 default = ['std']
 std = [
+    'sp-std/std',
+    'borsh/std'
 ]
