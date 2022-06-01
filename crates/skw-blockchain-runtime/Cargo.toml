@@ -16,6 +16,7 @@ pallet-secrets = { default-features = false, path = '../skw-blockchain-pallets/p
 pallet-s-contract = { default-features = false, path = '../skw-blockchain-pallets/pallet-s-contract', version = '3.0.0' }
 pallet-registry = { default-features = false, path = '../skw-blockchain-pallets/pallet-registry', version = '3.0.0' }
 pallet-parentchain = { default-features = false, path = '../skw-blockchain-pallets/pallet-parentchain', version = '3.0.0' }
+pallet-s-account = { default-features = false, path = '../skw-blockchain-pallets/pallet-s-account', version = '3.0.0' }
 
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }

@@ -15,12 +15,15 @@ pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{pallet_prelude::*, ensure};
+	use frame_support::{
+		pallet_prelude::*, ensure, PalletId,
+		sp_runtime::traits::AccountIdConversion
+	};
 	use frame_system::pallet_prelude::*;
 	use super::WeightInfo;
 	use skw_blockchain_primitives::{CallIndex, EncodedCall, ShardId, PublicKey, SecretId};
 	use sp_std::vec::Vec;
-	
+	use sp_std::prelude::ToOwned;	
 	#[pallet::config]
 	pub trait Config: 
 		frame_system::Config + 
@@ -38,7 +41,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxCallPerBlock: Get<u32>;
 
-
 		/// minimum length of a contract name
 		#[pallet::constant]
 		type MinContractNameLength: Get<u32>;
@@ -46,6 +48,10 @@ pub mod pallet {
 		/// maximum length of a contract name
 		#[pallet::constant]
 		type MaxContractNameLength: Get<u32>;
+
+		#[pallet::constant]
+		type SContractRoot: Get<PalletId>;
+
 	}
 
 	#[pallet::pallet]
@@ -148,31 +154,15 @@ pub mod pallet {
 			let bounded_contract_name = BoundedVec::<u8, T::MaxContractNameLength>::try_from(contract_name.clone())
 				.map_err(|_| Error::<T>::InvalidContractName)?;
 
-			let bounded_encoded_call = BoundedVec::<u8, T::MaxCallLength>::try_from(deployment_call)
-				.map_err(|_| Error::<T>::InvalidEncodedCall)?;
-
 			ensure!(
 				Self::validate_name(shard_id, &bounded_contract_name),
 				Error::<T>::InvalidContractName
 			);
 
-			let now = frame_system::Pallet::<T>::block_number();
-			ensure!(Self::is_shard_running(shard_id), Error::<T>::ShardNotInitialized);
-
+			let call_index = Self::maybe_push_calls(deployer, shard_id, &deployment_call, false)?;
 
 			// No error below this line 
 			<WasmBlobCID<T>>::insert(&shard_id, &bounded_contract_name, bounded_wasm_blob_cid);
-
-			let call_index = Self::current_call_index_of();
-			<CallRecord<T>>::insert(&call_index, (bounded_encoded_call, deployer));
-
-			// insert the init call
-			let mut content = Self::call_history_of(&shard_id, &now).unwrap_or_default();
-			content.try_push(call_index).map_err(|_| Error::<T>::TooManyCallsInCurrentBlock)?;
-			<CallHistory<T>>::mutate(&shard_id, &now,
-				|c| *c = Some(content.clone()));
-			<CurrentCallIndex<T>>::set( call_index.saturating_add(1) );
-
 			Self::deposit_event(Event::<T>::SecretContractRegistered(shard_id, contract_name, call_index));
 			Ok(())
 		}
@@ -185,21 +175,20 @@ pub mod pallet {
 			call: EncodedCall,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let bounded_encoded_call = BoundedVec::<u8, T::MaxCallLength>::try_from(call)
-				.map_err(|_| Error::<T>::InvalidEncodedCall)?;	
+			let call_index = Self::maybe_push_calls(who, shard_id, &call, false)?;
+			Self::deposit_event(Event::<T>::CallReceived(shard_id, call_index));
+			Ok(())
+		}
 
-			ensure!(Self::is_shard_running(shard_id), Error::<T>::ShardNotInitialized);
-			let call_index = Self::current_call_index_of();
-
-			let now = frame_system::Pallet::<T>::block_number();
-			<CallRecord<T>>::insert(&call_index, (bounded_encoded_call, who));
-			
-			let history = Self::call_history_of(&shard_id, now);
-			let mut content = history.unwrap_or_default();
-			content.try_push(call_index).map_err(|_| Error::<T>::TooManyCallsInCurrentBlock)?;
-			<CallHistory<T>>::mutate(&shard_id, &now,
-				|c| *c = Some(content.clone()));
-			<CurrentCallIndex<T>>::set( call_index.saturating_add(1) );
+		#[pallet::weight(<T as Config>::WeightInfo::push_call())]
+		pub fn force_push_call(
+			origin: OriginFor<T>, 
+			shard_id: ShardId,
+			call: EncodedCall,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			let pallet_origin = T::SContractRoot::get().into_account();
+			let call_index = Self::maybe_push_calls(pallet_origin, shard_id, &call, false)?;
 			Self::deposit_event(Event::<T>::CallReceived(shard_id, call_index));
 			Ok(())
 		}
@@ -215,26 +204,14 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			ensure!(Self::shard_operator(&shard_id, &who).is_some(), Error::<T>::Unauthorized);
-			ensure!(!Self::is_shard_running(shard_id), Error::<T>::ShardHasBeenInitialized); 
 
-			let bounded_encoded_call = BoundedVec::<u8, T::MaxCallLength>::try_from(call)
-				.map_err(|_| Error::<T>::InvalidEncodedCall)?;	
 			match pallet_secrets::Pallet::<T>::register_secret(origin, initial_state_metadata) {
 				Ok(()) => {
 					// get the lastest secretId - 1 -> it belongs to the secret we have just created
 					let secret_id = pallet_secrets::Pallet::<T>::current_secret_id().saturating_sub(1);
-					let now = frame_system::Pallet::<T>::block_number();
-
-					let call_index = Self::current_call_index_of();
-					let mut call_history: Vec<CallIndex> = Vec::new();
-					call_history.push(call_index);
-					let bounded_call_history = BoundedVec::<CallIndex, T::MaxCallPerBlock>::try_from(call_history)
-							.map_err(|_| Error::<T>::TooManyCallsInCurrentBlock)?;
+					let call_index = Self::maybe_push_calls(who, shard_id, &call, true)?;
 
 					// callIndex 0 is the init call - so current call is 1
-					<CurrentCallIndex<T>>::set( call_index.saturating_add(1) );
-					<CallRecord<T>>::insert(&call_index, (bounded_encoded_call, who));
-					<CallHistory<T>>::insert(&shard_id, &now, bounded_call_history);
 					<ShardSecretIndex<T>>::insert(&shard_id, secret_id);
 					<ShardPublicKey<T>>::insert(&shard_id, public_key);
 					<ShardHighCallIndex<T>>::insert(&shard_id, call_index);
@@ -314,7 +291,36 @@ pub mod pallet {
 		pub fn is_shard_running(shard_id: ShardId) -> bool {
 			// or we can use any of the shard initialization param
 			Self::shard_secret_id(shard_id).is_some()
-		}		
+		}
+		
+		pub fn maybe_push_calls(
+			who: T::AccountId,
+			shard_id: ShardId, 
+			call: &EncodedCall,
+			init_shard_call: bool,
+		) -> Result<CallIndex, Error::<T> > {
+			ensure!(
+				init_shard_call || Self::is_shard_running(shard_id), 
+				Error::<T>::ShardNotInitialized
+			);
+
+			let call_index = Self::current_call_index_of();
+			let bounded_encoded_call = 
+				BoundedVec::<u8, T::MaxCallLength>::try_from(call.to_owned())
+				.map_err(|_| Error::<T>::InvalidEncodedCall)?;	
+
+			let now = frame_system::Pallet::<T>::block_number();
+			<CallRecord<T>>::insert(&call_index, (bounded_encoded_call, who));
+			
+			let history = Self::call_history_of(&shard_id, now);
+			let mut content = history.unwrap_or_default();
+			content.try_push(call_index).map_err(|_| Error::<T>::TooManyCallsInCurrentBlock.into())?;
+			<CallHistory<T>>::mutate(&shard_id, &now,
+				|c| *c = Some(content.clone()));
+			<CurrentCallIndex<T>>::set( call_index.saturating_add(1) );
+
+			Ok(call_index)
+		}
 	}
 }
 

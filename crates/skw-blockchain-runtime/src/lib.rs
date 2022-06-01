@@ -273,6 +273,30 @@ impl pallet_utility::Config for Runtime {
 	type WeightInfo = ();
 }
 
+frame_support::parameter_types! {
+	pub const ProposalBond: Permill = Permill::from_percent(5);
+	pub const Burn: Permill = Permill::from_percent(50);
+	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+	pub const SContractPalletId: PalletId = PalletId(*b"scontrac");
+}
+impl pallet_treasury::Config for Test {
+	type PalletId = TreasuryPalletId;
+	type Currency = Balances;
+	type ApproveOrigin = frame_system::EnsureRoot<u64>;
+	type RejectOrigin = frame_system::EnsureRoot<u64>;
+	type Event = Event;
+	type OnSlash = ();
+	type ProposalBond = ProposalBond;
+	type ProposalBondMinimum = ConstU64<1>;
+	type ProposalBondMaximum = ();
+	type SpendPeriod = ConstU64<2>;
+	type Burn = Burn;
+	type BurnDestination = (); // Just gets burned.
+	type WeightInfo = ();
+	type SpendFunds = ();
+	type MaxApprovals = ConstU32<100>;
+}
+
 impl pallet_registry::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
@@ -302,6 +326,14 @@ impl pallet_s_contract::Config for Runtime {
 	type MinContractNameLength = ConstU32<1>;
 	type MaxContractNameLength = ConstU32<32>;
 	type MaxCallPerBlock = ConstU32<1_000>;
+	type SContractRoot = SContractPalletId;
+}
+
+impl pallet_s_account::Config for Test {
+	type WeightInfo = ();
+	type Event = Event;
+	type ReservationRequirement = ConstU64<1>;
+	type DefaultFaucet = ConstU32<1_000>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

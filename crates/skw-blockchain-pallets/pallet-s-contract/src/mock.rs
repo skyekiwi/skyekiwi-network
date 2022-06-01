@@ -2,7 +2,10 @@
 use pallet_secrets;
 use crate as pallet_s_contract;
 
-use frame_support::traits::{ConstU16, ConstU32, ConstU64};
+use frame_support::{
+	traits::{ConstU16, ConstU32, ConstU64},
+	PalletId,
+};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -59,6 +62,10 @@ impl pallet_secrets::Config for Test {
 	type IPFSCIDLength = ConstU32<46>;
 }
 
+
+frame_support::parameter_types! {
+	pub const SContractPalletId: PalletId = PalletId(*b"scontrac");
+}
 impl pallet_s_contract::Config for Test {
 	type WeightInfo = ();
 	type Event = Event;
@@ -66,6 +73,7 @@ impl pallet_s_contract::Config for Test {
 	type MinContractNameLength = ConstU32<1>;
 	type MaxContractNameLength = ConstU32<32>;
 	type MaxCallPerBlock = ConstU32<1_000>;
+	type SContractRoot = SContractPalletId;
 }
 
 // Build genesis storage according to the mock runtime.

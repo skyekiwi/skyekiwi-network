@@ -56,6 +56,12 @@ benchmarks! {
 		Registry::<T>::register_secret_keeper(RawOrigin::Signed(caller.clone()).into(), public_key, vec![0, 0, 0, 0, 0, 0])?;
 	}: register_running_shard(RawOrigin::Signed(caller.clone()), 0)
 	verify { }
+
+	register_user_public_key {
+		let caller: T::AccountId = whitelisted_caller();
+		let public_key = decode_hex_uncompressed(PUBLIC_KEY);
+	}: register_user_public_key(RawOrigin::Signed(caller.clone()), public_key)
+	verify { }
 }
 
 impl_benchmark_test_suite!(

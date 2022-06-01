@@ -13,33 +13,11 @@ use borsh::{BorshSerialize, BorshDeserialize};
 use std::fs;
 use skw_vm_store::{create_store};
 
-pub fn decode_hex(s: &str) -> Vec<u8> {
-	(0..s.len())
-		.step_by(2)
-		.map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-		.collect()
-}
+use skw_blockchain_primitives::{
+    Call, Calls, Outcome, Outcomes, StatePatch,
+    decode_hex, unpad_size, pad_size,
+};
 
-fn pad_size(size: usize) -> [u8; 4] {
-    let mut v = [0, 0, 0, 0];
-    v[3] = (size & 0xff) as u8;
-    v[2] = ((size >> 8) & 0xff) as u8;
-    v[1] = ((size >> 16) & 0xff) as u8;
-    v[0] = ((size >> 24) & 0xff) as u8;
-    v
-}
-
-fn unpad_size(size: &[u8; 4]) -> usize {
-    if size.len() != 4 {
-        panic!("Invalid size");
-    }
-    return (
-        size[3] as usize | 
-        ((size[2] as usize) << 8) | 
-        ((size[1] as usize) << 16) | 
-        ((size[0] as usize) << 24)
-    ).into();
-}
 
 #[derive(clap::Parser, Debug)]
 struct CliArgs {
@@ -60,46 +38,6 @@ struct CliArgs {
 
     #[clap(long)]
     timings: bool,
-}
-
-pub type StatePatch = Vec<u8>;
-#[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
-struct InputParams {
-    origin: Option<String>,
-    origin_public_key: Option<[u8; 32]>,
-    encrypted_egress: bool,
-
-    transaction_action: String,
-    receiver: String,
-    amount: Option<u32>,
-    wasm_blob_path: Option<String>,
-    method: Option<String>,
-    args: Option<String>,
-    to: Option<String>,
-}
-
-#[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
-struct Input {
-   ops: Vec<InputParams>,
-}
-
-
-#[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
-struct InterfaceOutcome {
-    pub view_result_log: Vec<String>,
-    pub view_result: Vec<u8>,
-    pub outcome_logs: Vec<String>,
-    pub outcome_receipt_ids: Vec<CryptoHash>,
-    pub outcome_gas_burnt: Gas,
-    pub outcome_tokens_burnt: Balance,
-    pub outcome_executor_id: String,
-    pub outcome_status: Option<Vec<u8>>,
-}
-#[derive(BorshSerialize, BorshDeserialize, Default, Debug)]
-struct Outputs {
-    ops: Vec<InterfaceOutcome>,
-    state_root: CryptoHash,
-    state_patch: StatePatch,
 }
 
 fn main() {
@@ -144,8 +82,8 @@ fn main() {
         let size = unpad_size(&decoded_call[offset..offset + 4].try_into().unwrap());
 
         let call_index = unpad_size(&decoded_call[offset + 4..offset + 8].try_into().unwrap());
-        let params: Input = BorshDeserialize::try_from_slice(&decoded_call[offset + 8..offset + 4 + size]).expect("input parsing failed");
-        let mut outcome_of_call = Outputs::default();
+        let params: Calls = BorshDeserialize::try_from_slice(&decoded_call[offset + 8..offset + 4 + size]).expect("input parsing failed");
+        let mut outcome_of_call = Outcomes::default();
         
         for input in params.ops.iter() {
             script.update_account(input.origin.as_ref().unwrap_or(&"empty".to_string()));
@@ -153,8 +91,10 @@ fn main() {
             let mut outcome: Option<ExecutionResult> = None; 
             let mut view_outcome: Option<ViewResult> = None; 
     
-            match input.transaction_action.as_str() {
-                "create_account" => {
+            match input.transaction_action {
+                
+                // "create_account"
+                0 => {
                     assert!(
                         input.amount.is_some(),
                         "amount must be provided when transaction_action is set"
@@ -165,7 +105,9 @@ fn main() {
                         u128::from(input.amount.unwrap()) * 10u128.pow(24),
                     );
                 },
-                "transfer" => {
+
+                // "transfer"
+                1 => {
                     assert!(
                         input.amount.is_some(),
                         "amount must be provided when transaction_action is set"
@@ -176,7 +118,9 @@ fn main() {
                         u128::from(input.amount.unwrap()) * 10u128.pow(24),
                     );
                 },
-                "call" => {
+                
+                // "call"
+                2 => {
                     assert!(
                         input.method.is_some(),
                         "method must be provided when transaction_action is set"
@@ -194,7 +138,8 @@ fn main() {
                         u128::from(input.amount.unwrap_or(0)) * 10u128.pow(24),
                     ));
                 },
-                "view_method_call"  => {
+                // "view_method_call"
+                3 => {
                     assert!(
                         input.method.is_some(),
                         "method must be provided when transaction_action is set"
@@ -211,13 +156,9 @@ fn main() {
                         &input.args.as_ref().unwrap().as_bytes(),
                     ));
                 },
-                "delete_account" => {
-                    script.delete_account(
-                        &input.receiver,
-                        &input.to.as_ref().unwrap(),
-                    );
-                },
-                "deploy" => {
+
+                // "deploy"
+                4 => {
                     assert!(
                         input.wasm_blob_path.is_some(),
                         "wasm_file must be provided when transaction_action is set"
@@ -241,7 +182,7 @@ fn main() {
             }
         
             state_root = script.state_root();
-            let mut execution_result: InterfaceOutcome = InterfaceOutcome::default();
+            let mut execution_result: Outcome = Outcome::default();
     
             match &outcome {
                 Some(outcome) => {

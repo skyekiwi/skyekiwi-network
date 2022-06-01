@@ -1,4 +1,5 @@
 use pallet_secrets::Event as SecretsEvent;
+use sp_runtime::AccountId32;
 use crate::{Event as SContractEvent };
 use skw_blockchain_primitives::PublicKey;
 use frame_support::{assert_ok};
@@ -60,5 +61,24 @@ fn it_register_secret_contracts() {
 		assert_eq! (init_call, (ENCODED_CALL.as_bytes().to_vec().try_into().unwrap(), ALICE));
 		assert_eq! (call_record, (ENCODED_CALL2.as_bytes().to_vec().try_into().unwrap(), ALICE));
 
+		assert_ok!(
+			SContract::force_push_call(
+				Origin::root(),
+				0,
+				ENCODED_CALL2.as_bytes().to_vec(),
+			) 
+		);	
+		
+	});
+}
+#[test]
+fn test_account_id() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		let account_literal: AccountId32 = hex!["0x966422784f73b6fc14f5ce5fc82cd7fe811f69c8ff5fdffd2a1d2677a651f27d"];
+
+
+		
 	});
 }

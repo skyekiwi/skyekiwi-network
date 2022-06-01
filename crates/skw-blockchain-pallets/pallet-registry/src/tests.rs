@@ -178,3 +178,17 @@ fn is_beacon_turn_test_signle_keeper() {
 
 	});
 }
+
+#[test]
+fn insert_pk_for_user() {
+
+	use skw_blockchain_primitives::compress_hex_key;
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		let public_key = decode_hex_uncompressed(PUBLIC_KEY).unwrap();
+		assert_ok!( Registry::register_user_public_key( Origin::signed(ALICE),  public_key.clone()) );
+
+		assert!( Registry::user_public_key_of(&ALICE).unwrap().to_vec() == compress_hex_key(&public_key.clone()));
+	});
+}

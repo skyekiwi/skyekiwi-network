@@ -4458,6 +4458,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-s-account"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-parentchain",
+ "pallet-s-contract",
+ "pallet-secrets",
+ "pallet-treasury",
+ "parity-scale-codec 3.1.2",
+ "scale-info",
+ "skw-blockchain-primitives",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-s-contract"
 version = "3.0.0"
 dependencies = [
@@ -7185,6 +7206,7 @@ dependencies = [
  "quickcheck_macros",
  "serde",
  "serde_json",
+ "skw-blockchain-primitives",
  "skw-contract-sdk",
  "skw-vm-host",
  "skw-vm-pool",
@@ -7369,6 +7391,7 @@ dependencies = [
  "pallet-parentchain",
  "pallet-randomness-collective-flip",
  "pallet-registry",
+ "pallet-s-account",
  "pallet-s-contract",
  "pallet-secrets",
  "pallet-sudo",

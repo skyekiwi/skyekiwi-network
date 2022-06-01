@@ -57,11 +57,16 @@ pub mod pallet {
 	#[pallet::getter(fn expiration_of)]
 	pub(super) type Expiration<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, T::BlockNumber>;
 
-	/// identity publlic key of each secret keepers, used to receive the secret
+	/// identity  key of each secret keepers, used to receive the secret
 	#[pallet::storage]
 	#[pallet::getter(fn public_key_of)]
 	pub(super) type PublicKey<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, [u8; 32]>;
-	
+
+	#[pallet::storage]
+	#[pallet::getter(fn user_public_key_of)]
+	pub(super) type UserPublicKey<T: Config> = StorageMap<_, Twox64Concat, 
+		T::AccountId, [u8; 32]>;
+
 	/// members of each shard
 	#[pallet::storage]
 	#[pallet::getter(fn shard_members_of)]
@@ -210,6 +215,24 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// register a user's public key
+		// #[pallet::weight(<T as pallet::Config>::WeightInfo::register_user_public_key())]
+		#[pallet::weight(0)]
+		pub fn register_user_public_key(
+			origin: OriginFor<T>,
+			public_key: Vec<u8>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let pk = compress_hex_key(&public_key);
+			let bounded_pk: [u8; 32] = pk.try_into().map_err(|_| Error::<T>::InvalidPublicKey)?;
+
+			<UserPublicKey<T>>::insert(&who, bounded_pk);
+
+			Ok(())
+		}
+
 	}
 
 	impl<T: Config> Pallet<T> {

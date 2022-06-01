@@ -21,11 +21,12 @@ pub mod pallet {
 			Currency, ExistenceRequirement::KeepAlive
 		}, Twox64Concat
 	};
+	use frame_support::sp_runtime::traits::AccountIdConversion;
 	use frame_system::pallet_prelude::*;
 	use super::*;
 	use sp_std::vec::Vec;
 	
-	use skw_blockchain_primitives::{ShardId, CallIndex};	
+	use skw_blockchain_primitives::{ShardId};	
 	pub type BalanceOf<T> = pallet_treasury::BalanceOf<T>;
 
 	#[pallet::config]
@@ -80,7 +81,7 @@ pub mod pallet {
 			ensure_root(origin.clone())?;
 			
 			let encoded_call = Self::build_account_creation_call(&account, shard_id);
-			pallet_s_contract::Pallet::<T>::push_call(origin, shard_id, encoded_call)?;
+			pallet_s_contract::Pallet::<T>::force_push_call(origin, shard_id, encoded_call)?;
 
 			Self::deposit_event(Event::<T>::EnclaveAccountCreated(account, shard_id));
 			Ok(())
@@ -94,7 +95,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
-			let treasury = Self::account_id();
+			let treasury = T::PalletId::get().into_account();
 			T::Currency::transfer(&who, &treasury, T::ReservationRequirement::get(), KeepAlive)?;
 			let encoded_call = Self::build_account_creation_call(&who, shard_id);
 			pallet_s_contract::Pallet::<T>::push_call(origin, shard_id, encoded_call)?;
@@ -115,7 +116,7 @@ pub mod pallet {
 				encrypted_egress: false,
 				
 				transaction_action: b"create_account".to_vec(),
-				receiver: account.to_string().to_vec(),
+				receiver: account.to_string().as_bytes().to_vec(),
 				
 				// an arb amount of offchain runtime gas token for transacrtions
 				amount: Some(T::DefaultFaucet::get()),
