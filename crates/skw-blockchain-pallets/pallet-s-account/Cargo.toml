@@ -15,9 +15,9 @@ targets = ['x86_64-unknown-linux-gnu']
 [dependencies]
 skw-blockchain-primitives = { path = "../primitives" }
 pallet-secrets = { version = "3.0.0", default-features = false, path = "../pallet-secrets" }
-pallet-treasury= { default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-12', version = '4.0.0-dev'}
 pallet-s-contract = { version = "3.0.0", default-features = false, path = "../pallet-s-contract" }
 pallet-parentchain = { version = "3.0.0", default-features = false, path = "../pallet-parentchain" }
+pallet-treasury= { default-features = false, version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22"}
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = [
 	"derive",
 ] }

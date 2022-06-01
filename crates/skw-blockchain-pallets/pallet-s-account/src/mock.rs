@@ -44,11 +44,11 @@ parameter_types! {
 }
 impl pallet_treasury::Config for Test {
 	type PalletId = TreasuryPalletId;
-	type Currency = pallet_balances::Pallet<Test>;
+	type Currency = Balance; 
 	type ApproveOrigin = frame_system::EnsureRoot<u128>;
 	type RejectOrigin = frame_system::EnsureRoot<u128>;
 	type Event = Event;
-	type OnSlash = ();
+	type OnSlash = Treasury;
 	type ProposalBond = ProposalBond;
 	type ProposalBondMinimum = ConstU64<1>;
 	type ProposalBondMaximum = ();

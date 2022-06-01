@@ -1,7 +1,7 @@
 mod script;
 
 use crate::script::Script;
-use clap::Clap;
+use clap::Parser;
 // use skw_vm_host::VMOutcome;
 // use skw_vm_host::{mocks::mock_external::Receipt};
 use serde::{
@@ -55,7 +55,7 @@ impl<'de> Deserialize<'de> for State {
     }
 }
 
-#[derive(Clap)]
+#[derive(clap::Parser)]
 struct CliArgs {
     /// Specifies the execution context in JSON format, see `VMContext`.
     #[clap(long)]

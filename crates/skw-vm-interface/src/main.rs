@@ -2,7 +2,7 @@ mod scripts;
 use std::path::PathBuf;
 use scripts::Script;
 use std::convert::{TryInto};
-
+use clap::Parser;
 use skw_contract_sdk::{CryptoHash};
 use skw_vm_interface::{ExecutionResult, ViewResult};
 use skw_vm_primitives::{
@@ -10,7 +10,6 @@ use skw_vm_primitives::{
     transaction::ExecutionStatus,
 };
 use borsh::{BorshSerialize, BorshDeserialize};
-use clap::Clap;
 use std::fs;
 use skw_vm_store::{create_store};
 
@@ -42,7 +41,7 @@ fn unpad_size(size: &[u8; 4]) -> usize {
     ).into();
 }
 
-#[derive(Clap)]
+#[derive(clap::Parser, Debug)]
 struct CliArgs {
     #[clap(long)]
     state_file: PathBuf,

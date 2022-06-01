@@ -4,9 +4,9 @@ use std::{
     io::{Read, Write},
     fs::File,
 };
-use clap::Clap;
+use clap::Parser;
 
-#[derive(Clap)]
+#[derive(clap::Parser)]
 struct CliArgs {
     #[clap(long)]
     state_file: PathBuf,
