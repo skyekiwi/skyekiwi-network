@@ -1,23 +1,33 @@
-mod scripts;
-use std::path::PathBuf;
-use scripts::Script;
-use std::convert::{TryInto};
+use std::{
+    convert::{TryInto, TryFrom},
+    path::PathBuf,
+    fs
+};
 use clap::Parser;
-use skw_contract_sdk::{CryptoHash};
-use skw_vm_interface::{ExecutionResult, ViewResult};
+
+mod outcome;
+mod runtime;
+mod utils;
+mod user;
+mod scripts;
+use scripts::Script;
+
+use outcome::{ ExecutionResult, ViewResult};
+use utils::{offchain_id_into_account_id, vec_to_str};
+
 use skw_vm_primitives::{
-    contract_runtime::{Balance, Gas},
+    contract_runtime::CryptoHash,
     transaction::ExecutionStatus,
+    account_id::AccountId
 };
 use borsh::{BorshSerialize, BorshDeserialize};
-use std::fs;
+
 use skw_vm_store::{create_store};
 
 use skw_blockchain_primitives::{
-    Call, Calls, Outcome, Outcomes, StatePatch,
-    decode_hex, unpad_size, pad_size,
+    types::{Calls, Outcome, Outcomes, StatePatch},
+    util::{decode_hex, unpad_size, pad_size, public_key_to_offchain_id},
 };
-
 
 #[derive(clap::Parser, Debug)]
 struct CliArgs {
@@ -69,7 +79,7 @@ fn main() {
     script.init(
         &store,
         state_root,
-        &"empty".to_string(),
+        AccountId::try_from("empty".to_string()).unwrap()
     );
 
     let decoded_call = bs58::decode(&cli_args.params.unwrap_or_default()).into_vec().unwrap();
@@ -86,7 +96,13 @@ fn main() {
         let mut outcome_of_call = Outcomes::default();
         
         for input in params.ops.iter() {
-            script.update_account(input.origin.as_ref().unwrap_or(&"empty".to_string()));
+
+            let origin_id = public_key_to_offchain_id(&input.origin_public_key);
+            let receipt_id = public_key_to_offchain_id(&input.receipt_public_key);
+            let origin_account_id = offchain_id_into_account_id(&origin_id);
+            let receipt_account_id = offchain_id_into_account_id(&receipt_id); 
+
+            script.update_account(origin_account_id);
     
             let mut outcome: Option<ExecutionResult> = None; 
             let mut view_outcome: Option<ViewResult> = None; 
@@ -101,7 +117,7 @@ fn main() {
                     );
     
                     script.create_account(
-                        &input.receiver,
+                        receipt_account_id,
                         u128::from(input.amount.unwrap()) * 10u128.pow(24),
                     );
                 },
@@ -114,7 +130,7 @@ fn main() {
                     );
     
                     script.transfer(
-                        &input.receiver,
+                        receipt_account_id,
                         u128::from(input.amount.unwrap()) * 10u128.pow(24),
                     );
                 },
@@ -131,10 +147,12 @@ fn main() {
                         "args must be provided when transaction_action is set"
                     );
     
+                    let method_str = vec_to_str(&input.method.as_ref().unwrap());
+
                     outcome = Some(script.call(
-                        &input.receiver,
-                        &input.method.as_ref().unwrap(),
-                        &input.args.as_ref().unwrap().as_bytes(),
+                        receipt_account_id,
+                        method_str.as_str(),
+                        &input.args.as_ref().unwrap()[..],
                         u128::from(input.amount.unwrap_or(0)) * 10u128.pow(24),
                     ));
                 },
@@ -149,11 +167,13 @@ fn main() {
                         input.args.is_some(),
                         "args must be provided when transaction_action is set"
                     );
-    
+   
+                    let method_str = vec_to_str(&input.method.as_ref().unwrap());
+
                     view_outcome = Some(script.view_method_call(
-                        &input.receiver,
-                        &input.method.as_ref().unwrap(),
-                        &input.args.as_ref().unwrap().as_bytes(),
+                        receipt_account_id,
+                        method_str.as_str(),
+                        &input.args.as_ref().unwrap()[..]
                     ));
                 },
 
@@ -169,12 +189,13 @@ fn main() {
                         "amount must be provided when transaction_action is set"
                     );
     
-                    let wasm_path = PathBuf::from(input.wasm_blob_path.as_ref().unwrap());
+                    let wasm_blob_path = vec_to_str(&input.wasm_blob_path.as_ref().unwrap());
+                    let wasm_path = PathBuf::from(wasm_blob_path);
                     let code = fs::read(&wasm_path).unwrap();
     
                     script.deploy(
                         &code,
-                        &input.receiver,
+                        receipt_account_id,
                         u128::from(input.amount.unwrap()) * 10u128.pow(24),
                     );
                 },
@@ -186,11 +207,10 @@ fn main() {
     
             match &outcome {
                 Some(outcome) => {
-                    execution_result.outcome_logs = outcome.logs().clone();
+                    execution_result.outcome_logs = outcome.logs();
                     execution_result.outcome_receipt_ids = outcome.receipt_ids().clone();
-                    execution_result.outcome_gas_burnt = outcome.gas_burnt().0;
                     execution_result.outcome_tokens_burnt = outcome.tokens_burnt();
-                    execution_result.outcome_executor_id = outcome.executor_id().to_string();
+                    execution_result.outcome_executor_id = outcome.executor_id().to_string().as_bytes().to_vec();
                     execution_result.outcome_status = match outcome.status() {
                         ExecutionStatus::SuccessValue(x) => Some(x),
                         _ => None,
@@ -201,7 +221,7 @@ fn main() {
     
             match &view_outcome {
                 Some(outcome) => {
-                    execution_result.view_result_log = outcome.logs().clone();
+                    execution_result.view_result_log = outcome.logs();
                     execution_result.view_result = outcome.unwrap().clone();
                 }
                 _ => {}
@@ -228,4 +248,108 @@ fn main() {
 
     // println!("{:?}", all_outcomes);
     println!("{:?}", bs58::encode(all_outcomes).into_string());
+}
+
+#[cfg(test)]
+mod test {
+    use std::rc::Rc;
+    use std::cell::RefCell;
+    use crate::{
+        user::UserAccount,
+        runtime::init_runtime,
+        utils::{str_to_account_id, to_yocto},
+    };
+
+    use super::*;
+
+    #[test]
+    fn test_dump_state_from_file() {
+
+        let state_root = {
+            let store = create_store();
+
+            let (runtime, root_signer) = init_runtime(
+                str_to_account_id(&"root"), 
+                None,
+                Some(&store),
+                None,
+            );
+
+            let root_account = UserAccount::new(
+                &Rc::new(RefCell::new(runtime)),
+                str_to_account_id(&"root"),
+                root_signer
+            );
+
+            let _ = root_account
+                .deploy(
+                    include_bytes!("../../skw-contract-sdk/examples/status-message-collections/res/status_message_collections.wasm")
+                        .as_ref()
+                        .into(),
+                    AccountId::try_from("status".to_string()).unwrap(),
+                    to_yocto("1"),
+                );
+            
+            let _ = root_account.create_user(
+                AccountId::try_from("alice".to_string()).unwrap(),
+                to_yocto("100")
+            );
+
+            let status_account = root_account.borrow_runtime().view_account(str_to_account_id(&"status"));
+            let alice_account = root_account.borrow_runtime().view_account(str_to_account_id(&"alice"));
+
+            assert!(status_account.is_some());
+            assert!(alice_account.is_some());
+
+            store.save_state_to_file("./mock/new").unwrap();
+            root_account.state_root()
+        };
+
+        {
+
+            let store = create_store();
+            store.load_state_from_file("./mock/new").unwrap();
+
+            let (runtime, root_signer) = init_runtime(
+                str_to_account_id(&"root"), 
+                None,
+                Some(&store),
+                Some(state_root),
+            );
+
+            let root_account = UserAccount::new(
+                &Rc::new(RefCell::new(runtime)),
+                AccountId::try_from("root".to_string()).unwrap(), 
+                root_signer
+            );
+
+            let _ = root_account
+                .deploy(
+                    include_bytes!("../../skw-contract-sdk/examples/status-message/res/status_message.wasm")
+                        .as_ref()
+                        .into(),
+                    AccountId::try_from("status_new".to_string()).unwrap(),
+                    to_yocto("1"),
+                );
+            
+            let _ = root_account.create_user(
+                AccountId::try_from("alice_new".to_string()).unwrap(),
+                to_yocto("100")
+            );
+
+            // existing accounts in the state store
+            let status_account = root_account.borrow_runtime().view_account(str_to_account_id(&"status"));
+            let alice_account = root_account.borrow_runtime().view_account(str_to_account_id(&"alice"));
+
+            assert!(status_account.is_some());
+            assert!(alice_account.is_some());
+
+            // newly created accounts in the state store
+            let status_account = root_account.borrow_runtime().view_account(str_to_account_id(&"status_new"));
+            let alice_account = root_account.borrow_runtime().view_account(str_to_account_id(&"alice_new"));
+
+            assert!(status_account.is_some());
+            assert!(alice_account.is_some());
+        };
+    }
 }

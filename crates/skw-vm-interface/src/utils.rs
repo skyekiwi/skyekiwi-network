@@ -1,3 +1,7 @@
+use std::convert::TryFrom;
+
+use skw_vm_primitives::account_id::AccountId;
+
 pub fn to_nanos(num_days: u64) -> u64 {
     num_days * 86_400_000_000_000
 }
@@ -17,4 +21,20 @@ pub fn to_yocto(value: &str) -> u128 {
     } else {
         part1
     }
+}
+
+pub fn offchain_id_into_account_id(id: &Vec<u8>) -> AccountId {
+    let account_id_str = hex::encode(id);
+    AccountId::try_from(account_id_str).unwrap()
+}
+
+pub fn vec_to_str(buf: &Vec<u8>) -> String {
+    match std::str::from_utf8(buf) {
+        Ok(v) => v.to_string(),
+        Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+    }
+}
+
+pub fn str_to_account_id(s: &str) -> AccountId {
+    AccountId::try_from(s.to_string()).unwrap()
 }

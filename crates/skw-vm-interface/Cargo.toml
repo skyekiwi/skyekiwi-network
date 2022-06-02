@@ -19,6 +19,7 @@ skw-vm-store = { path = "../skw-vm-store" }
 skw-vm-primitives = { path = "../skw-vm-primitives" }
 skw-vm-runtime = { path = "../skw-vm-runtime" }
 skw-vm-pool = { path = "../skw-vm-pool" }
+hex = { version = "0.4", default-features = false }
 
 lazy-static-include = "3"
 # Temporary workaround see https://github.com/bitvecto-rs/bitvec/issues/105

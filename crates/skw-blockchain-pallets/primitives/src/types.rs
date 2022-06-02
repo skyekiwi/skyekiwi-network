@@ -4,6 +4,7 @@ pub type CallIndex = u64;
 pub type ShardId = u64;
 pub type SecretId = u64;
 
+pub type BlockNumber = u32;
 pub type PublicKey = [u8; 32];
 
 pub type EncodedCall = Vec<u8>;
@@ -18,8 +19,8 @@ pub type Bytes = Vec<u8>;
 
 #[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
 pub struct Call{
-	pub origin_public_key: Option<PublicKey>,	
-    pub recipient_public_key: Option<PublicKey>,
+	pub origin_public_key: PublicKey,
+    pub receipt_public_key: PublicKey,
     pub encrypted_egress: bool,
 
     pub transaction_action: u8,
@@ -35,7 +36,7 @@ pub struct Call{
 pub struct Calls{
 	pub ops: Vec<Call>,
 	pub shard_id: ShardId,
-	pub block_number: Option<ShardId>,
+	pub block_number: Option<BlockNumber>,
 }
 
 #[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
@@ -44,7 +45,6 @@ pub struct Outcome{
     pub view_result: Vec<u8>,
     pub outcome_logs: Vec<Bytes>,
     pub outcome_receipt_ids: Vec<CryptoHash>,
-    pub outcome_gas_burnt: Balance,
     pub outcome_tokens_burnt: Balance,
     pub outcome_executor_id: Bytes,
     pub outcome_status: Option<Vec<u8>>,

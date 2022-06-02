@@ -1,5 +1,7 @@
 use sp_std::vec::Vec;
 
+use crate::types::{PublicKey, Bytes};
+
 pub fn compress_hex_key(s: &Vec<u8>) -> Vec<u8> {
     (0..s.len())
         .step_by(2)
@@ -32,4 +34,9 @@ pub fn unpad_size(size: &[u8; 4]) -> usize {
         ((size[1] as usize) << 16) | 
         ((size[0] as usize) << 24)
     ).into();
+}
+
+pub fn public_key_to_offchain_id(pk: &PublicKey) -> Bytes {
+    // v1 simply return the pk
+    pk.to_vec()
 }
