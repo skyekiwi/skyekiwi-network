@@ -1,11 +1,7 @@
-use crate::runtime::{init_runtime, RuntimeStandalone};
+#![allow(unused_must_use)]
 
 use core::fmt;
 use std::convert::TryFrom;
-use skw_vm_primitives::profile::ProfileData;
-use skw_vm_primitives::transaction::{
-    ExecutionStatus::{SuccessReceiptId, SuccessValue}
-};
 use skw_vm_primitives::{
     contract_runtime::{AccountId, CryptoHash},
     transaction::{ExecutionOutcome, ExecutionStatus},
@@ -13,21 +9,13 @@ use skw_vm_primitives::{
 use skw_vm_runtime::state_viewer::errors::CallFunctionError;
 use skw_blockchain_primitives::types::Bytes;
 
-use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::fmt::Debug;
 use std::fmt::Formatter;
-use std::rc::Rc;
-
-pub type TxResult = Result<ExecutionOutcome, ExecutionOutcome>;
 
 /// An ExecutionResult is created by a UserAccount submitting a transaction.
 /// It wraps an ExecutionOutcome which is the same object returned from an RPC call.
-#[derive(Clone)]
 pub struct ExecutionResult {
-    runtime: Rc<RefCell<RuntimeStandalone>>,
     outcome: ExecutionOutcome,
-    hash: CryptoHash,
 }
 
 impl Debug for ExecutionResult {
@@ -38,11 +26,8 @@ impl Debug for ExecutionResult {
 
 impl Default for ExecutionResult {
     fn default() -> Self {
-        let root = AccountId::try_from("root".to_string()).unwrap();
         ExecutionResult::new(
             ExecutionOutcome::default(),
-            &Rc::new(RefCell::new(init_runtime(root, None, None, None).0)),
-            CryptoHash::default(),
         )
     }
 }
@@ -51,65 +36,8 @@ impl ExecutionResult {
     #[doc(hidden)]
     pub fn new(
         outcome: ExecutionOutcome,
-        runtime: &Rc<RefCell<RuntimeStandalone>>,
-        hash: CryptoHash,
     ) -> Self {
-        Self { runtime: Rc::clone(runtime), outcome, hash }
-    }
-
-    /// Check if transaction was successful
-    pub fn is_ok(&self) -> bool {
-        matches!(&(self.outcome).status, SuccessValue(_) | SuccessReceiptId(_))
-    }
-
-    /// Test whether there is a SuccessValue
-    pub fn has_value(&self) -> bool {
-        matches!(self.outcome.status, SuccessValue(_))
-    }
-
-    /// Asserts that the outcome is successful
-    pub fn assert_success(&self) {
-        assert!(self.is_ok(), "Outcome {:#?} was a failure", self.outcome);
-    }
-
-    /// Lookup an execution result from a hash
-    pub fn lookup_hash(&self, hash: &CryptoHash) -> Option<ExecutionResult> {
-        self.get_outcome(hash)
-    }
-
-    fn get_outcome(&self, hash: &CryptoHash) -> Option<ExecutionResult> {
-        (*self.runtime)
-            .borrow()
-            .outcome(hash)
-            .map(|out| ExecutionResult::new(out, &self.runtime, *hash))
-    }
-
-    /// Reference to internal ExecutionOutcome
-    pub fn outcome(&self) -> &ExecutionOutcome {
-        &self.outcome
-    }
-
-    /// Return results of promises from the `receipt_ids` in the ExecutionOutcome
-    pub fn get_receipt_results(&self) -> Vec<Option<ExecutionResult>> {
-        self.get_outcomes(&self.outcome.receipt_ids)
-    }
-
-    fn get_outcomes(&self, ids: &[CryptoHash]) -> Vec<Option<ExecutionResult>> {
-        ids.iter().map(|id| self.get_outcome(id)).collect()
-    }
-
-    /// Return the results of any promises created since the last transaction
-    pub fn promise_results(&self) -> Vec<Option<ExecutionResult>> {
-        self.get_outcomes(&(*self.runtime).borrow().last_outcomes)
-    }
-
-    pub fn promise_errors(&self) -> Vec<Option<ExecutionResult>> {
-        let mut res = self.promise_results();
-        res.retain(|outcome| match outcome {
-            Some(o) => !o.is_ok(),
-            _ => false,
-        });
-        res
+        Self { outcome }
     }
 
     /// Execution status. Contains the result in case of successful execution.
@@ -132,6 +60,7 @@ impl ExecutionResult {
     pub fn logs(&self) -> Vec<Bytes> {
         let logs = &self.outcome.logs;
         let mut res = Vec::new();
+        
         logs
             .iter()
             .map(|log| {
@@ -151,19 +80,15 @@ impl ExecutionResult {
         &self.outcome.receipt_ids
     }
 
-    pub fn profile_data(&self) -> ProfileData {
-        (*self.runtime).borrow().profile_of_outcome(&self.hash).unwrap()
-    }
 }
 
 #[doc(hidden)]
 pub fn outcome_into_result(
-    outcome: (CryptoHash, ExecutionOutcome),
-    runtime: &Rc<RefCell<RuntimeStandalone>>,
+    outcome: ExecutionOutcome,
 ) -> ExecutionResult {
-    match (outcome.1).status {
+    match (outcome).status {
         ExecutionStatus::SuccessValue(_) |
-        ExecutionStatus::Failure(_) => ExecutionResult::new(outcome.1, runtime, outcome.0),
+        ExecutionStatus::Failure(_) => ExecutionResult::new(outcome),
         ExecutionStatus::SuccessReceiptId(_) => panic!("Unresolved ExecutionOutcome run runtime.resolve(tx) to resolve the final outcome of tx"),
         ExecutionStatus::Unknown => unreachable!()
     }
@@ -186,6 +111,7 @@ impl ViewResult {
     pub fn logs(&self) -> Vec<Bytes> {
         let logs = &self.logs;
         let mut res = Vec::new();
+        
         logs
             .iter()
             .map(|log| {
@@ -194,20 +120,20 @@ impl ViewResult {
         res
     }
 
-    pub fn is_err(&self) -> bool {
-        self.result.is_err()
-    }
-
-    pub fn is_ok(&self) -> bool {
-        self.result.is_ok()
-    }
-
     /// Attempt unwrap the value returned by the view call and panic if it is an error
-    pub fn unwrap(&self) -> Vec<u8> {
-        (&self.result).as_ref().borrow().unwrap().clone()
-    }
+    pub fn result(&self) -> (Option<Bytes>, Option<Bytes>) {
+        let mut res = (None, None);
+        match &self.result {
+            Ok(x) => {
+                res.0 = Some(x.clone());
+                res.1 = None;
+            },
+            Err(e) => {
+                res.0 = None;
+                res.1 = Some(e.to_string().as_bytes().to_vec());
+            }
+        }
 
-    // pub fn unwrap_err(&self) -> &dyn std::error::Error {
-    //     (&self.result).as_ref().borrow().unwrap_err().as_ref().borrow()
-    // }
+        res
+    }
 }

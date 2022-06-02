@@ -116,10 +116,10 @@ fn main() {
                         "amount must be provided when transaction_action is set"
                     );
     
-                    script.create_account(
+                    outcome = Some(script.create_account(
                         receipt_account_id,
                         u128::from(input.amount.unwrap()) * 10u128.pow(24),
-                    );
+                    ));
                 },
 
                 // "transfer"
@@ -129,10 +129,10 @@ fn main() {
                         "amount must be provided when transaction_action is set"
                     );
     
-                    script.transfer(
+                    outcome = Some(script.transfer(
                         receipt_account_id,
                         u128::from(input.amount.unwrap()) * 10u128.pow(24),
-                    );
+                    ));
                 },
                 
                 // "call"
@@ -193,11 +193,11 @@ fn main() {
                     let wasm_path = PathBuf::from(wasm_blob_path);
                     let code = fs::read(&wasm_path).unwrap();
     
-                    script.deploy(
+                    outcome = Some(script.deploy(
                         &code,
                         receipt_account_id,
                         u128::from(input.amount.unwrap()) * 10u128.pow(24),
-                    );
+                    ));
                 },
                 _ => {}
             }
@@ -222,7 +222,9 @@ fn main() {
             match &view_outcome {
                 Some(outcome) => {
                     execution_result.view_result_log = outcome.logs();
-                    execution_result.view_result = outcome.unwrap().clone();
+                    let res = outcome.result();
+                    execution_result.view_result = res.0;
+                    execution_result.view_error = res.1;
                 }
                 _ => {}
             }
@@ -261,7 +263,6 @@ mod test {
     };
 
     use super::*;
-
     #[test]
     fn test_dump_state_from_file() {
 
@@ -275,8 +276,10 @@ mod test {
                 None,
             );
 
+            let shared_runime = &Rc::new(RefCell::new(runtime));
+
             let root_account = UserAccount::new(
-                &Rc::new(RefCell::new(runtime)),
+                shared_runime,
                 str_to_account_id(&"root"),
                 root_signer
             );
@@ -295,8 +298,8 @@ mod test {
                 to_yocto("100")
             );
 
-            let status_account = root_account.borrow_runtime().view_account(str_to_account_id(&"status"));
-            let alice_account = root_account.borrow_runtime().view_account(str_to_account_id(&"alice"));
+            let status_account = shared_runime.borrow().view_account(str_to_account_id(&"status"));
+            let alice_account = shared_runime.borrow().view_account(str_to_account_id(&"alice"));
 
             assert!(status_account.is_some());
             assert!(alice_account.is_some());
@@ -317,8 +320,10 @@ mod test {
                 Some(state_root),
             );
 
+            let shared_runime = &Rc::new(RefCell::new(runtime));
+
             let root_account = UserAccount::new(
-                &Rc::new(RefCell::new(runtime)),
+                shared_runime,
                 AccountId::try_from("root".to_string()).unwrap(), 
                 root_signer
             );
@@ -338,15 +343,15 @@ mod test {
             );
 
             // existing accounts in the state store
-            let status_account = root_account.borrow_runtime().view_account(str_to_account_id(&"status"));
-            let alice_account = root_account.borrow_runtime().view_account(str_to_account_id(&"alice"));
+            let status_account =  shared_runime.borrow().view_account(str_to_account_id(&"status"));
+            let alice_account =  shared_runime.borrow().view_account(str_to_account_id(&"alice"));
 
             assert!(status_account.is_some());
             assert!(alice_account.is_some());
 
             // newly created accounts in the state store
-            let status_account = root_account.borrow_runtime().view_account(str_to_account_id(&"status_new"));
-            let alice_account = root_account.borrow_runtime().view_account(str_to_account_id(&"alice_new"));
+            let status_account =  shared_runime.borrow().view_account(str_to_account_id(&"status_new"));
+            let alice_account =  shared_runime.borrow().view_account(str_to_account_id(&"alice_new"));
 
             assert!(status_account.is_some());
             assert!(alice_account.is_some());

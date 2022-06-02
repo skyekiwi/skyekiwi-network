@@ -6,7 +6,7 @@ use crate::{ViewResult};
 use skw_vm_pool::{types::PoolIterator, TransactionPool};
 use skw_vm_primitives::{
     account_id::AccountId,
-    account::{AccessKey, Account},
+    account::{AccessKey},
     crypto::{InMemorySigner, KeyType, PublicKey, Signer},
     errors::RuntimeError,
     contract_runtime::{
@@ -26,7 +26,7 @@ use skw_vm_primitives::test_utils::account_new;
 use skw_vm_runtime::{state_viewer::TrieViewer, ApplyState, Runtime};
 use skw_contract_sdk::{Duration};
 use skw_vm_store::{
-    get_account, create_store, ShardTries, Store, get_access_key,
+    create_store, ShardTries, Store, get_access_key,
 };
 
 const DEFAULT_BLOCK_PROD_TIME: Duration = 1_000_000_000;
@@ -223,22 +223,6 @@ impl RuntimeStandalone {
         }
     }
 
-    /// Just puts tx into the transaction pool
-    pub fn send_tx(&mut self, tx: SignedTransaction) -> CryptoHash {
-        let tx_hash = tx.get_hash();
-        self.transactions.insert(tx_hash, tx.clone());
-        self.tx_pool.insert_transaction(tx);
-        tx_hash
-    }
-
-    pub fn outcome(&self, hash: &CryptoHash) -> Option<ExecutionOutcome> {
-        self.outcomes.get(hash).cloned()
-    }
-
-    pub fn profile_of_outcome(&self, hash: &CryptoHash) -> Option<ProfileData> {
-        self.profile.get(hash).cloned()
-    }
-
     /// Processes all transactions and pending receipts until there is no pending_receipts left
     pub fn process_all(&mut self) -> Result<(), RuntimeError> {
         loop {
@@ -288,18 +272,6 @@ impl RuntimeStandalone {
         Ok(())
     }
 
-    pub fn produce_blocks(&mut self, num_of_blocks: u64) -> Result<(), RuntimeError> {
-        for _ in 0..num_of_blocks {
-            self.produce_block()?;
-        }
-        Ok(())
-    }
-
-    pub fn view_account(&self, account_id: AccountId) -> Option<Account> {
-        let trie_update = self.tries.new_trie_update(self.cur_block.state_root);
-        get_account(&trie_update, &account_id).expect("Unexpected Storage error")
-    }
-
     pub fn view_access_key(&self, account_id: AccountId, public_key: &PublicKey) -> Option<AccessKey> {
         let trie_update = self.tries.new_trie_update(self.cur_block.state_root);
         get_access_key(&trie_update, &account_id, public_key)
@@ -333,16 +305,8 @@ impl RuntimeStandalone {
         ViewResult::new(result, logs)
     }
 
-    pub fn current_block(&self) -> &Block {
-        &self.cur_block
-    }
-
     pub fn state_root(&self) -> CryptoHash {
         self.cur_block.state_root
-    }
-
-    pub fn pending_receipts(&self) -> &[Receipt] {
-        &self.pending_receipts
     }
 
     fn prepare_transactions(tx_pool: &mut TransactionPool) -> Vec<SignedTransaction> {
@@ -361,11 +325,41 @@ impl RuntimeStandalone {
 mod tests {
     use std::convert::TryFrom;
 
+    use skw_vm_primitives::account::Account;
+    use skw_vm_store::get_account;
+
     use super::*;
     use crate::utils::to_yocto;
 
     fn str_to_account_id(s: &str) -> AccountId {
         AccountId::try_from(s.to_string()).unwrap()
+    }
+
+    impl RuntimeStandalone {
+         /// Just puts tx into the transaction pool
+        pub fn send_tx(&mut self, tx: SignedTransaction) -> CryptoHash {
+            let tx_hash = tx.get_hash();
+            self.transactions.insert(tx_hash, tx.clone());
+            self.tx_pool.insert_transaction(tx);
+            tx_hash
+        }
+        
+        pub fn outcome(&self, hash: &CryptoHash) -> Option<ExecutionOutcome> {
+            self.outcomes.get(hash).cloned()
+        }
+        
+        pub fn produce_blocks(&mut self, num_of_blocks: u64) -> Result<(), RuntimeError> {
+            for _ in 0..num_of_blocks {
+                self.produce_block()?;
+            }
+            Ok(())
+        }
+
+        pub fn view_account(&self, account_id: AccountId) -> Option<Account> {
+            let trie_update = self.tries.new_trie_update(self.cur_block.state_root);
+            get_account(&trie_update, &account_id).expect("Unexpected Storage error")
+        }
+
     }
 
     #[test]
@@ -471,7 +465,8 @@ mod tests {
         assert!(matches!(res, ExecutionOutcome { status: ExecutionStatus::SuccessValue(_), .. }));
         let res = runtime.view_method_call(str_to_account_id(&"status"), "get_status", b"{\"account_id\": \"root\"}");
 
-        let caller_status = String::from_utf8(res.unwrap()).unwrap();
+        let parsed_res = res.result();
+        let caller_status = String::from_utf8(parsed_res.0.unwrap()).unwrap();
         assert_eq!("\"caller status is ok!\"", caller_status);
     }
 

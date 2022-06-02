@@ -74,16 +74,16 @@ impl Script {
         self.account = Some(account);
     }
 
-    pub(crate) fn create_account(&self, receiver: AccountId, deposit: Balance) {
+    pub(crate) fn create_account(&self, receiver: AccountId, deposit: Balance) -> ExecutionResult{
         self.account
             .as_ref().unwrap()
-            .create_user( receiver, deposit );
+            .create_user( receiver, deposit )
     }
 
-    pub(crate) fn transfer(&self, receiver: AccountId, deposit: Balance) {
+    pub(crate) fn transfer(&self, receiver: AccountId, deposit: Balance) -> ExecutionResult {
         self.account
             .as_ref().unwrap()
-            .transfer( receiver, deposit );
+            .transfer( receiver, deposit )
     }
 
     pub(crate) fn call(&self, receiver: AccountId, method: &str, args: &[u8], deposit: Balance) -> ExecutionResult {
@@ -104,10 +104,10 @@ impl Script {
             .view( receiver, method, args )
     }
 
-    pub(crate) fn deploy(&self, wasm_bytes: &[u8], receiver: AccountId, deposit: Balance) {
+    pub(crate) fn deploy(&self, wasm_bytes: &[u8], receiver: AccountId, deposit: Balance) -> ExecutionResult {
         self.account
             .as_ref().unwrap()
-            .deploy( wasm_bytes, receiver, deposit );
+            .deploy( wasm_bytes, receiver, deposit )
     }
 
     pub(crate) fn write_to_file(&self, output: &Path, state_root: &mut CryptoHash) {

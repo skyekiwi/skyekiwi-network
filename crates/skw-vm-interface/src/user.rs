@@ -1,4 +1,4 @@
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{RefCell};
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
@@ -8,7 +8,7 @@ use skw_vm_primitives::{
 };
 
 use skw_vm_primitives::{
-    account::{Account, AccessKey},
+    account::{AccessKey},
     contract_runtime::{CryptoHash, Balance, Gas},
     transaction::Transaction,
 };
@@ -17,57 +17,6 @@ use crate::{
     outcome::{outcome_into_result, ExecutionResult, ViewResult},
     runtime::{RuntimeStandalone},
 };
-
-pub const DEFAULT_GAS: u64 = 300_000_000_000_000;
-pub const STORAGE_AMOUNT: u128 = 50_000_000_000_000_000_000_000_000;
-
-type Runtime = Rc<RefCell<RuntimeStandalone>>;
-
-pub struct UserTransaction {
-    transaction: Transaction,
-    signer: InMemorySigner,
-    runtime: Runtime,
-}
-
-impl UserTransaction {
-    /// Sign and execute the transaction
-    pub fn submit(self) -> ExecutionResult {
-        let res =
-            (*self.runtime).borrow_mut().resolve_tx(self.transaction.sign(&self.signer)).unwrap();
-        (*self.runtime).borrow_mut().process_all().unwrap();
-        outcome_into_result(res, &self.runtime)
-    }
-
-    /// Create account for the receiver of the transaction.
-    pub fn create_account(mut self) -> Self {
-        self.transaction = self.transaction.create_account();
-        self
-    }
-
-    /// Deploy Wasm binary
-    pub fn deploy_contract(mut self, code: Vec<u8>) -> Self {
-        self.transaction = self.transaction.deploy_contract(code);
-        self
-    }
-
-    /// Execute contract call to receiver
-    pub fn function_call(
-        mut self,
-        function_name: String,
-        args: Vec<u8>,
-        gas: Gas,
-        deposit: Balance,
-    ) -> Self {
-        self.transaction = self.transaction.function_call(function_name, args, gas, deposit);
-        self
-    }
-
-    /// Transfer deposit to receiver
-    pub fn transfer(mut self, deposit: Balance) -> Self {
-        self.transaction = self.transaction.transfer(deposit);
-        self
-    }
-}
 
 /// A user that can sign transactions.  It includes a signer and an account id.
 pub struct UserAccount {
@@ -93,14 +42,6 @@ impl UserAccount {
         Self { runtime, account_id, signer }
     }
 
-    /// Returns a copy of the `account_id`
-    pub fn account_id(&self) -> AccountId {
-        self.account_id.clone()
-    }
-    /// Look up the account information on chain.
-    pub fn account(&self) -> Option<Account> {
-        (*self.runtime).borrow().view_account(self.account_id.clone())
-    }
     /// Look up the latest state_root
     pub fn state_root(&self) -> CryptoHash {
         (*self.runtime).borrow().state_root()
@@ -133,7 +74,7 @@ impl UserAccount {
         wasm_bytes: &[u8],
         account_id: AccountId,
         deposit: Balance,
-    ) -> UserAccount {
+    ) -> ExecutionResult {
         let signer =
             InMemorySigner::from_seed(account_id.clone(), KeyType::ED25519, &account_id.as_str());
         self.submit_transaction(
@@ -143,8 +84,6 @@ impl UserAccount {
                 .transfer(deposit)
                 .deploy_contract(wasm_bytes.to_vec()),
         )
-        .assert_success();
-        UserAccount::new(&self.runtime, account_id, signer)
     }
 
     fn transaction(&self, receiver_id: AccountId) -> Transaction {
@@ -162,17 +101,10 @@ impl UserAccount {
         )
     }
 
-    /// Create a user transaction to `receiver_id` to be signed the current user
-    pub fn create_transaction(&self, receiver_id: AccountId) -> UserTransaction {
-        let transaction = self.transaction(receiver_id);
-        let runtime = Rc::clone(&self.runtime);
-        UserTransaction { transaction, signer: self.signer.clone(), runtime }
-    }
-
     fn submit_transaction(&self, transaction: Transaction) -> ExecutionResult {
         let res = (*self.runtime).borrow_mut().resolve_tx(transaction.sign(&self.signer)).unwrap();
         (*self.runtime).borrow_mut().process_all().unwrap();
-        outcome_into_result(res, &self.runtime)
+        outcome_into_result(res.1)
     }
 
     pub fn view(&self, receiver_id: AccountId, method: &str, args: &[u8]) -> ViewResult {
@@ -185,7 +117,7 @@ impl UserAccount {
         signer_user: &UserAccount,
         account_id: AccountId,
         amount: Balance,
-    ) -> UserAccount {
+    ) -> ExecutionResult {
         let signer =
             InMemorySigner::from_seed(account_id.clone(), KeyType::ED25519, &account_id.as_str());
         signer_user
@@ -196,20 +128,10 @@ impl UserAccount {
                     .add_key(signer.public_key(), AccessKey::full_access())
                     .transfer(amount),
             )
-            .assert_success();
-        UserAccount::new(&self.runtime, account_id, signer)
     }
 
     /// Create a new user where the signer is this user account
-    pub fn create_user(&self, account_id: AccountId, amount: Balance) -> UserAccount {
+    pub fn create_user(&self, account_id: AccountId, amount: Balance) -> ExecutionResult {
         self.create_user_from(self, account_id, amount)
-    }
-
-    pub fn borrow_runtime(&self) -> Ref<RuntimeStandalone> {
-        (*self.runtime).borrow()
-    }
-
-    pub fn borrow_runtime_mut(&self) -> RefMut<RuntimeStandalone> {
-        (*self.runtime).borrow_mut()
     }
 }
