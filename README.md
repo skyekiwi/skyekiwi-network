@@ -98,10 +98,11 @@ Install target `wasm32`
 ```
 rustup target add wasm32-unknown-unknown --toolchain nightly
 ```
+(note: remove "--toolchain nightly" for Apple M1)
 
 1. `yarn main:build`
 
-Will generate three binaries: `skyekiwi-node`, `skw-vm-engine-cli` and `skw-vm-interface`. 
+Will generate three binaries: `skyekiwi-node`, `skw-vm-engine-cli` and `skw-vm-interface` under /target/release/. 
 
 `skyekiwi-node` is the Substrate based blockchain binary. 
 
