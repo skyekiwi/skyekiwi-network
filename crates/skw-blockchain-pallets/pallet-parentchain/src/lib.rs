@@ -20,7 +20,7 @@ pub type ShardId = u64;
 pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use skw_blockchain_primitives::{ShardId, CallIndex};
+	use skw_blockchain_primitives::types::{ShardId, CallIndex};
 	use sp_std::vec::Vec;	
 	use super::WeightInfo;
 	

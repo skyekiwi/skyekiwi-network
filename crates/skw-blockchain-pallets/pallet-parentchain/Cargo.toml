@@ -35,6 +35,7 @@ default = ['std']
 runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
 std = [
     'codec/std',
+    'sp-std/std',
     'scale-info/std',
     'frame-support/std',
     'frame-system/std',

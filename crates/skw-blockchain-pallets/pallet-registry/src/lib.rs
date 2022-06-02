@@ -18,7 +18,10 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use super::WeightInfo;
-	use skw_blockchain_primitives::{ShardId, compress_hex_key};
+	use skw_blockchain_primitives::{
+		types::ShardId, 
+		util::compress_hex_key
+	};
 	use frame_support::sp_runtime::SaturatedConversion;
 	use sp_std::vec::Vec;
 

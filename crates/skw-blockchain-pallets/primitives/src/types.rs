@@ -42,16 +42,16 @@ pub struct Calls{
 #[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
 pub struct Outcome{
     pub view_result_log: Vec<Bytes>,
-    pub view_result: Option<Vec<u8>>,
-    pub view_error: Option<Vec<u8>>,
+    pub view_result: Option<Bytes>,
+    pub view_error: Option<Bytes>,
     pub outcome_logs: Vec<Bytes>,
     pub outcome_receipt_ids: Vec<CryptoHash>,
     pub outcome_tokens_burnt: Balance,
     pub outcome_executor_id: Bytes,
-    pub outcome_status: Option<Vec<u8>>,
+    pub outcome_status: Option<Bytes>,
 }
 
-pub type StatePatch = Vec<u8>;
+pub type StatePatch = Bytes; 
 
 #[derive(BorshSerialize, BorshDeserialize, Default, Debug)]
 pub struct Outcomes {

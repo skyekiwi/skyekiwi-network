@@ -4,11 +4,11 @@ pub use pallet::*;
 pub mod weights;
 pub use weights::WeightInfo;
 
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
-#[cfg(test)]
-mod mock;
+// #[cfg(test)]
+// mod mock;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -26,7 +26,7 @@ pub mod pallet {
 	use super::*;
 	use sp_std::vec::Vec;
 	
-	use skw_blockchain_primitives::{ShardId};	
+	use skw_blockchain_primitives::types::{ShardId};	
 	pub type BalanceOf<T> = pallet_treasury::BalanceOf<T>;
 
 	#[pallet::config]
@@ -71,7 +71,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
 
-		/// (ROOT ONLY) force create an account inside the enclave
+		//// (ROOT ONLY) force create an account inside the enclave
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_shard_confirmation_threshold())]
 		pub fn force_create_enclave_account(
 			origin: OriginFor<T>,
@@ -110,26 +110,23 @@ pub mod pallet {
 			account: &T::AccountId,
 			shard_id: ShardId,
 		) -> Vec<u8>{
-			let call = skw_blockchain_primitives::InputParams {
-				origin: Some(b"system".to_vec()),
-				origin_public_key: None,
+			let call = skw_blockchain_primitives::types::Call {
+				origin_public_key: [0; 32],
+				receipt_public_key: [0; 32],
 				encrypted_egress: false,
 				
-				transaction_action: b"create_account".to_vec(),
-				receiver: account.to_string().as_bytes().to_vec(),
+				transaction_action: 0,
 				
 				// an arb amount of offchain runtime gas token for transacrtions
 				amount: Some(T::DefaultFaucet::get()),
-
 				wasm_blob_path: None,
 				method: None,
 				args: None, 
-				to: None,
 			};
 
 			let mut batched = Vec::new();
 			batched.push(call);
-			let batched_calls = skw_blockchain_primitives::Input {
+			let batched_calls = skw_blockchain_primitives::types::Calls {
 				ops: batched,
 				shard_id: shard_id,
 				block_number: None,

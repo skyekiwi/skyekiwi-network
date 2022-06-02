@@ -21,7 +21,7 @@ pub mod pallet {
 	};
 	use frame_system::pallet_prelude::*;
 	use super::WeightInfo;
-	use skw_blockchain_primitives::{CallIndex, EncodedCall, ShardId, PublicKey, SecretId};
+	use skw_blockchain_primitives::types::{CallIndex, EncodedCall, ShardId, PublicKey, SecretId};
 	use sp_std::vec::Vec;
 	use sp_std::prelude::ToOwned;	
 	#[pallet::config]

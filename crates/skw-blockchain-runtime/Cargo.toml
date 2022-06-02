@@ -70,7 +70,7 @@ runtime-benchmarks = [
     'pallet-balances/runtime-benchmarks',
     'pallet-grandpa/runtime-benchmarks',
     'pallet-timestamp/runtime-benchmarks',
-    # 'pallet-treasury/runtime-benchmarks',
+    'pallet-treasury/runtime-benchmarks',
 
     'pallet-secrets/runtime-benchmarks',
     'pallet-s-contract/runtime-benchmarks',

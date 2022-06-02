@@ -182,7 +182,7 @@ fn is_beacon_turn_test_signle_keeper() {
 #[test]
 fn insert_pk_for_user() {
 
-	use skw_blockchain_primitives::compress_hex_key;
+	use skw_blockchain_primitives::util::compress_hex_key;
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 

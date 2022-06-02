@@ -32,7 +32,7 @@ pub use frame_support::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		IdentityFee, Weight,
 	},
-	StorageValue,
+	StorageValue, PalletId,
 };
 pub use frame_system::Call as SystemCall;
 pub use pallet_balances::Call as BalancesCall;
@@ -279,17 +279,18 @@ frame_support::parameter_types! {
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const SContractPalletId: PalletId = PalletId(*b"scontrac");
 }
-impl pallet_treasury::Config for Test {
+
+impl pallet_treasury::Config for Runtime {
 	type PalletId = TreasuryPalletId;
 	type Currency = Balances;
-	type ApproveOrigin = frame_system::EnsureRoot<u64>;
-	type RejectOrigin = frame_system::EnsureRoot<u64>;
+	type ApproveOrigin = frame_system::EnsureRoot<AccountId>;
+	type RejectOrigin = frame_system::EnsureRoot<AccountId>;
 	type Event = Event;
 	type OnSlash = ();
 	type ProposalBond = ProposalBond;
-	type ProposalBondMinimum = ConstU64<1>;
+	type ProposalBondMinimum = ConstU128<1>;
 	type ProposalBondMaximum = ();
-	type SpendPeriod = ConstU64<2>;
+	type SpendPeriod = ConstU32<2>;
 	type Burn = Burn;
 	type BurnDestination = (); // Just gets burned.
 	type WeightInfo = ();
@@ -329,10 +330,10 @@ impl pallet_s_contract::Config for Runtime {
 	type SContractRoot = SContractPalletId;
 }
 
-impl pallet_s_account::Config for Test {
+impl pallet_s_account::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
-	type ReservationRequirement = ConstU64<1>;
+	type ReservationRequirement = ConstU128<1>;
 	type DefaultFaucet = ConstU32<1_000>;
 }
 
@@ -352,11 +353,13 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Event},
+		Treasury: pallet_treasury::{Pallet, Call, Event<T>, Storage},
 
 		Secrets: pallet_secrets::{Pallet, Call, Storage, Event<T>},
 		SContract: pallet_s_contract::{Pallet, Call, Storage, Event<T>},
 		Registry: pallet_registry::{Pallet, Call, Storage, Event<T>},
 		Parentchain: pallet_parentchain::{Pallet, Call, Storage, Event<T>},
+		SAccount: pallet_s_account::{Pallet, Call, Storage, Event<T>},
 	}
 );
 

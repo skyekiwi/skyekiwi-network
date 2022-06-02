@@ -2,3 +2,4 @@
 
 pub mod util;
 pub mod types;
+pub use borsh::{BorshDeserialize, BorshSerialize};
