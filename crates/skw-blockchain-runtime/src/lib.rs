@@ -48,7 +48,7 @@ pub use pallet_registry;
 pub use pallet_parentchain;
 
 /// An index to a block.
-pub type BlockNumber = u32;
+pub type BlockNumber = skw_blockchain_primitives::types::BlockNumber;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -275,7 +275,7 @@ impl pallet_utility::Config for Runtime {
 
 frame_support::parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const Burn: Permill = Permill::from_percent(50);
+	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const SContractPalletId: PalletId = PalletId(*b"scontrac");
 }
@@ -290,7 +290,7 @@ impl pallet_treasury::Config for Runtime {
 	type ProposalBond = ProposalBond;
 	type ProposalBondMinimum = ConstU128<1>;
 	type ProposalBondMaximum = ();
-	type SpendPeriod = ConstU32<2>;
+	type SpendPeriod = ConstU32<20>;
 	type Burn = Burn;
 	type BurnDestination = (); // Just gets burned.
 	type WeightInfo = ();
@@ -333,7 +333,7 @@ impl pallet_s_contract::Config for Runtime {
 impl pallet_s_account::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
-	type ReservationRequirement = ConstU128<1>;
+	type ReservationRequirement = ConstU128<1_000_000_000_000>;
 	type DefaultFaucet = ConstU32<1_000>;
 }
 
@@ -405,6 +405,7 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]
 		[pallet_s_contract, SContract]
+		[pallet_s_account, SAccount]
 		[pallet_secrets, Secrets]
 		[pallet_registry, Registry]
 		[pallet_parentchain, Parentchain]

@@ -2,9 +2,8 @@ use super::Event as RegistryEvent;
 
 use frame_support::{assert_ok};
 use crate::mock::{Event, *};
-use sp_std::num::ParseIntError;
 
-const PUBLIC_KEY: &str = "38d58afd1001bb265bce6ad24ff58239c62e1c98886cda9d7ccf41594f37d52f";
+const PUBLIC_KEY: [u8; 32] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 
 type AccountId = u64;
 const ALICE: AccountId = 1;
@@ -13,24 +12,16 @@ const CHARLIE: AccountId = 3;
 const DAVE: AccountId = 4;
 const FRED: AccountId = 5;
 
-fn decode_hex_uncompressed(s: &str) -> Result<Vec<u8>, ParseIntError> {
-	(0..s.len())
-		.step_by(1)
-		.map(|i| u8::from_str_radix(&s[i..i + 1], 16))
-		.collect()
-}
-
 #[test]
 fn it_register_secret_keeper() {
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY).unwrap();
 		assert_ok!(
 			Registry::register_secret_keeper( 
 				Origin::signed(ALICE), 
-				public_key.clone(),
+				PUBLIC_KEY.to_vec().clone(),
 				Vec::new()
 			)
 		);
@@ -54,11 +45,10 @@ fn it_renews_registration() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY).unwrap();
 		assert_ok!(
 			Registry::register_secret_keeper( 
 				Origin::signed(ALICE), 
-				public_key.clone(),
+				PUBLIC_KEY.to_vec().clone(),
 				Vec::new()
 			)
 		);
@@ -66,7 +56,7 @@ fn it_renews_registration() {
 		assert_ok!(
 			Registry::renew_registration( 
 				Origin::signed(ALICE), 
-				public_key.clone(),
+				PUBLIC_KEY.to_vec().clone(),
 				Vec::new()
 			)
 		);
@@ -82,11 +72,10 @@ fn it_removes_registration() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY).unwrap();
 		assert_ok!(
 			Registry::register_secret_keeper( 
 				Origin::signed(ALICE), 
-				public_key.clone(),
+				PUBLIC_KEY.to_vec().clone(),
 				Vec::new()
 			)
 		);
@@ -109,20 +98,19 @@ fn is_beacon_turn_test() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY).unwrap();
-		assert_ok!( Registry::register_secret_keeper( Origin::signed(ALICE),  public_key.clone(), Vec::new() ) );
+		assert_ok!( Registry::register_secret_keeper( Origin::signed(ALICE),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
 		assert_ok!( Registry::register_running_shard( Origin::signed(ALICE), 0 ) );
 
-		assert_ok!( Registry::register_secret_keeper( Origin::signed(BOB),  public_key.clone(), Vec::new() ) );
+		assert_ok!( Registry::register_secret_keeper( Origin::signed(BOB),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
 		assert_ok!( Registry::register_running_shard( Origin::signed(BOB), 0 ) );
 
-		assert_ok!( Registry::register_secret_keeper( Origin::signed(CHARLIE),  public_key.clone(), Vec::new() ) );
+		assert_ok!( Registry::register_secret_keeper( Origin::signed(CHARLIE),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
 		assert_ok!( Registry::register_running_shard( Origin::signed(CHARLIE), 0 ) );
 
-		assert_ok!( Registry::register_secret_keeper( Origin::signed(DAVE),  public_key.clone(), Vec::new() ) );
+		assert_ok!( Registry::register_secret_keeper( Origin::signed(DAVE),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
 		assert_ok!( Registry::register_running_shard( Origin::signed(DAVE), 0 ) );
 
-		assert_ok!( Registry::register_secret_keeper( Origin::signed(FRED),  public_key.clone(), Vec::new() ) );
+		assert_ok!( Registry::register_secret_keeper( Origin::signed(FRED),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
 		assert_ok!( Registry::register_running_shard( Origin::signed(FRED), 0 ) );
 
 		// threshold = 1; block_num = 1; Alice can submit, others cannot
@@ -167,8 +155,7 @@ fn is_beacon_turn_test_signle_keeper() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY).unwrap();
-		assert_ok!( Registry::register_secret_keeper( Origin::signed(ALICE),  public_key.clone(), Vec::new() ) );
+		assert_ok!( Registry::register_secret_keeper( Origin::signed(ALICE),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
 		assert_ok!( Registry::register_running_shard( Origin::signed(ALICE), 0 ) );
 
 		// threshold = 1; block_num = 1; Alice can submit, others cannot
@@ -182,13 +169,11 @@ fn is_beacon_turn_test_signle_keeper() {
 #[test]
 fn insert_pk_for_user() {
 
-	use skw_blockchain_primitives::util::compress_hex_key;
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY).unwrap();
-		assert_ok!( Registry::register_user_public_key( Origin::signed(ALICE),  public_key.clone()) );
+		assert_ok!( Registry::register_user_public_key( Origin::signed(ALICE),  PUBLIC_KEY.to_vec().clone()) );
 
-		assert!( Registry::user_public_key_of(&ALICE).unwrap().to_vec() == compress_hex_key(&public_key.clone()));
+		assert!( Registry::user_public_key_of(&ALICE).unwrap().to_vec() == PUBLIC_KEY.to_vec().clone());
 	});
 }

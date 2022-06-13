@@ -4,11 +4,11 @@ pub use pallet::*;
 pub mod weights;
 pub use weights::WeightInfo;
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
-// #[cfg(test)]
-// mod mock;
+#[cfg(test)]
+mod mock;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -71,8 +71,8 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T:Config> Pallet<T> {
 
-		//// (ROOT ONLY) force create an account inside the enclave
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_shard_confirmation_threshold())]
+		/// (ROOT ONLY) force create an account inside the enclave
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::force_create_enclave_account())]
 		pub fn force_create_enclave_account(
 			origin: OriginFor<T>,
 			shard_id: ShardId,
@@ -80,7 +80,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_root(origin.clone())?;
 			
-			let encoded_call = Self::build_account_creation_call(&account, shard_id);
+			let encoded_call = Self::build_account_creation_call(&account);
 			pallet_s_contract::Pallet::<T>::force_push_call(origin, shard_id, encoded_call)?;
 
 			Self::deposit_event(Event::<T>::EnclaveAccountCreated(account, shard_id));
@@ -88,7 +88,7 @@ pub mod pallet {
 		}
 
 		/// reserve some token and create an account in the enclave 
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_shard_confirmation_threshold())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create_account())]
 		pub fn create_account(
 			origin: OriginFor<T>,
 			shard_id: ShardId,
@@ -97,7 +97,7 @@ pub mod pallet {
 
 			let treasury = T::PalletId::get().into_account();
 			T::Currency::transfer(&who, &treasury, T::ReservationRequirement::get(), KeepAlive)?;
-			let encoded_call = Self::build_account_creation_call(&who, shard_id);
+			let encoded_call = Self::build_account_creation_call(&who);
 			pallet_s_contract::Pallet::<T>::push_call(origin, shard_id, encoded_call)?;
 
 			Self::deposit_event(Event::<T>::EnclaveAccountCreated(who, shard_id));
@@ -106,15 +106,16 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		fn build_account_creation_call(
+		pub fn build_account_creation_call(
 			account: &T::AccountId,
-			shard_id: ShardId,
-		) -> Vec<u8>{
+		) -> Vec<u8> {
+			let system_origin = T::SContractRoot::get().into_account();
 			let call = skw_blockchain_primitives::types::Call {
-				origin_public_key: [0; 32],
-				receipt_public_key: [0; 32],
+				origin_public_key: system_origin,
+				// this should be safe as origin is checked with ensure_signed
+				receipt_public_key: T::AccountId::encode(&account).try_into().unwrap(),
 				encrypted_egress: false,
-				
+
 				transaction_action: 0,
 				
 				// an arb amount of offchain runtime gas token for transacrtions
@@ -128,7 +129,7 @@ pub mod pallet {
 			batched.push(call);
 			let batched_calls = skw_blockchain_primitives::types::Calls {
 				ops: batched,
-				shard_id: shard_id,
+				shard_id: 0, // placeholder - will be updated in sContract
 				block_number: None,
 			};
 

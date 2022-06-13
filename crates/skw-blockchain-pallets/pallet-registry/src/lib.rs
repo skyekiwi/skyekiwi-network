@@ -19,8 +19,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use super::WeightInfo;
 	use skw_blockchain_primitives::{
-		types::ShardId, 
-		util::compress_hex_key
+		types::{ShardId, PublicKey as PublicKeyType}, 
 	};
 	use frame_support::sp_runtime::SaturatedConversion;
 	use sp_std::vec::Vec;
@@ -63,12 +62,12 @@ pub mod pallet {
 	/// identity  key of each secret keepers, used to receive the secret
 	#[pallet::storage]
 	#[pallet::getter(fn public_key_of)]
-	pub(super) type PublicKey<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, [u8; 32]>;
+	pub(super) type PublicKey<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, PublicKeyType>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn user_public_key_of)]
 	pub(super) type UserPublicKey<T: Config> = StorageMap<_, Twox64Concat, 
-		T::AccountId, [u8; 32]>;
+		T::AccountId, PublicKeyType>;
 
 	/// members of each shard
 	#[pallet::storage]
@@ -123,9 +122,9 @@ pub mod pallet {
 			ensure!(Self::validate_signature(signature), Error::<T>::InvalidSecretKeeper);
 
 			// TODO: check for key validity
-			let pk = compress_hex_key(&public_key);
-			// TODO: switch to primiive publicKey type
-			let bounded_pk: [u8; 32] = pk.try_into().map_err(|_| Error::<T>::InvalidPublicKey)?;
+//			let pk = compress_hex_key(&public_key);
+			let pk = &public_key[..];
+			let bounded_pk: PublicKeyType = pk.try_into().map_err(|_| Error::<T>::InvalidPublicKey)?;
 
 			if !Self::try_insert_secret_keeper(	who.clone() ) {
 				return Err(Error::<T>::Unexpected.into());
@@ -153,10 +152,7 @@ pub mod pallet {
 			ensure!(<Expiration<T>>::contains_key(&who), Error::<T>::RegistrationNotFound);
 			ensure!(Self::validate_signature(signature), Error::<T>::InvalidSecretKeeper);
 
-			// TODO: check for key validity
-			let pk = compress_hex_key(&public_key);
-			let bounded_pk = pk.try_into().map_err(|_| Error::<T>::InvalidPublicKey)?;
-
+			let bounded_pk = public_key.try_into().map_err(|_| Error::<T>::InvalidPublicKey)?;
 
 			let now = frame_system::Pallet::<T>::block_number();
 			let expiration = now + T::RegistrationDuration::get();
@@ -228,8 +224,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let pk = compress_hex_key(&public_key);
-			let bounded_pk: [u8; 32] = pk.try_into().map_err(|_| Error::<T>::InvalidPublicKey)?;
+// 			let pk = &public_key[..];
+			let bounded_pk: [u8; 32] = public_key.try_into().map_err(|_| Error::<T>::InvalidPublicKey)?;
 
 			<UserPublicKey<T>>::insert(&who, bounded_pk);
 

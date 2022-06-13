@@ -13,6 +13,7 @@ version = '3.0.0'
 targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
+bs58 = { version = "0.4.0", default-features = false}
 skw-blockchain-primitives = { path = "../primitives", default-features = false }
 pallet-secrets = { version = "3.0.0", default-features = false, path = "../pallet-secrets" }
 pallet-s-contract = { version = "3.0.0", default-features = false, path = "../pallet-s-contract" }

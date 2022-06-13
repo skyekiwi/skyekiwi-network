@@ -1,7 +1,7 @@
 use sp_std::prelude::*;
 
 pub type CallIndex = u64;
-pub type ShardId = u64;
+pub type ShardId = u32;
 pub type SecretId = u64;
 
 pub type BlockNumber = u32;

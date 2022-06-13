@@ -4461,6 +4461,7 @@ dependencies = [
 name = "pallet-s-account"
 version = "3.0.0"
 dependencies = [
+ "bs58",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -7404,6 +7405,7 @@ dependencies = [
  "pallet-utility",
  "parity-scale-codec 3.1.2",
  "scale-info",
+ "skw-blockchain-primitives",
  "sp-api",
  "sp-block-builder",
  "sp-consensus-aura",

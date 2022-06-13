@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
 
+
 #[cfg(test)]
 mod tests;
 
@@ -22,8 +23,9 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use super::WeightInfo;
 	use skw_blockchain_primitives::types::{CallIndex, EncodedCall, ShardId, PublicKey, SecretId};
+	use frame_support::sp_runtime::SaturatedConversion;
 	use sp_std::vec::Vec;
-	use sp_std::prelude::ToOwned;	
+
 	#[pallet::config]
 	pub trait Config: 
 		frame_system::Config + 
@@ -281,7 +283,6 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-
 		pub fn validate_name(shard_id: ShardId, name: &BoundedVec::<u8, T::MaxContractNameLength>) -> bool {
 			name.len() >= T::MinContractNameLength::get() as usize
 				&& 
@@ -291,6 +292,49 @@ pub mod pallet {
 		pub fn is_shard_running(shard_id: ShardId) -> bool {
 			// or we can use any of the shard initialization param
 			Self::shard_secret_id(shard_id).is_some()
+		}
+	
+		pub fn validate_and_mark_call(
+			origin: &T::AccountId,
+			calls: &EncodedCall, 
+			block_number: T::BlockNumber, 
+			shard_id: ShardId
+		) -> Result<EncodedCall, Error::<T> > {
+
+			let calls: Result<skw_blockchain_primitives::types::Calls, _> = 
+			skw_blockchain_primitives::BorshDeserialize::try_from_slice(&calls[..]);
+
+			match calls {
+
+				Ok(mut calls) => {
+					let res = calls.ops.iter().all(|op| {
+						// transaction_action in valid range
+						let valid_action = op.transaction_action <= 4; // (checked with u8) && op.transaction_action >= 0
+
+						// if deployment call or account creation call, origin must be this pallet OR root
+						let valid_origin = match op.transaction_action {
+							0 | 4 => T::AccountId::encode(&T::SContractRoot::get().into_account()) == op.origin_public_key,
+							1 => false,
+							2 | 3 => T::AccountId::encode(&origin) == op.origin_public_key,
+							_ => false,
+						};
+
+						valid_action && valid_origin
+					});
+
+					if res == false {
+						return Err(Error::<T>::Unauthorized);
+					}
+
+					calls.block_number = Some(block_number.saturated_into::<u32>());
+					calls.shard_id = shard_id;
+
+					return Ok(
+						skw_blockchain_primitives::BorshSerialize::try_to_vec(&calls).unwrap()
+					);
+				},
+				Err(_) => Err(Error::<T>::InvalidEncodedCall),
+			}
 		}
 		
 		pub fn maybe_push_calls(
@@ -304,9 +348,22 @@ pub mod pallet {
 				Error::<T>::ShardNotInitialized
 			);
 
+			let marked_call = Self::validate_and_mark_call(
+				&who,
+				&call,
+				frame_system::Pallet::<T>::block_number(), 
+				shard_id
+			);
+
+			if marked_call.is_err() {
+				return Err(marked_call.err().unwrap());
+			}
+
+			let marked_call = marked_call.unwrap();
+
 			let call_index = Self::current_call_index_of();
 			let bounded_encoded_call = 
-				BoundedVec::<u8, T::MaxCallLength>::try_from(call.to_owned())
+				BoundedVec::<u8, T::MaxCallLength>::try_from(marked_call)
 				.map_err(|_| Error::<T>::InvalidEncodedCall)?;	
 
 			let now = frame_system::Pallet::<T>::block_number();
@@ -320,6 +377,10 @@ pub mod pallet {
 			<CurrentCallIndex<T>>::set( call_index.saturating_add(1) );
 
 			Ok(call_index)
+		}
+
+		pub fn get_pallet_account_id() -> T::AccountId {
+			T::SContractRoot::get().into_account()
 		}
 	}
 }

@@ -1,55 +1,77 @@
 use super::*;
-
+use sp_std::vec::Vec;
+use frame_support::pallet_prelude::Encode;
 use frame_system::RawOrigin;
 use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_suite};
-
-#[allow(unused)]
-use crate::Pallet as Parentchain;
-use pallet_registry::Pallet as Registry;
-use skw_blockchain_primitives::PublicKey;
-
-const PUBLIC_KEY: &str = "38d58afd1001bb265bce6ad24ff58239c62e1c98886cda9d7ccf41594f37d52f";
-fn decode_hex_uncompressed(s: &str) -> Vec<u8> {
-	(0..s.len())
-		.step_by(1)
-		.map(|i| u8::from_str_radix(&s[i..i + 1], 16).unwrap())
-		.collect()
-}
+use skw_blockchain_primitives::types::PublicKey;
+use frame_support::traits::Currency;
+use frame_support::sp_runtime::traits::Bounded;
+const IPFS_CID_1: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
+const PUBLIC_KEY: PublicKey = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 benchmarks! {
-	set_shard_confirmation_threshold {
-		let s = 0u64;
-		let caller: T::AccountId = whitelisted_caller();
-	}: set_shard_confirmation_threshold(RawOrigin::Root, s, 2)
-	verify {
-		assert_eq!(ShardConfirmationThreshold::<T>::get(s), Some(2u64));
-	}
-
-	submit_outcome {
-		let s in 1 .. 100;
-
-		let shard_id = 0u64;
-		let caller: T::AccountId = whitelisted_caller();
-		let now = frame_system::Pallet::<T>::block_number();
-
-		let state_root = [0u8; 32];
-
-		let mut outcome_call_index: Vec<CallIndex> = Vec::new();
-		let mut outcome: Vec<Vec<u8>> = Vec::new();
-
-		for i in 0 .. s {
-			outcome_call_index.push(i as CallIndex);
-			outcome.push([i as u8; 50_000].to_vec());
-		}
+	force_create_enclave_account {
+		let s = 0u32;
+		let caller: T::AccountId = whitelisted_caller();		
+		pallet_s_contract::Pallet::<T>::add_authorized_shard_operator(RawOrigin::Root.into(), s, caller.clone())?;
 		
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY);
-		Registry::<T>::register_secret_keeper( RawOrigin::Signed(caller.clone()).into(),  public_key.clone(), Vec::new() )?;
-		Registry::<T>::register_running_shard( RawOrigin::Signed(caller.clone()).into(), 0 )?;
-		Parentchain::<T>::set_shard_confirmation_threshold( RawOrigin::Root.into(), shard_id, 1 )?;
-	}: submit_outcome(RawOrigin::Signed(caller), now, shard_id, state_root, outcome_call_index, outcome)
-	verify {
-		assert_eq!(Confirmation::<T>::get(shard_id, now), Some(1u64));
-	}
+		let mut all_calls = Vec::new();
+		all_calls.push(skw_blockchain_primitives::types::Call {
+			origin_public_key: T::AccountId::encode(&pallet_s_contract::Pallet::<T>::get_pallet_account_id()).try_into().unwrap(),
+			receipt_public_key: T::AccountId::encode(&caller.clone()).try_into().unwrap(),
+			encrypted_egress: false,
+			transaction_action: 0, 
+			amount: Some(10),
+			wasm_blob_path: None,
+			method: None,  
+			args: None,
+		});
+
+		let calls = skw_blockchain_primitives::types::Calls {
+			ops: all_calls,
+			block_number: Some(1),
+			shard_id: 0
+		};
+		let encoded_calls = skw_blockchain_primitives::BorshSerialize::try_to_vec(&calls).unwrap();
+		pallet_s_contract::Pallet::<T>::initialize_shard(
+			RawOrigin::Signed(caller.clone()).into(), 0, encoded_calls.clone(),
+			IPFS_CID_1.as_bytes().to_vec(),
+			PUBLIC_KEY
+		)?;
+	}: force_create_enclave_account(RawOrigin::Root, s, caller)
+	verify { }
+
+	create_account {
+		let s = 0u32;
+		let caller: T::AccountId = whitelisted_caller();
+		T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+		pallet_s_contract::Pallet::<T>::add_authorized_shard_operator(RawOrigin::Root.into(), 0, caller.clone())?;
+		
+		let mut all_calls = Vec::new();
+		all_calls.push(skw_blockchain_primitives::types::Call {
+			origin_public_key: T::AccountId::encode(&pallet_s_contract::Pallet::<T>::get_pallet_account_id()).try_into().unwrap(),
+			receipt_public_key: T::AccountId::encode(&caller.clone()).try_into().unwrap(),
+			encrypted_egress: false,
+			transaction_action: 0, 
+			amount: Some(10),
+			wasm_blob_path: None,
+			method: None,  
+			args: None,
+		});
+
+		let calls = skw_blockchain_primitives::types::Calls {
+			ops: all_calls,
+			block_number: Some(1),
+			shard_id: 0
+		};
+		let encoded_calls = skw_blockchain_primitives::BorshSerialize::try_to_vec(&calls).unwrap();
+		pallet_s_contract::Pallet::<T>::initialize_shard(
+			RawOrigin::Signed(caller.clone()).into(), s, encoded_calls.clone(),
+			IPFS_CID_1.as_bytes().to_vec(),
+			PUBLIC_KEY
+		)?;
+	}: create_account(RawOrigin::Signed(caller), s)
+	verify { }
 }
 
 impl_benchmark_test_suite!(
