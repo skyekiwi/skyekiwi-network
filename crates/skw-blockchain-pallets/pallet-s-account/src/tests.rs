@@ -13,27 +13,6 @@ fn it_create_account() {
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
-
-		let mut all_calls = Vec::new();
-		all_calls.push(skw_blockchain_primitives::types::Call {
-			origin_public_key: SContract::get_pallet_account_id().into(),
-			receipt_public_key: account1.clone().into(),
-			encrypted_egress: false,
-			transaction_action: 0, 
-			amount: Some(10),
-			wasm_blob_path: None,
-			method: None,  
-			args: None,
-		});
-
-		let calls = skw_blockchain_primitives::types::Calls {
-			ops: all_calls,
-			block_number: Some(1),
-			shard_id: 0
-		};
-
-		let encoded_calls = skw_blockchain_primitives::BorshSerialize::try_to_vec(&calls).unwrap();
-
 		assert_ok!(
 			SContract::add_authorized_shard_operator(
 				Origin::root(), 0, account1.clone()
@@ -43,7 +22,6 @@ fn it_create_account() {
 		assert_ok!(
 			SContract::initialize_shard(
 				Origin::signed(account1.clone()), 0,
-				encoded_calls.clone(),
 				IPFS_CID_1.as_bytes().to_vec(),
 				PUBLIC_KEY,
 			)
@@ -61,27 +39,6 @@ fn it_force_create_account() {
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
-
-		let mut all_calls = Vec::new();
-		all_calls.push(skw_blockchain_primitives::types::Call {
-			origin_public_key: SContract::get_pallet_account_id().into(),
-			receipt_public_key: account1.clone().into(),
-			encrypted_egress: false,
-			transaction_action: 0, 
-			amount: Some(10),
-			wasm_blob_path: None,
-			method: None,  
-			args: None,
-		});
-
-		let calls = skw_blockchain_primitives::types::Calls {
-			ops: all_calls,
-			block_number: Some(1),
-			shard_id: 0
-		};
-
-		let encoded_calls = skw_blockchain_primitives::BorshSerialize::try_to_vec(&calls).unwrap();
-
 		assert_ok!(
 			SContract::add_authorized_shard_operator(
 				Origin::root(), 0, account1.clone()
@@ -91,7 +48,6 @@ fn it_force_create_account() {
 		assert_ok!(
 			SContract::initialize_shard(
 				Origin::signed(account1.clone()), 0,
-				encoded_calls.clone(),
 				IPFS_CID_1.as_bytes().to_vec(),
 				PUBLIC_KEY,
 			)

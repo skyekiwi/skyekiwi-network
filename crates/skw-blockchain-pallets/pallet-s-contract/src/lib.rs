@@ -18,11 +18,11 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*, ensure, PalletId,
-		sp_runtime::traits::AccountIdConversion
+		sp_runtime::traits::AccountIdConversion, StorageHasher
 	};
 	use frame_system::pallet_prelude::*;
 	use super::WeightInfo;
-	use skw_blockchain_primitives::types::{CallIndex, EncodedCall, ShardId, PublicKey, SecretId};
+	use skw_blockchain_primitives::types::{CallIndex, EncodedCall, ShardId, PublicKey, SecretId, Bytes};
 	use frame_support::sp_runtime::SaturatedConversion;
 	use sp_std::vec::Vec;
 
@@ -146,7 +146,6 @@ pub mod pallet {
 		) -> DispatchResult {
 			let deployer = ensure_signed(origin.clone())?;
 
-			// TODO: validate deployment call
 			// Deployment Call Layout: [("action_deploy"), init_call1, init_call2 ...]
 			// ("action_deploy") will be automatically appended by the offchain bridge
 
@@ -161,7 +160,13 @@ pub mod pallet {
 				Error::<T>::InvalidContractName
 			);
 
-			let call_index = Self::maybe_push_calls(deployer, shard_id, &deployment_call, false)?;
+			let call_index = Self::maybe_push_calls(
+				deployer, 
+				shard_id, 
+				&deployment_call, 
+				Some(contract_name.clone()),
+				false,
+			)?;
 
 			// No error below this line 
 			<WasmBlobCID<T>>::insert(&shard_id, &bounded_contract_name, bounded_wasm_blob_cid);
@@ -177,21 +182,14 @@ pub mod pallet {
 			call: EncodedCall,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let call_index = Self::maybe_push_calls(who, shard_id, &call, false)?;
-			Self::deposit_event(Event::<T>::CallReceived(shard_id, call_index));
-			Ok(())
-		}
 
-		#[pallet::weight(<T as Config>::WeightInfo::push_call())]
-		pub fn force_push_call(
-			origin: OriginFor<T>, 
-			shard_id: ShardId,
-			call: EncodedCall,
-		) -> DispatchResult {
-			ensure_root(origin)?;
-			let pallet_origin = T::SContractRoot::get().into_account();
-			let call_index = Self::maybe_push_calls(pallet_origin, shard_id, &call, false)?;
-			Self::deposit_event(Event::<T>::CallReceived(shard_id, call_index));
+			if  who.clone() == Self::get_pallet_account_id() {
+				let call_index = Self::maybe_push_calls(who, shard_id, &call, None, true)?;
+				Self::deposit_event(Event::<T>::CallReceived(shard_id, call_index));
+			} else {
+				let call_index = Self::maybe_push_calls(who, shard_id, &call, None, false)?;
+				Self::deposit_event(Event::<T>::CallReceived(shard_id, call_index));
+			}
 			Ok(())
 		}
 
@@ -200,7 +198,6 @@ pub mod pallet {
 		pub fn initialize_shard(
 			origin: OriginFor<T>, 
 			shard_id: ShardId,
-			call: EncodedCall,
 			initial_state_metadata: Vec<u8>,
 			public_key: PublicKey,
 		) -> DispatchResult {
@@ -211,12 +208,11 @@ pub mod pallet {
 				Ok(()) => {
 					// get the lastest secretId - 1 -> it belongs to the secret we have just created
 					let secret_id = pallet_secrets::Pallet::<T>::current_secret_id().saturating_sub(1);
-					let call_index = Self::maybe_push_calls(who, shard_id, &call, true)?;
 
 					// callIndex 0 is the init call - so current call is 1
 					<ShardSecretIndex<T>>::insert(&shard_id, secret_id);
 					<ShardPublicKey<T>>::insert(&shard_id, public_key);
-					<ShardHighCallIndex<T>>::insert(&shard_id, call_index);
+					<ShardHighCallIndex<T>>::insert(&shard_id, 0);
 					Self::deposit_event(Event::<T>::ShardInitialized(shard_id));
 					Ok(())
 				},
@@ -286,19 +282,50 @@ pub mod pallet {
 		pub fn validate_name(shard_id: ShardId, name: &BoundedVec::<u8, T::MaxContractNameLength>) -> bool {
 			name.len() >= T::MinContractNameLength::get() as usize
 				&& 
-			Self::wasm_blob_cid_of(shard_id, name).is_none()
+			Self::wasm_blob_cid_of(shard_id, name).is_none() // as name is not taken
 		}
 
 		pub fn is_shard_running(shard_id: ShardId) -> bool {
 			// or we can use any of the shard initialization param
 			Self::shard_secret_id(shard_id).is_some()
 		}
+
+		pub fn add_contract_creation_call (
+			calls: &EncodedCall,
+			contract_name: Bytes,
+		) -> Result<EncodedCall, Error<T>> {
+			
+			// ASSUME: the calls has been correctly validated
+			let res: Result<skw_blockchain_primitives::types::Calls, _> = 
+				skw_blockchain_primitives::BorshDeserialize::try_from_slice(&calls[..]);
+
+ 			match res {
+				Ok(mut calls) => {
+					calls.ops.push(skw_blockchain_primitives::types::Call {
+						origin_public_key: T::AccountId::encode(&T::SContractRoot::get().into_account()).try_into().unwrap(),
+						receipt_public_key: Blake2_256::hash(&contract_name[..]),
+						encrypted_egress: false,
+
+						transaction_action: 4,
+						amount: Some(10),
+						contract_name: Some(contract_name),
+						method: None,
+						args: None,
+					});
+					
+					Ok(skw_blockchain_primitives::BorshSerialize::try_to_vec(&calls).unwrap())
+				},
+
+				Err(_) => Err(Error::<T>::InvalidEncodedCall),	
+			}
+		}
 	
-		pub fn validate_and_mark_call(
+		pub fn validate_and_mark_usual_call(
 			origin: &T::AccountId,
 			calls: &EncodedCall, 
 			block_number: T::BlockNumber, 
-			shard_id: ShardId
+			shard_id: ShardId,
+			no_origin_check: bool,
 		) -> Result<EncodedCall, Error::<T> > {
 
 			let calls: Result<skw_blockchain_primitives::types::Calls, _> = 
@@ -311,15 +338,16 @@ pub mod pallet {
 						// transaction_action in valid range
 						let valid_action = op.transaction_action <= 4; // (checked with u8) && op.transaction_action >= 0
 
-						// if deployment call or account creation call, origin must be this pallet OR root
+						// T::AccountId::encode(&T::SContractRoot::get().into_account()) == op.origin_public_key
+
+						// only allow calls and view_calls
 						let valid_origin = match op.transaction_action {
-							0 | 4 => T::AccountId::encode(&T::SContractRoot::get().into_account()) == op.origin_public_key,
-							1 => false,
+							0 | 1 | 4 => false,
 							2 | 3 => T::AccountId::encode(&origin) == op.origin_public_key,
 							_ => false,
 						};
 
-						valid_action && valid_origin
+						valid_action && (valid_origin || no_origin_check)
 					});
 
 					if res == false {
@@ -341,25 +369,34 @@ pub mod pallet {
 			who: T::AccountId,
 			shard_id: ShardId, 
 			call: &EncodedCall,
-			init_shard_call: bool,
+			contract_name: Option<Bytes>,
+			force_push: bool,
 		) -> Result<CallIndex, Error::<T> > {
 			ensure!(
-				init_shard_call || Self::is_shard_running(shard_id), 
+				force_push || Self::is_shard_running(shard_id), 
 				Error::<T>::ShardNotInitialized
 			);
 
-			let marked_call = Self::validate_and_mark_call(
+			let marked_call = Self::validate_and_mark_usual_call(
 				&who,
 				&call,
-				frame_system::Pallet::<T>::block_number(), 
-				shard_id
+				frame_system::Pallet::<T>::block_number(),
+				shard_id,
+				force_push,
 			);
 
 			if marked_call.is_err() {
 				return Err(marked_call.err().unwrap());
 			}
 
-			let marked_call = marked_call.unwrap();
+			let mut marked_call = marked_call.unwrap();
+
+			if contract_name.is_some() {
+				marked_call = Self::add_contract_creation_call(
+					&marked_call,
+					contract_name.unwrap(),
+				)?;
+			}
 
 			let call_index = Self::current_call_index_of();
 			let bounded_encoded_call = 

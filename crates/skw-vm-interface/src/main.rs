@@ -28,7 +28,6 @@ use skw_blockchain_primitives::{
     types::{Calls, Outcome, Outcomes, StatePatch},
     util::{decode_hex, unpad_size, pad_size, public_key_to_offchain_id},
 };
-
 #[derive(clap::Parser, Debug)]
 struct CliArgs {
     #[clap(long)]
@@ -44,6 +43,9 @@ struct CliArgs {
     params: Option<String>,
     
     #[clap(long)]
+    wasm_files_base: String,
+ 
+    #[clap(long)]
     dump_state: bool,
 
     #[clap(long)]
@@ -57,6 +59,7 @@ fn main() {
         tracing_span_tree::span_tree().enable();
     }
 
+    let wasm_files_base = cli_args.wasm_files_base.clone();
     let state_patch: StatePatch = bs58::decode(&cli_args.state_patch.unwrap_or_default()).into_vec().unwrap();
     let mut script = Script::default();
     let mut state_root: CryptoHash = decode_hex(&cli_args.state_root.as_str())
@@ -180,17 +183,12 @@ fn main() {
                 // "deploy"
                 4 => {
                     assert!(
-                        input.wasm_blob_path.is_some(),
-                        "wasm_file must be provided when transaction_action is set"
-                    );
-    
-                    assert!(
                         input.amount.is_some(),
                         "amount must be provided when transaction_action is set"
                     );
     
-                    let wasm_blob_path = vec_to_str(&input.wasm_blob_path.as_ref().unwrap());
-                    let wasm_path = PathBuf::from(wasm_blob_path);
+                    let wasm_file_name = format!("{:?}/{:?}.wasm", wasm_files_base.clone(), receipt_account_id.to_string());
+                    let wasm_path = PathBuf::from(wasm_file_name);
                     let code = fs::read(&wasm_path).unwrap();
     
                     outcome = Some(script.deploy(

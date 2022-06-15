@@ -4483,6 +4483,7 @@ dependencies = [
 name = "pallet-s-contract"
 version = "3.0.0"
 dependencies = [
+ "blake2 0.10.4",
  "frame-benchmarking",
  "frame-support",
  "frame-system",

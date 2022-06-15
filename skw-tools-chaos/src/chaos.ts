@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { randomBytes } from 'tweetnacl';
-import { getLogger, u8aToHex } from '@skyekiwi/util';
+import { getLogger, stringToU8a, u8aToHex } from '@skyekiwi/util';
 import { Keyring } from '@polkadot/keyring'
 import { waitReady } from '@polkadot/wasm-crypto'
 import { ApiPromise, WsProvider } from '@polkadot/api'
 import {sendTx} from './util'
-import { Calls, Call, buildCalls } from '@skyekiwi/s-contract';
-
+import { Calls, Call, buildCalls, baseDecode } from '@skyekiwi/s-contract';
+import {blake2AsU8a} from '@polkadot/util-crypto'
 
 const sleep = (ms: number) => {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -20,44 +20,45 @@ export class Chaos {
     await waitReady();
     
     const keyring = new Keyring({ type: 'sr25519' }).addFromUri(`//${accountIndex}`)
-    const provider = new WsProvider('wss://staging.rpc.skye.kiwi');
+    const provider = new WsProvider('wss://127.0.0.1:9944');
     const api = await ApiPromise.create({ provider: provider });
+    const logger = getLogger(`push calls to //${accountIndex}`);
 
+    await sendTx(
+      api.tx.sAccount.createAccount(0), keyring, logger
+    );
     for (let i = 0 ; i < loop; i ++) {
-      const logger = getLogger(`push calls to //${accountIndex}`);
 
       const call = new Calls({
         ops: [
           new Call({
-            origin: keyring.address,
             origin_public_key: keyring.publicKey,
+            receipt_public_key: blake2AsU8a('status_message'),
             encrypted_egress: false,
 
-            transaction_action: 'call',
-            receiver: 'status_message_collections',
+            transaction_action: 2,
+            contract_name: stringToU8a('status_message'),
             amount: null,
-            method: 'set_status',
-            args: JSON.stringify({message: "0x" + u8aToHex(randomBytes(32))}),
-            wasm_blob_path: null,
-            to: null,
+            method: stringToU8a('set_status'),
+            args: stringToU8a(JSON.stringify({message: "0x" + u8aToHex(randomBytes(32))})),
           }),
           new Call({
-            origin: keyring.address,
             origin_public_key: keyring.publicKey,
+            receipt_public_key: blake2AsU8a('status_message'),
             encrypted_egress: false,
 
-            transaction_action: 'view_method_call',
-            receiver: 'status_message_collections',
+            transaction_action:3,
+            contract_name: stringToU8a('status_message'),
             amount: null,
-            method: 'get_status',
-            args: JSON.stringify({account_id: keyring.address.toLowerCase()}),
-            wasm_blob_path: null,
-            to: null,
+            method: stringToU8a('get_status'),
+            args: stringToU8a(JSON.stringify({account_id: keyring.address.toLowerCase()})),
           })
-        ]
+        ],
+        block_number: 0,
+        shard_id: 0,
       })
 
-      const pushCall = api.tx.sContract.pushCall(0, buildCalls(call));
+      const pushCall = api.tx.sContract.pushCall(0, baseDecode(buildCalls(call)));
       logger.info(`pushing calls from ${keyring.address}`)
       await sendTx(pushCall, keyring, logger);
 

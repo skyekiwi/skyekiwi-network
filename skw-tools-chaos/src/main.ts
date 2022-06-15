@@ -38,12 +38,12 @@ const main = async () => {
     // pass
   }
 
-  // // each account will make 10 random push calls
-  // const callCounts = 10;
+  // each account will make 10 random push calls
+  const callCounts = 10;
 
-  // for (let i = 1; i <= 20; i++) {
-  //   execSync(`${pm2Path} start "${tsnodePath} ${indexPath} ${i} ${callCounts}" --log ${logBasePath}/${i}.log`);
-  // }
+  for (let i = 1; i <= 20; i++) {
+    execSync(`${pm2Path} start "${tsnodePath} ${indexPath} ${i} ${callCounts}" --log ${logBasePath}/${i}.log`);
+  }
 }
 
 main();

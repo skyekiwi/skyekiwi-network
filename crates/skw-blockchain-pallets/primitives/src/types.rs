@@ -18,7 +18,7 @@ pub use borsh::{BorshSerialize, BorshDeserialize};
 pub type Bytes = Vec<u8>;
 
 #[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
-pub struct Call{
+pub struct Call {
 	pub origin_public_key: PublicKey,
     pub receipt_public_key: PublicKey,
     pub encrypted_egress: bool,
@@ -27,20 +27,20 @@ pub struct Call{
 
     // in sync with BalanceOf
     pub amount: Option<Balance>,
-    pub wasm_blob_path: Option<Bytes>,
+    pub contract_name: Option<Bytes>,
     pub method: Option<Bytes>,
     pub args: Option<Bytes>,
 }
 
 #[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
-pub struct Calls{
+pub struct Calls {
 	pub ops: Vec<Call>,
 	pub shard_id: ShardId,
 	pub block_number: Option<BlockNumber>,
 }
 
 #[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
-pub struct Outcome{
+pub struct Outcome {
     pub view_result_log: Vec<Bytes>,
     pub view_result: Option<Bytes>,
     pub view_error: Option<Bytes>,

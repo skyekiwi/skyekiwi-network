@@ -22,7 +22,7 @@ pub mod pallet {
 		}, Twox64Concat
 	};
 	use frame_support::sp_runtime::traits::AccountIdConversion;
-	use frame_system::pallet_prelude::*;
+	use frame_system::{pallet_prelude::*, RawOrigin};
 	use super::*;
 	use sp_std::vec::Vec;
 	
@@ -81,7 +81,9 @@ pub mod pallet {
 			ensure_root(origin.clone())?;
 			
 			let encoded_call = Self::build_account_creation_call(&account);
-			pallet_s_contract::Pallet::<T>::force_push_call(origin, shard_id, encoded_call)?;
+
+			let system_origin: T::AccountId = T::SContractRoot::get().into_account();
+			pallet_s_contract::Pallet::<T>::push_call(RawOrigin::Signed(system_origin).into(), shard_id, encoded_call)?;
 
 			Self::deposit_event(Event::<T>::EnclaveAccountCreated(account, shard_id));
 			Ok(())
@@ -98,7 +100,14 @@ pub mod pallet {
 			let treasury = T::PalletId::get().into_account();
 			T::Currency::transfer(&who, &treasury, T::ReservationRequirement::get(), KeepAlive)?;
 			let encoded_call = Self::build_account_creation_call(&who);
-			pallet_s_contract::Pallet::<T>::push_call(origin, shard_id, encoded_call)?;
+
+			let system_origin: T::AccountId = T::SContractRoot::get().into_account();
+			pallet_s_contract::Pallet::<T>::push_call(
+				RawOrigin::Signed(system_origin).into(),
+				shard_id, 
+				encoded_call
+			)?;
+
 
 			Self::deposit_event(Event::<T>::EnclaveAccountCreated(who, shard_id));
 			Ok(())
@@ -120,7 +129,7 @@ pub mod pallet {
 				
 				// an arb amount of offchain runtime gas token for transacrtions
 				amount: Some(T::DefaultFaucet::get()),
-				wasm_blob_path: None,
+				contract_name: None,
 				method: None,
 				args: None, 
 			};
