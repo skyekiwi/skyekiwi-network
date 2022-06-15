@@ -53,7 +53,7 @@ const genesis = async () => {
   for (let i = 1; i <= 15; i++) {
       const keyring = (new Keyring({ type: 'sr25519' })).addFromUri(`//${i}`);
       // fund the account with enough gas for 20 push calls
-      fundAccounts.push(api.tx.balances.transfer(keyring.address, 155_000_142 * 1000));
+      fundAccounts.push(api.tx.balances.transfer(keyring.address, 10 * (10 ** 12)));
   }
   fundAccounts.push(api.tx.balances.transfer(  "5DFhSMLmnw3Fgc6trbp8AuErcZoJS64gDFHUemqh2FRYdtoC"  , 155_000_142 * 20));
 

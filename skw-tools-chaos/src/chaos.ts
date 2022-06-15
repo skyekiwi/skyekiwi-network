@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { randomBytes } from 'tweetnacl';
-import { getLogger, stringToU8a, u8aToHex } from '@skyekiwi/util';
+import { getLogger, hexToU8a, stringToU8a, u8aToHex } from '@skyekiwi/util';
 import { Keyring } from '@polkadot/keyring'
 import { waitReady } from '@polkadot/wasm-crypto'
 import { ApiPromise, WsProvider } from '@polkadot/api'
@@ -18,9 +18,9 @@ export class Chaos {
 
   public async letsParty(accountIndex: number, loop: number) {
     await waitReady();
-    
+
     const keyring = new Keyring({ type: 'sr25519' }).addFromUri(`//${accountIndex}`)
-    const provider = new WsProvider('wss://127.0.0.1:9944');
+    const provider = new WsProvider('ws://127.0.0.1:9944');
     const api = await ApiPromise.create({ provider: provider });
     const logger = getLogger(`push calls to //${accountIndex}`);
 
@@ -58,7 +58,9 @@ export class Chaos {
         shard_id: 0,
       })
 
-      const pushCall = api.tx.sContract.pushCall(0, baseDecode(buildCalls(call)));
+      console.log( u8aToHex( new Uint8Array(baseDecode(buildCalls(call)))) )
+
+      const pushCall = api.tx.sContract.pushCall(0, '0x' + u8aToHex( new Uint8Array(baseDecode(buildCalls(call)))) );
       logger.info(`pushing calls from ${keyring.address}`)
       await sendTx(pushCall, keyring, logger);
 
