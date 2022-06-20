@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::{ViewResult};
+use crate::{ViewResult, utils::str_to_account_id};
 
 use skw_vm_pool::{types::PoolIterator, TransactionPool};
 use skw_vm_primitives::{
@@ -43,22 +43,23 @@ pub fn init_runtime(
         account_id.clone(), KeyType::ED25519, account_id.clone().as_str(),
     );
 
-    // if this is indeed GENESIS
-    if state_root.is_none() {
-        // TODO: look deeper into this u128 overflow
-        let root_account = account_new(10u128.pow(30), CryptoHash::default());
+    // TODO: look deeper into this u128 overflow
+    let pallet_root_account = account_new(10u128.pow(30), CryptoHash::default());
+    let pallet_root_account_id =  str_to_account_id(&"modlscontrac");
+    let pallet_root_account_signer = InMemorySigner::from_seed(
+        pallet_root_account_id.clone(), KeyType::ED25519, pallet_root_account_id.clone().as_str(), 
+    );
 
-        config.state_records.push(StateRecord::Account {
-            account_id: account_id.clone(),
-            account: root_account,
-        });
-    
-        config.state_records.push(StateRecord::AccessKey {
-            account_id: account_id,
-            public_key: signer.public_key(),
-            access_key: AccessKey::full_access(),
-        });    
-    }
+    config.state_records.push(StateRecord::Account {
+        account_id: pallet_root_account_id.clone(),
+        account: pallet_root_account,
+    });
+
+    config.state_records.push(StateRecord::AccessKey {
+        account_id: pallet_root_account_id.clone(),
+        public_key: pallet_root_account_signer.public_key(),
+        access_key: AccessKey::full_access(),
+    });
 
     let store = match store {
         None => create_store(),
@@ -364,7 +365,7 @@ mod tests {
 
     #[test]
     fn single_block() {
-        let root = str_to_account_id(&"root");
+        let root = str_to_account_id(&"modlscontrac");
 
         let (mut runtime, signer) = init_runtime(root, None, None, None);
         let hash = runtime.send_tx(SignedTransaction::create_account(
@@ -385,13 +386,13 @@ mod tests {
 
     #[test]
     fn process_all() {
-        let root = AccountId::try_from("root".to_string()).unwrap();
+        let root = str_to_account_id(&"modlscontrac");
 
         let (mut runtime, signer) = init_runtime(root, None, None, None);
         assert_eq!(runtime.view_account(str_to_account_id(&"bob")), None);
         let outcome = runtime.resolve_tx(SignedTransaction::create_account(
             1,
-            str_to_account_id(&"root"),
+            str_to_account_id(&"modlscontrac"),
             str_to_account_id(&"bob"),
             165437999999999999999000,
             signer.public_key(),
@@ -410,8 +411,7 @@ mod tests {
 
     #[test]
     fn test_cross_contract_call() {
-        let root = AccountId::try_from("root".to_string()).unwrap();
-
+        let root = str_to_account_id(&"modlscontrac");
         let (mut runtime, signer) = init_runtime(root, None, None, None);
         assert!(matches!(
             runtime.resolve_tx(SignedTransaction::create_contract(
@@ -463,17 +463,19 @@ mod tests {
         runtime.process_all().unwrap();
 
         assert!(matches!(res, ExecutionOutcome { status: ExecutionStatus::SuccessValue(_), .. }));
-        let res = runtime.view_method_call(str_to_account_id(&"status"), "get_status", b"{\"account_id\": \"root\"}");
+        let res = runtime.view_method_call(str_to_account_id(&"status"), "get_status", b"{\"account_id\": \"modlscontrac\"}");
 
         let parsed_res = res.result();
+
+        println!("{:?}", res);
+
         let caller_status = String::from_utf8(parsed_res.0.unwrap()).unwrap();
         assert_eq!("\"caller status is ok!\"", caller_status);
     }
 
     #[test]
     fn can_produce_many_blocks_without_stack_overflow() {
-        let root = AccountId::try_from("root".to_string()).unwrap();
-
+        let root = str_to_account_id(&"modlscontrac");
         let (mut runtime, _) = init_runtime(root, None, None, None);
         runtime.produce_blocks(20_000).unwrap();
     }

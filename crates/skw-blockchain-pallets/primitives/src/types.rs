@@ -47,7 +47,6 @@ pub struct Outcome {
     pub outcome_logs: Vec<Bytes>,
     pub outcome_receipt_ids: Vec<CryptoHash>,
     pub outcome_tokens_burnt: Balance,
-    pub outcome_executor_id: Bytes,
     pub outcome_status: Option<Bytes>,
 }
 

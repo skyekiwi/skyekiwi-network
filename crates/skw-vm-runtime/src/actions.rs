@@ -355,24 +355,25 @@ pub(crate) fn check_account_existence(
                     account_id: account_id.clone(),
                 }
                 .into());
-            } else {
-                if account_id.is_implicit()
-                {
-                    // If the account doesn't exist and it's 64-length hex account ID, then you
-                    // should only be able to create it using single transfer action.
-                    // Because you should not be able to add another access key to the account in
-                    // the same transaction.
-                    // Otherwise you can hijack an account without having the private key for the
-                    // public key. We've decided to make it an invalid transaction to have any other
-                    // actions on the 64-length hex accounts.
-                    // The easiest way is to reject the `CreateAccount` action.
-                    // See https://github.com/nearprotocol/NEPs/pull/71
-                    return Err(ActionErrorKind::OnlyImplicitAccountCreationAllowed {
-                        account_id: account_id.clone(),
-                    }
-                    .into());
-                }
-            }
+            } 
+            // else {
+            //     if account_id.is_implicit()
+            //     {
+            //         // If the account doesn't exist and it's 64-length hex account ID, then you
+            //         // should only be able to create it using single transfer action.
+            //         // Because you should not be able to add another access key to the account in
+            //         // the same transaction.
+            //         // Otherwise you can hijack an account without having the private key for the
+            //         // public key. We've decided to make it an invalid transaction to have any other
+            //         // actions on the 64-length hex accounts.
+            //         // The easiest way is to reject the `CreateAccount` action.
+            //         // See https://github.com/nearprotocol/NEPs/pull/71
+            //         return Err(ActionErrorKind::OnlyImplicitAccountCreationAllowed {
+            //             account_id: account_id.clone(),
+            //         }
+            //         .into());
+            //     }
+            // }
         }
         Action::Transfer(_) => {
             if account.is_none() {

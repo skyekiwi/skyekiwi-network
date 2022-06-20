@@ -18,7 +18,7 @@ pub mod pallet {
 	use frame_support::{
 		dispatch::DispatchResult, pallet_prelude::*,
 		traits::{
-			Currency, ExistenceRequirement::KeepAlive
+			Currency, ExistenceRequirement::KeepAlive,
 		}, Twox64Concat
 	};
 	use frame_support::sp_runtime::traits::AccountIdConversion;
@@ -26,7 +26,7 @@ pub mod pallet {
 	use super::*;
 	use sp_std::vec::Vec;
 	
-	use skw_blockchain_primitives::types::{ShardId};	
+	use skw_blockchain_primitives::types::{ShardId, Balance};	
 	pub type BalanceOf<T> = pallet_treasury::BalanceOf<T>;
 
 	#[pallet::config]
@@ -52,7 +52,7 @@ pub mod pallet {
 	/// reserved amount of each account 
 	#[pallet::storage]
 	#[pallet::getter(fn reserved_amount_of)]
-	pub(super) type ReservedAmount <T: Config> = StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, ShardId, BalanceOf<T>>;
+	pub(super) type ReservedAmount <T: Config> = StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, ShardId, Balance>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -65,6 +65,7 @@ pub mod pallet {
 		Unauthorized,
 		InsufficientBalance,
 		MissingProof,
+		AlreadyCreated,
 		Unexpected,
 	}
 
@@ -96,9 +97,14 @@ pub mod pallet {
 			shard_id: ShardId,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
+			ensure!(Self::reserved_amount_of(who.clone(), shard_id).is_none(), Error::<T>::AlreadyCreated);
 
 			let treasury = T::PalletId::get().into_account();
 			T::Currency::transfer(&who, &treasury, T::ReservationRequirement::get(), KeepAlive)?;
+			
+			// token transfered to treasury is a flat fee paid to the system - so reserved_amount is 0
+			<ReservedAmount<T>>::insert(&who, &shard_id, 0);
+
 			let encoded_call = Self::build_account_creation_call(&who);
 
 			let system_origin: T::AccountId = T::SContractRoot::get().into_account();

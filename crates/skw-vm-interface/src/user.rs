@@ -87,11 +87,16 @@ impl UserAccount {
     }
 
     fn transaction(&self, receiver_id: AccountId) -> Transaction {
-        let nonce = (*self.runtime)
+
+        let access_key = (*self.runtime)
             .borrow()
-            .view_access_key(self.account_id.clone(), &self.signer.public_key())
-            .unwrap()
-            .nonce + 1;
+            .view_access_key(self.account_id.clone(), &self.signer.public_key());
+ 
+        let nonce = match access_key {
+            Some(key) => {key.nonce + 1},
+            None => 0
+        };
+
         Transaction::new(
             self.account_id.clone(),
             self.signer.public_key(),

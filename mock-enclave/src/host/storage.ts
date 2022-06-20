@@ -9,7 +9,6 @@ import {
   Calls, buildCalls, parseCalls,
   Outcomes, buildOutcomes, parseOutcomes,
   Block, buildBlock, parseBlock,
-  Contract, buildContract, parseContract,
   Shard, buildShard, parseShard,
   ShardMetadata, buildShardMetadata, parseShardMetadata,
   LocalMetadata, buildLocalMetadata, parseLocalMetadata,
@@ -49,10 +48,6 @@ export class Storage {
     const block = numberPadding(blockNumber, 16);
 
     return shard + block + 'BSUM';
-  }
-
-  public static getContractIndex (contractName: string): string {
-    return contractName + 'CONT';
   }
 
   public static getShardIndex (shardId: number): string {
@@ -107,16 +102,6 @@ export class Storage {
     };
   }
 
-  public static writeContractRecord (contractName: string, contract: Contract): DBOps {
-    const key = Storage.getContractIndex(contractName);
-
-    return {
-      type: 'put',
-      key: key,
-      value: buildContract(contract)
-    };
-  }
-
   public static writeShardRecord (shardId: number, shard: Shard): DBOps {
     const key = Storage.getShardIndex(shardId);
 
@@ -166,8 +151,27 @@ export class Storage {
     db: level.LevelDB, shardId: number, callIndex: number
   ): Promise<Calls> {
     const key = Storage.getCallsIndex(shardId, callIndex);
+    const c = parseCalls(await db.get(key));
 
-    return parseCalls(await db.get(key));
+    let res = new Calls({
+      ops: [],
+      shard_id: c.shard_id,
+      block_number: c.block_number,
+    });
+
+    for (let op of c.ops) {
+      let convertedOp = op;
+      convertedOp.origin_public_key = new Uint8Array(convertedOp.origin_public_key);
+      convertedOp.receipt_public_key = new Uint8Array(convertedOp.receipt_public_key);
+      if (convertedOp.contract_name !== undefined){
+        convertedOp.contract_name = new Uint8Array(convertedOp.contract_name);
+      }
+
+      res.ops.push(convertedOp)
+    }
+
+
+    return res;
   }
 
   public static async getOutcomesRecord (
@@ -184,14 +188,6 @@ export class Storage {
     const key = Storage.getBlockIndex(shardId, blockNumber);
 
     return parseBlock(await db.get(key));
-  }
-
-  public static async getContractRecord (
-    db: level.LevelDB, contractName: string
-  ): Promise<Contract> {
-    const key = Storage.getContractIndex(contractName);
-
-    return parseContract(await db.get(key));
   }
 
   public static async getShardRecord (

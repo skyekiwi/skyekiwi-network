@@ -78,7 +78,7 @@ fn main() {
             store.read_from_patch(state_path, &state_patch[..]).unwrap();
         }
     }
-
+   
     script.init(
         &store,
         state_root,
@@ -106,7 +106,7 @@ fn main() {
             let receipt_account_id = offchain_id_into_account_id(&receipt_id); 
 
             script.update_account(origin_account_id);
-    
+            
             let mut outcome: Option<ExecutionResult> = None; 
             let mut view_outcome: Option<ViewResult> = None; 
     
@@ -187,7 +187,7 @@ fn main() {
                         "amount must be provided when transaction_action is set"
                     );
     
-                    let wasm_file_name = format!("{:?}/{:?}.wasm", wasm_files_base.clone(), receipt_account_id.to_string());
+                    let wasm_file_name = format!("{}/{}.wasm", wasm_files_base.clone(), receipt_account_id.to_string());
                     let wasm_path = PathBuf::from(wasm_file_name);
                     let code = fs::read(&wasm_path).unwrap();
     
@@ -199,7 +199,7 @@ fn main() {
                 },
                 _ => {}
             }
-        
+            
             state_root = script.state_root();
             let mut execution_result: Outcome = Outcome::default();
     
@@ -208,7 +208,6 @@ fn main() {
                     execution_result.outcome_logs = outcome.logs();
                     execution_result.outcome_receipt_ids = outcome.receipt_ids().clone();
                     execution_result.outcome_tokens_burnt = outcome.tokens_burnt();
-                    execution_result.outcome_executor_id = outcome.executor_id().to_string().as_bytes().to_vec();
                     execution_result.outcome_status = match outcome.status() {
                         ExecutionStatus::SuccessValue(x) => Some(x),
                         _ => None,
@@ -226,7 +225,7 @@ fn main() {
                 }
                 _ => {}
             }
-    
+   
             outcome_of_call.ops.push(execution_result);
             script.sync_state_root();
         }
@@ -245,8 +244,6 @@ fn main() {
     if cli_args.dump_state {
         script.write_to_file(&cli_args.state_file, &mut state_root);
     }
-
-    // println!("{:?}", all_outcomes);
     println!("{:?}", bs58::encode(all_outcomes).into_string());
 }
 
@@ -263,12 +260,11 @@ mod test {
     use super::*;
     #[test]
     fn test_dump_state_from_file() {
-
         let state_root = {
             let store = create_store();
 
             let (runtime, root_signer) = init_runtime(
-                str_to_account_id(&"root"), 
+                str_to_account_id(&"modlscontrac"), 
                 None,
                 Some(&store),
                 None,
@@ -278,7 +274,7 @@ mod test {
 
             let root_account = UserAccount::new(
                 shared_runime,
-                str_to_account_id(&"root"),
+                str_to_account_id(&"modlscontrac"),
                 root_signer
             );
 
@@ -301,7 +297,6 @@ mod test {
 
             assert!(status_account.is_some());
             assert!(alice_account.is_some());
-
             store.save_state_to_file("./mock/new").unwrap();
             root_account.state_root()
         };
@@ -312,7 +307,7 @@ mod test {
             store.load_state_from_file("./mock/new").unwrap();
 
             let (runtime, root_signer) = init_runtime(
-                str_to_account_id(&"root"), 
+                str_to_account_id(&"modlscontrac"), 
                 None,
                 Some(&store),
                 Some(state_root),
@@ -322,7 +317,7 @@ mod test {
 
             let root_account = UserAccount::new(
                 shared_runime,
-                AccountId::try_from("root".to_string()).unwrap(), 
+                AccountId::try_from("modlscontrac".to_string()).unwrap(), 
                 root_signer
             );
 

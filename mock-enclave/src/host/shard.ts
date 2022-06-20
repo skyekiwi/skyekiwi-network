@@ -39,19 +39,24 @@ export class ShardManager {
     this.#keyring = new Keyring({ type: 'sr25519' }).addFromUri(seed);
   }
 
+  public async secretKeeperRegistryExpiredOrMissing(api: ApiPromise, blockNumber: number): Promise<boolean> {
+    const maybeExpiration = await api.query.registry.expiration(this.#keyring.address);
+    const expiration = Number(maybeExpiration.toString());
+    
+    return isNaN(expiration) || expiration - 10 < blockNumber 
+  }
+
   public async maybeRegisterSecretKeeper (api: ApiPromise, blockNumber: number): Promise<SubmittableExtrinsic[]> {
     const logger = getLogger(`shardManager.maybeRegisterSecretKeeper`); 
     const allExtrinsics = [];
 
-    const maybeExpiration = await api.query.registry.expiration(this.#keyring.address);
-    const expiration = Number(maybeExpiration.toString());
-
-    if (isNaN(expiration) || expiration - 10 < blockNumber) {
-      logger.info(`registering secret keeper at blockNumber ${blockNumber}`);
+    if (await this.secretKeeperRegistryExpiredOrMissing(api, blockNumber)) {
+      logger.info(`📣 registering secret keeper at blockNumber ${blockNumber}`);
 
       // not previously registered
       allExtrinsics.push(api.tx.registry.registerSecretKeeper(
-        u8aToHex(AsymmetricEncryption.getPublicKey(this.#key)),
+        '0x' + u8aToHex(AsymmetricEncryption.getPublicKey(this.#key)),
+        // TODO: replace with real siganture
         '0x0000'
       ));
 
@@ -78,8 +83,8 @@ export class ShardManager {
 
         const block = await Storage.getBlockRecord(db, shard, blockNumber);
 
-        if (!block.calls || !block.contracts) {
-          console.log("unexpected", block, shard)
+        if (!block.calls) {
+          console.error("unexpected", block, shard)
           continue;
         }
 
@@ -110,24 +115,28 @@ export class ShardManager {
   public async maybeSubmitTxBatch(api: ApiPromise, buffer: QueuedTransaction[], curBlockNumber?: number): Promise<QueuedTransaction[]> {    
     const logger = getLogger(`shardManager.maybeSubmitTxBatch`); 
 
-    let highBlockNumber = 0;
-    const submissionFilter = (it: QueuedTransaction) => {
-      highBlockNumber = Math.max(highBlockNumber, it.blockNumber);
-      return it.blockNumber !== -1
-      // if (!curBlockNumber) return true;
-      
-      // // we might be VERY behind
-      // return it.blockNumber > curBlockNumber - 10 && it.blockNumber !== -1
+    let highTxBlockNumber = 0;
+    const bufferFilter = (it: QueuedTransaction) => {
+      highTxBlockNumber = Math.max(highTxBlockNumber, it.blockNumber);
+      return it.blockNumber !== -1      
     };
+    const ifSubmit = (tx: SubmittableExtrinsic[]) => {
+      const lotsOfBufferedTx = tx.length >= 20;
+      const txBlockNumberVeryBehind = highTxBlockNumber <= curBlockNumber - 2;
+      const containTx = tx.length > 0;
+
+      return containTx && (lotsOfBufferedTx || !txBlockNumberVeryBehind);
+    } 
 
     let tx: SubmittableExtrinsic[] = buffer
-      .filter(it => submissionFilter(it))
+      .filter(it => bufferFilter(it))
       .map(it => it.transaction)
     
-    if (tx.length >= 2 || highBlockNumber > curBlockNumber - 1) {
+    if (ifSubmit(tx)) {
       logger.info(`🚀 submitting ${tx.length} transactions`);
+      // @ts-ignore
       await sendTx(api.tx.utility.batch(tx), this.#keyring);  
-      let res = buffer.filter(it => !submissionFilter(it))
+      let res = buffer.filter(it => !bufferFilter(it))
       if (res.length === 0) {
         res = [{
           transaction: null,

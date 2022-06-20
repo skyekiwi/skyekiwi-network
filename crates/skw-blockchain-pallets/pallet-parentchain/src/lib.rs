@@ -114,7 +114,8 @@ pub mod pallet {
 			outcome: Vec<Vec<u8>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			
+		
+			// TODO: validate outcome
 			ensure!(pallet_registry::Pallet::<T>::is_valid_shard_id(shard_id), Error::<T>::InvalidShardId);
 			ensure!(pallet_registry::Pallet::<T>::is_valid_secret_keeper(&who), Error::<T>::Unauthorized);
 			let now = frame_system::Pallet::<T>::block_number();

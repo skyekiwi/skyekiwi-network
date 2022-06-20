@@ -209,7 +209,6 @@ pub mod pallet {
 					// get the lastest secretId - 1 -> it belongs to the secret we have just created
 					let secret_id = pallet_secrets::Pallet::<T>::current_secret_id().saturating_sub(1);
 
-					// callIndex 0 is the init call - so current call is 1
 					<ShardSecretIndex<T>>::insert(&shard_id, secret_id);
 					<ShardPublicKey<T>>::insert(&shard_id, public_key);
 					<ShardHighCallIndex<T>>::insert(&shard_id, 0);

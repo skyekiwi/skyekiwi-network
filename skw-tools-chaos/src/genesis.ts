@@ -12,12 +12,11 @@ import {IPFS} from '@skyekiwi/ipfs'
 import { getLogger, stringToU8a } from '@skyekiwi/util';
 import { Keyring } from '@polkadot/keyring'
 import { waitReady } from '@polkadot/wasm-crypto'
-import { blake2AsU8a } from '@polkadot/util-crypto'
 import { ApiPromise, WsProvider } from '@polkadot/api'
 import { sendTx } from './util'
 import { File } from '@skyekiwi/file';
 import { u8aToHex } from '@skyekiwi/util'
-import { Calls, Call, buildCalls } from '@skyekiwi/s-contract';
+import { Calls, buildCalls } from '@skyekiwi/s-contract';
 
 import {baseDecode} from 'borsh';
 
