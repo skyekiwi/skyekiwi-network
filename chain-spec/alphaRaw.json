@@ -3,6 +3,8 @@
   "id": "skw_alpha",
   "chainType": "Live",
   "bootNodes": [
+    "/ip4/174.138.30.193/tcp/30333/p2p/12D3KooWATGoU6FSDvb9VSbmHiuJskSqwyYPqGcB322ywfueh9Ke",
+    "/ip4/143.198.109.80/tcp/30333/p2p/12D3KooWNP3v7gr6FSdBweRoXdBo2dow28LAVznFfs4WrZ6uUdNv"
 	],
 	"telemetryEndpoints": [
 	  [

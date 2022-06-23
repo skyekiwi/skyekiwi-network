@@ -15,6 +15,7 @@ pub fn to_yocto(value: &str) -> u128 {
     }
 }
 
+#[cfg(test)]
 pub fn str_to_account_id(s: &str) -> AccountId {
     AccountId::try_from(s.to_string()).unwrap()
 }

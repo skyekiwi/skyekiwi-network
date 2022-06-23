@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::{ViewResult, utils::str_to_account_id};
+use crate::{ViewResult, utils::{offchain_id_into_account_id}};
 
 use skw_vm_pool::{types::PoolIterator, TransactionPool};
 use skw_vm_primitives::{
@@ -29,6 +29,13 @@ use skw_vm_store::{
     create_store, ShardTries, Store, get_access_key,
 };
 
+const PALLET_KEY: [u8; 32] = [
+    109, 111, 100, 108, 115, 99, 111, 110, 116,
+    114,  97,  99,   0,   0,  0,   0,   0,   0,
+    0,   0,   0,   0,   0,  0,   0,   0,   0,
+    0,   0,   0,   0,   0
+];
+
 const DEFAULT_BLOCK_PROD_TIME: Duration = 1_000_000_000;
 pub fn init_runtime(
     account_id: AccountId,
@@ -45,9 +52,9 @@ pub fn init_runtime(
 
     // TODO: look deeper into this u128 overflow
     let pallet_root_account = account_new(10u128.pow(30), CryptoHash::default());
-    let pallet_root_account_id =  str_to_account_id(&"modlscontrac");
+    let pallet_root_account_id =  offchain_id_into_account_id(&PALLET_KEY.to_vec());
     let pallet_root_account_signer = InMemorySigner::from_seed(
-        pallet_root_account_id.clone(), KeyType::ED25519, pallet_root_account_id.clone().as_str(), 
+        pallet_root_account_id.clone(), KeyType::ED25519, &"6d6f646c73636f6e747261630000000000000000000000000000000000000000", 
     );
 
     config.state_records.push(StateRecord::Account {
