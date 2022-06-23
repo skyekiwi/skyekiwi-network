@@ -6,6 +6,7 @@ members = [
     'crates/skw-blockchain-pallets/pallet-s-contract',
     'crates/skw-blockchain-pallets/pallet-registry',
     'crates/skw-blockchain-pallets/pallet-parentchain',
+    'crates/skw-blockchain-pallets/pallet-s-account',
     'crates/skw-blockchain-runtime',
     'crates/skw-blockchain-pallets/primitives',
 

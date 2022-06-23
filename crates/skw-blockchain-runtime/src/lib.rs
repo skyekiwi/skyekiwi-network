@@ -32,7 +32,7 @@ pub use frame_support::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		IdentityFee, Weight,
 	},
-	StorageValue,
+	StorageValue, PalletId,
 };
 pub use frame_system::Call as SystemCall;
 pub use pallet_balances::Call as BalancesCall;
@@ -48,7 +48,7 @@ pub use pallet_registry;
 pub use pallet_parentchain;
 
 /// An index to a block.
-pub type BlockNumber = u32;
+pub type BlockNumber = skw_blockchain_primitives::types::BlockNumber;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -273,6 +273,31 @@ impl pallet_utility::Config for Runtime {
 	type WeightInfo = ();
 }
 
+frame_support::parameter_types! {
+	pub const ProposalBond: Permill = Permill::from_percent(5);
+	pub const Burn: Permill = Permill::from_percent(0);
+	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+	pub const SContractPalletId: PalletId = PalletId(*b"scontrac");
+}
+
+impl pallet_treasury::Config for Runtime {
+	type PalletId = TreasuryPalletId;
+	type Currency = Balances;
+	type ApproveOrigin = frame_system::EnsureRoot<AccountId>;
+	type RejectOrigin = frame_system::EnsureRoot<AccountId>;
+	type Event = Event;
+	type OnSlash = ();
+	type ProposalBond = ProposalBond;
+	type ProposalBondMinimum = ConstU128<1>;
+	type ProposalBondMaximum = ();
+	type SpendPeriod = ConstU32<20>;
+	type Burn = Burn;
+	type BurnDestination = (); // Just gets burned.
+	type WeightInfo = ();
+	type SpendFunds = ();
+	type MaxApprovals = ConstU32<100>;
+}
+
 impl pallet_registry::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
@@ -302,6 +327,14 @@ impl pallet_s_contract::Config for Runtime {
 	type MinContractNameLength = ConstU32<1>;
 	type MaxContractNameLength = ConstU32<32>;
 	type MaxCallPerBlock = ConstU32<1_000>;
+	type SContractRoot = SContractPalletId;
+}
+
+impl pallet_s_account::Config for Runtime {
+	type WeightInfo = ();
+	type Event = Event;
+	type ReservationRequirement = ConstU128<1_000_000_000_000>;
+	type DefaultFaucet = ConstU32<1_000>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -320,11 +353,13 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Event},
+		Treasury: pallet_treasury::{Pallet, Call, Event<T>, Storage},
 
 		Secrets: pallet_secrets::{Pallet, Call, Storage, Event<T>},
 		SContract: pallet_s_contract::{Pallet, Call, Storage, Event<T>},
 		Registry: pallet_registry::{Pallet, Call, Storage, Event<T>},
 		Parentchain: pallet_parentchain::{Pallet, Call, Storage, Event<T>},
+		SAccount: pallet_s_account::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
@@ -370,6 +405,7 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]
 		[pallet_s_contract, SContract]
+		[pallet_s_account, SAccount]
 		[pallet_secrets, Secrets]
 		[pallet_registry, Registry]
 		[pallet_parentchain, Parentchain]

@@ -6,21 +6,13 @@ use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_sui
 #[allow(unused)]
 use crate::Pallet as Registry;
 use sp_std::vec;
-use sp_std::vec::Vec;
 
-const PUBLIC_KEY: &str = "38d58afd1001bb265bce6ad24ff58239c62e1c98886cda9d7ccf41594f37d52f";
-fn decode_hex_uncompressed(s: &str) -> Vec<u8> {
-	(0..s.len())
-		.step_by(1)
-		.map(|i| u8::from_str_radix(&s[i..i + 1], 16).unwrap())
-		.collect()
-}
+const PUBLIC_KEY: [u8; 32] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 
 benchmarks! {
 	register_secret_keeper {
 		let caller: T::AccountId = whitelisted_caller();
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY);
-	}: register_secret_keeper(RawOrigin::Signed(caller.clone()), public_key, vec![0, 0, 0, 0, 0, 0])
+	}: register_secret_keeper(RawOrigin::Signed(caller.clone()), PUBLIC_KEY.to_vec(), vec![0, 0, 0, 0, 0, 0])
 	verify {
 		let all_secret_keepers = Registry::<T>::secret_keepers().unwrap();
 
@@ -30,9 +22,8 @@ benchmarks! {
 
 	renew_registration {
 		let caller: T::AccountId = whitelisted_caller();
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY);
-		Registry::<T>::register_secret_keeper(RawOrigin::Signed(caller.clone()).into(), public_key.clone(), vec![0, 0, 0, 0, 0, 0])?;
-	}: renew_registration(RawOrigin::Signed(caller.clone()), public_key, vec![0, 0, 0, 0, 0, 0])
+		Registry::<T>::register_secret_keeper(RawOrigin::Signed(caller.clone()).into(), PUBLIC_KEY.to_vec(), vec![0, 0, 0, 0, 0, 0])?;
+	}: renew_registration(RawOrigin::Signed(caller.clone()), PUBLIC_KEY.to_vec(), vec![0, 0, 0, 0, 0, 0])
 	verify {
 		let all_secret_keepers = Registry::<T>::secret_keepers().unwrap();
 
@@ -42,8 +33,7 @@ benchmarks! {
 
 	remove_registration {
 		let caller: T::AccountId = whitelisted_caller();
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY);
-		Registry::<T>::register_secret_keeper(RawOrigin::Signed(caller.clone()).into(), public_key, vec![0, 0, 0, 0, 0, 0])?;
+		Registry::<T>::register_secret_keeper(RawOrigin::Signed(caller.clone()).into(), PUBLIC_KEY.to_vec(), vec![0, 0, 0, 0, 0, 0])?;
 	}: remove_registration(RawOrigin::Signed(caller.clone()))
 	verify {
 		let all_secret_keepers = Registry::<T>::secret_keepers().unwrap();
@@ -52,9 +42,13 @@ benchmarks! {
 
 	register_running_shard {
 		let caller: T::AccountId = whitelisted_caller();
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY);
-		Registry::<T>::register_secret_keeper(RawOrigin::Signed(caller.clone()).into(), public_key, vec![0, 0, 0, 0, 0, 0])?;
+		Registry::<T>::register_secret_keeper(RawOrigin::Signed(caller.clone()).into(), PUBLIC_KEY.to_vec(), vec![0, 0, 0, 0, 0, 0])?;
 	}: register_running_shard(RawOrigin::Signed(caller.clone()), 0)
+	verify { }
+
+	register_user_public_key {
+		let caller: T::AccountId = whitelisted_caller();
+	}: register_user_public_key(RawOrigin::Signed(caller.clone()), PUBLIC_KEY.to_vec())
 	verify { }
 }
 

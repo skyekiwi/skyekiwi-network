@@ -1,15 +1,16 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::{ViewResult, new_p_account};
+use crate::{ViewResult, utils::str_to_account_id};
 
 use skw_vm_pool::{types::PoolIterator, TransactionPool};
 use skw_vm_primitives::{
-    account::{AccessKey, Account},
+    account_id::AccountId,
+    account::{AccessKey},
     crypto::{InMemorySigner, KeyType, PublicKey, Signer},
     errors::RuntimeError,
     contract_runtime::{
-        CryptoHash, Balance, BlockNumber, Gas, StateChangeCause,
+        CryptoHash, Balance, BlockNumber, Gas,
     },
     profile::ProfileData,
     receipt::Receipt,
@@ -25,32 +26,38 @@ use skw_vm_primitives::test_utils::account_new;
 use skw_vm_runtime::{state_viewer::TrieViewer, ApplyState, Runtime};
 use skw_contract_sdk::{Duration};
 use skw_vm_store::{
-    get_account, set_account, create_store, ShardTries, Store, get_access_key,
+    create_store, ShardTries, Store, get_access_key,
 };
 
 const DEFAULT_BLOCK_PROD_TIME: Duration = 1_000_000_000;
 pub fn init_runtime(
-    account_id: &str,
+    account_id: AccountId,
     cfg: Option<GenesisConfig>,
     store: Option<&Arc<Store>>,
     state_root: Option<CryptoHash>,
 ) -> (RuntimeStandalone, InMemorySigner) {
     let mut config = cfg.unwrap_or_default();
+
     config.runtime_config.wasm_config.limit_config.max_total_prepaid_gas = config.gas_limit;
     let signer = InMemorySigner::from_seed(
-        new_p_account(account_id),
-        KeyType::ED25519, account_id,
+        account_id.clone(), KeyType::ED25519, account_id.clone().as_str(),
     );
-    let root_account = account_new(10u128.pow(60), CryptoHash::default());
+
+    // TODO: look deeper into this u128 overflow
+    let pallet_root_account = account_new(10u128.pow(30), CryptoHash::default());
+    let pallet_root_account_id =  str_to_account_id(&"modlscontrac");
+    let pallet_root_account_signer = InMemorySigner::from_seed(
+        pallet_root_account_id.clone(), KeyType::ED25519, pallet_root_account_id.clone().as_str(), 
+    );
 
     config.state_records.push(StateRecord::Account {
-        account_id: new_p_account(account_id),
-        account: root_account,
+        account_id: pallet_root_account_id.clone(),
+        account: pallet_root_account,
     });
 
     config.state_records.push(StateRecord::AccessKey {
-        account_id: new_p_account(account_id),
-        public_key: signer.public_key(),
+        account_id: pallet_root_account_id.clone(),
+        public_key: pallet_root_account_signer.public_key(),
         access_key: AccessKey::full_access(),
     });
 
@@ -191,10 +198,6 @@ impl RuntimeStandalone {
         }
     }
 
-    pub fn new_with_store(genesis: &GenesisConfig) -> Self {
-        RuntimeStandalone::new(genesis, create_store(), CryptoHash::default())
-    }
-
     /// Processes blocks until the final value is produced
     pub fn resolve_tx(
         &mut self,
@@ -219,22 +222,6 @@ impl RuntimeStandalone {
                 unreachable!("Lost an outcome for the receipt hash {:?}", outcome_hash);
             }
         }
-    }
-
-    /// Just puts tx into the transaction pool
-    pub fn send_tx(&mut self, tx: SignedTransaction) -> CryptoHash {
-        let tx_hash = tx.get_hash();
-        self.transactions.insert(tx_hash, tx.clone());
-        self.tx_pool.insert_transaction(tx);
-        tx_hash
-    }
-
-    pub fn outcome(&self, hash: &CryptoHash) -> Option<ExecutionOutcome> {
-        self.outcomes.get(hash).cloned()
-    }
-
-    pub fn profile_of_outcome(&self, hash: &CryptoHash) -> Option<ProfileData> {
-        self.profile.get(hash).cloned()
     }
 
     /// Processes all transactions and pending receipts until there is no pending_receipts left
@@ -286,33 +273,7 @@ impl RuntimeStandalone {
         Ok(())
     }
 
-    pub fn produce_blocks(&mut self, num_of_blocks: u64) -> Result<(), RuntimeError> {
-        for _ in 0..num_of_blocks {
-            self.produce_block()?;
-        }
-        Ok(())
-    }
-
-    /// Force alter account and change state_root.
-    pub fn force_account_update(&mut self, account_id: &str, account: &Account) {
-        let account_id = new_p_account(account_id);
-        let mut trie_update = self.tries.new_trie_update(self.cur_block.state_root);
-        set_account(&mut trie_update, account_id, account);
-        trie_update.commit(StateChangeCause::ValidatorAccountsUpdate);
-        let (trie_changes, _) = trie_update.finalize().expect("Unexpected Storage error");
-        let (store_update, new_root) = self.tries.apply_all(&trie_changes).unwrap();
-        store_update.commit().expect("No io errors expected");
-        self.cur_block.state_root = new_root;
-    }
-
-    pub fn view_account(&self, account_id: &str) -> Option<Account> {
-        let account_id = new_p_account(account_id);
-        let trie_update = self.tries.new_trie_update(self.cur_block.state_root);
-        get_account(&trie_update, &account_id).expect("Unexpected Storage error")
-    }
-
-    pub fn view_access_key(&self, account_id: &str, public_key: &PublicKey) -> Option<AccessKey> {
-        let account_id = new_p_account(account_id);
+    pub fn view_access_key(&self, account_id: AccountId, public_key: &PublicKey) -> Option<AccessKey> {
         let trie_update = self.tries.new_trie_update(self.cur_block.state_root);
         get_access_key(&trie_update, &account_id, public_key)
             .expect("Unexpected Storage error")
@@ -321,11 +282,10 @@ impl RuntimeStandalone {
     /// Returns a ViewResult containing the value or error and any logs
     pub fn view_method_call(
         &self,
-        account_id: &str,
+        account_id: AccountId, 
         function_name: &str,
         args: &[u8],
     ) -> ViewResult {
-        let account_id = new_p_account(account_id);
         let trie_update = self.tries.new_trie_update(self.cur_block.state_root);
         let viewer = TrieViewer::default();
         let mut logs = vec![];
@@ -346,16 +306,8 @@ impl RuntimeStandalone {
         ViewResult::new(result, logs)
     }
 
-    pub fn current_block(&self) -> &Block {
-        &self.cur_block
-    }
-
     pub fn state_root(&self) -> CryptoHash {
         self.cur_block.state_root
-    }
-
-    pub fn pending_receipts(&self) -> &[Receipt] {
-        &self.pending_receipts
     }
 
     fn prepare_transactions(tx_pool: &mut TransactionPool) -> Vec<SignedTransaction> {
@@ -372,16 +324,54 @@ impl RuntimeStandalone {
 
 #[cfg(test)]
 mod tests {
+    use std::convert::TryFrom;
+
+    use skw_vm_primitives::account::Account;
+    use skw_vm_store::get_account;
+
     use super::*;
-    use crate::to_yocto;
+    use crate::utils::to_yocto;
+
+    fn str_to_account_id(s: &str) -> AccountId {
+        AccountId::try_from(s.to_string()).unwrap()
+    }
+
+    impl RuntimeStandalone {
+         /// Just puts tx into the transaction pool
+        pub fn send_tx(&mut self, tx: SignedTransaction) -> CryptoHash {
+            let tx_hash = tx.get_hash();
+            self.transactions.insert(tx_hash, tx.clone());
+            self.tx_pool.insert_transaction(tx);
+            tx_hash
+        }
+        
+        pub fn outcome(&self, hash: &CryptoHash) -> Option<ExecutionOutcome> {
+            self.outcomes.get(hash).cloned()
+        }
+        
+        pub fn produce_blocks(&mut self, num_of_blocks: u64) -> Result<(), RuntimeError> {
+            for _ in 0..num_of_blocks {
+                self.produce_block()?;
+            }
+            Ok(())
+        }
+
+        pub fn view_account(&self, account_id: AccountId) -> Option<Account> {
+            let trie_update = self.tries.new_trie_update(self.cur_block.state_root);
+            get_account(&trie_update, &account_id).expect("Unexpected Storage error")
+        }
+
+    }
 
     #[test]
     fn single_block() {
-        let (mut runtime, signer) = init_runtime(&"root", None, None, None);
+        let root = str_to_account_id(&"modlscontrac");
+
+        let (mut runtime, signer) = init_runtime(root, None, None, None);
         let hash = runtime.send_tx(SignedTransaction::create_account(
             1,
             signer.account_id.clone(),
-            new_p_account(&"bob"),
+            str_to_account_id(&"bob"),
             100,
             signer.public_key(),
             &signer,
@@ -396,12 +386,14 @@ mod tests {
 
     #[test]
     fn process_all() {
-        let (mut runtime, signer) = init_runtime(&"root", None, None, None);
-        assert_eq!(runtime.view_account(&"bob"), None);
+        let root = str_to_account_id(&"modlscontrac");
+
+        let (mut runtime, signer) = init_runtime(root, None, None, None);
+        assert_eq!(runtime.view_account(str_to_account_id(&"bob")), None);
         let outcome = runtime.resolve_tx(SignedTransaction::create_account(
             1,
-            new_p_account(&"root"),
-            new_p_account(&"bob"),
+            str_to_account_id(&"modlscontrac"),
+            str_to_account_id(&"bob"),
             165437999999999999999000,
             signer.public_key(),
             &signer,
@@ -411,21 +403,21 @@ mod tests {
             outcome,
             Ok((_, ExecutionOutcome { status: ExecutionStatus::SuccessValue(_), .. }))
         ));
-        assert_eq!(runtime.view_account(&"bob").unwrap().amount(), 165437999999999999999000);
-        assert_eq!(runtime.view_account(&"bob").unwrap().code_hash(), CryptoHash::default());
-        assert_eq!(runtime.view_account(&"bob").unwrap().locked(), 0);
-        assert_eq!(runtime.view_account(&"bob").unwrap().storage_usage(), 182);
+        assert_eq!(runtime.view_account(str_to_account_id(&"bob")).unwrap().amount(), 165437999999999999999000);
+        assert_eq!(runtime.view_account(str_to_account_id(&"bob")).unwrap().code_hash(), CryptoHash::default());
+        assert_eq!(runtime.view_account(str_to_account_id(&"bob")).unwrap().locked(), 0);
+        assert_eq!(runtime.view_account(str_to_account_id(&"bob")).unwrap().storage_usage(), 182);
     }
 
     #[test]
     fn test_cross_contract_call() {
-        let (mut runtime, signer) = init_runtime(&"root", None, None, None);
-
+        let root = str_to_account_id(&"modlscontrac");
+        let (mut runtime, signer) = init_runtime(root, None, None, None);
         assert!(matches!(
             runtime.resolve_tx(SignedTransaction::create_contract(
                 1,
                 signer.account_id.clone(),
-                new_p_account(&"status"),
+                str_to_account_id(&"status"),
                 include_bytes!("../../skw-contract-sdk/examples/status-message/res/status_message.wasm")
                     .as_ref()
                     .into(),
@@ -439,7 +431,7 @@ mod tests {
         let res = runtime.resolve_tx(SignedTransaction::create_contract(
             2,
             signer.account_id.clone(),
-            new_p_account(&"caller"),
+            str_to_account_id(&"caller"),
             include_bytes!(
                 "../../skw-contract-sdk/examples/cross-contract-high-level/res/cross_contract_high_level.wasm"
             )
@@ -457,7 +449,7 @@ mod tests {
         let res = runtime.resolve_tx(SignedTransaction::call(
             3,
             signer.account_id.clone(),
-            new_p_account(&"caller"),
+            str_to_account_id(&"caller"),
             &signer,
             0,
             "simple_call".into(),
@@ -471,24 +463,20 @@ mod tests {
         runtime.process_all().unwrap();
 
         assert!(matches!(res, ExecutionOutcome { status: ExecutionStatus::SuccessValue(_), .. }));
-        let res = runtime.view_method_call(&"status", "get_status", b"{\"account_id\": \"root\"}");
+        let res = runtime.view_method_call(str_to_account_id(&"status"), "get_status", b"{\"account_id\": \"modlscontrac\"}");
 
-        let caller_status = String::from_utf8(res.unwrap()).unwrap();
+        let parsed_res = res.result();
+
+        println!("{:?}", res);
+
+        let caller_status = String::from_utf8(parsed_res.0.unwrap()).unwrap();
         assert_eq!("\"caller status is ok!\"", caller_status);
     }
 
     #[test]
-    fn test_force_update_account() {
-        let (mut runtime, _) = init_runtime(&"root", None, None, None);
-        let mut account = runtime.view_account(&"root").unwrap();
-        account.set_amount(10000);
-        runtime.force_account_update(&"bob", &account);
-        assert_eq!(runtime.view_account(&"bob").unwrap().amount(), 10000);
-    }
-
-    #[test]
     fn can_produce_many_blocks_without_stack_overflow() {
-        let (mut runtime, _) = init_runtime(&"root", None, None, None);
+        let root = str_to_account_id(&"modlscontrac");
+        let (mut runtime, _) = init_runtime(root, None, None, None);
         runtime.produce_blocks(20_000).unwrap();
     }
 }

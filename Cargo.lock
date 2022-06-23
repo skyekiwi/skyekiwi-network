@@ -4458,9 +4458,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-s-account"
+version = "3.0.0"
+dependencies = [
+ "bs58",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-parentchain",
+ "pallet-s-contract",
+ "pallet-secrets",
+ "pallet-treasury",
+ "parity-scale-codec 3.1.2",
+ "scale-info",
+ "skw-blockchain-primitives",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-s-contract"
 version = "3.0.0"
 dependencies = [
+ "blake2 0.10.4",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -4591,6 +4614,7 @@ name = "pallet-treasury"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.22#616d33ea23bab86cafffaf116fc607b6790fb4eb"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "impl-trait-for-tuples",
@@ -7180,11 +7204,13 @@ dependencies = [
  "bs58",
  "clap",
  "funty 1.1.0",
+ "hex",
  "lazy-static-include",
  "quickcheck 0.9.2",
  "quickcheck_macros",
  "serde",
  "serde_json",
+ "skw-blockchain-primitives",
  "skw-contract-sdk",
  "skw-vm-host",
  "skw-vm-pool",
@@ -7369,6 +7395,7 @@ dependencies = [
  "pallet-parentchain",
  "pallet-randomness-collective-flip",
  "pallet-registry",
+ "pallet-s-account",
  "pallet-s-contract",
  "pallet-secrets",
  "pallet-sudo",
@@ -7379,6 +7406,7 @@ dependencies = [
  "pallet-utility",
  "parity-scale-codec 3.1.2",
  "scale-info",
+ "skw-blockchain-primitives",
  "sp-api",
  "sp-block-builder",
  "sp-consensus-aura",

@@ -1,18 +1,19 @@
-use std::string::String;
-use std::path::{Path};
-use std::convert::{TryFrom};
-use std::cell::{RefCell};
-use std::rc::Rc;
-use std::sync::Arc;
+use std::{
+    path::Path,
+    cell::{RefCell},
+    rc::Rc,
+    sync::Arc,
+};
 
-use skw_vm_interface::{ExecutionResult, ViewResult};
+use crate::{
+    outcome::{ExecutionResult, ViewResult},
+    runtime::init_runtime,
+    user::UserAccount,
+};
 use skw_vm_primitives::{
     contract_runtime::{CryptoHash, AccountId, Balance},
 };
 use skw_vm_store::{Store};
-use skw_vm_interface::{
-    runtime::init_runtime, UserAccount,
-};
 
 pub const DEFAULT_GAS: u64 = 300_000_000_000_000;
 
@@ -39,9 +40,9 @@ impl Default for Script {
 
 impl Script {
 
-    pub(crate) fn init(&mut self, store: &Arc<Store>, state_root: CryptoHash, signer_str: &String) {
-        let (runtime, signer) = init_runtime(
-            signer_str, 
+    pub(crate) fn init(&mut self, store: &Arc<Store>, state_root: CryptoHash, signer: AccountId) {
+        let (runtime, s) = init_runtime(
+            signer.clone(), 
             None,
             Some(&store),
             Some(state_root),
@@ -49,8 +50,8 @@ impl Script {
 
         let account = UserAccount::new(
             &Rc::new(RefCell::new(runtime)),
-            AccountId::try_from(signer_str.to_string()).unwrap(), 
-            signer
+            signer, 
+            s
         );
 
         self.state_root = state_root;
@@ -58,54 +59,38 @@ impl Script {
         self.store = Some(store.clone());
     }
 
-    pub(crate) fn update_account(&mut self, signer_str: &String) {
-        let (runtime, signer) = init_runtime(
-            signer_str, 
+    pub(crate) fn update_account(&mut self, signer: AccountId) {
+        let (runtime, s) = init_runtime(
+            signer.clone(),
             None,
             self.store.as_ref(),
             Some(self.state_root),
         );
 
         let account = UserAccount::new(
-            &Rc::new(RefCell::new(runtime)),
-            AccountId::try_from(signer_str.to_string()).unwrap(), 
-            signer
+            &Rc::new(RefCell::new(runtime)),signer, s
         );
 
         self.account = Some(account);
     }
 
-    pub(crate) fn create_account(&self, receiver: &str, deposit: Balance) {
+    pub(crate) fn create_account(&self, receiver: AccountId, deposit: Balance) -> ExecutionResult{
         self.account
             .as_ref().unwrap()
-            .create_user(
-                AccountId::try_from(receiver.to_string()).unwrap(),
-                deposit
-            );
-        // if receiver == "5gbnewrhzc2jxu7d55rbimkydk8pgk8itryftpfc8rjlkg5o" {
-        //     let a = self.account.as_ref().unwrap();
-        //     println!("self - {:?} {:?}", a.account_id(), a.account());
-        //     println!("{:?}", a.other_account("deployer"));
-        //     println!("{:?}", a.other_account("status_message_collections"));
-        //     println!("{:?}", a.other_account("5gbnewrhzc2jxu7d55rbimkydk8pgk8itryftpfc8rjlkg5o"));
-    
-        // }
+            .create_user( receiver, deposit )
     }
 
-    pub(crate) fn transfer(&self, receiver: &str, deposit: Balance) {
+    pub(crate) fn transfer(&self, receiver: AccountId, deposit: Balance) -> ExecutionResult {
         self.account
             .as_ref().unwrap()
-            .transfer(
-                AccountId::try_from(receiver.to_string()).unwrap(),
-                deposit
-            );
+            .transfer( receiver, deposit )
     }
 
-    pub(crate) fn call(&self, receiver: &str, method: &str, args: &[u8], deposit: Balance) -> ExecutionResult {
+    pub(crate) fn call(&self, receiver: AccountId, method: &str, args: &[u8], deposit: Balance) -> ExecutionResult {
         self.account
             .as_ref().unwrap()
             .call(
-                AccountId::try_from(receiver.to_string()).unwrap(),
+                receiver,
                 method, 
                 args,
                 DEFAULT_GAS,
@@ -113,34 +98,16 @@ impl Script {
             )
     }
 
-    pub(crate) fn view_method_call(&self, receiver: &str, method: &str, args: &[u8]) -> ViewResult {
+    pub(crate) fn view_method_call(&self, receiver: AccountId, method: &str, args: &[u8]) -> ViewResult {
         self.account
             .as_ref().unwrap()
-            .view(
-                AccountId::try_from(receiver.to_string()).unwrap(),
-                method, 
-                args,
-            )
+            .view( receiver, method, args )
     }
 
-    pub(crate) fn deploy(&self, wasm_bytes: &[u8], receiver: &str, deposit: Balance) {
+    pub(crate) fn deploy(&self, wasm_bytes: &[u8], receiver: AccountId, deposit: Balance) -> ExecutionResult {
         self.account
             .as_ref().unwrap()
-            .deploy(
-                wasm_bytes,
-                AccountId::try_from(receiver.to_string()).unwrap(),
-                deposit,
-            );
-    }
-
-    // This should not be called at all?
-    pub(crate) fn delete_account(&self, receiver: &str, to: &str) {
-        self.account
-            .as_ref().unwrap()
-            .delete_account(
-                AccountId::try_from(receiver.to_string()).unwrap(),
-                AccountId::try_from(to.to_string()).unwrap(),
-            );
+            .deploy( wasm_bytes, receiver, deposit )
     }
 
     pub(crate) fn write_to_file(&self, output: &Path, state_root: &mut CryptoHash) {

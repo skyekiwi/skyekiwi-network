@@ -5,9 +5,8 @@ use super::Error as ParentchainError;
 
 use frame_support::{assert_ok, assert_noop};
 use crate::mock::{Event, *};
-use sp_std::num::ParseIntError;
 
-const PUBLIC_KEY: &str = "38d58afd1001bb265bce6ad24ff58239c62e1c98886cda9d7ccf41594f37d52f";
+const PUBLIC_KEY: [u8; 32] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 
 type AccountId = u64;
 const ALICE: AccountId = 1;
@@ -16,20 +15,13 @@ const CHARLIE: AccountId = 3;
 const DAVE: AccountId = 4;
 const FRED: AccountId = 5;
 
-fn decode_hex_uncompressed(s: &str) -> Result<Vec<u8>, ParseIntError> {
-	(0..s.len())
-		.step_by(1)
-		.map(|i| u8::from_str_radix(&s[i..i + 1], 16))
-		.collect()
-}
-
 #[test]
 fn it_submit_results() {
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY).unwrap();
+		let public_key = PUBLIC_KEY[..].to_vec();
 		assert_ok!( Registry::register_secret_keeper( Origin::signed(ALICE),  public_key.clone(), Vec::new() ) );
 		
 		assert_ok!( Registry::register_running_shard( Origin::signed(ALICE), 0 ) );
@@ -66,7 +58,7 @@ fn it_correctly_limit_beacon_turns_on_1_confirm() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY).unwrap();
+		let public_key = PUBLIC_KEY[..].to_vec();
 		assert_ok!( Registry::register_secret_keeper( Origin::signed(ALICE),  public_key.clone(), Vec::new() ) );
 		assert_ok!( Registry::register_running_shard( Origin::signed(ALICE), 0 ) );
 
@@ -137,7 +129,7 @@ fn it_correctly_limit_beacon_turns_on_3_confirm() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY).unwrap();
+		let public_key = PUBLIC_KEY[..].to_vec();
 		assert_ok!( Registry::register_secret_keeper( Origin::signed(ALICE),  public_key.clone(), Vec::new() ) );
 		assert_ok!( Registry::register_running_shard( Origin::signed(ALICE), 0 ) );
 
@@ -201,7 +193,7 @@ fn it_validates_outcome() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY).unwrap();
+		let public_key = PUBLIC_KEY[..].to_vec();
 		assert_ok!( Registry::register_secret_keeper( Origin::signed(ALICE),  public_key.clone(), Vec::new() ) );
 		assert_ok!( Registry::register_running_shard( Origin::signed(ALICE), 0 ) );
 
@@ -272,7 +264,7 @@ fn it_validate_state_root_n_file_hash() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY).unwrap();
+		let public_key = PUBLIC_KEY[..].to_vec();
 		assert_ok!( Registry::register_secret_keeper( Origin::signed(ALICE),  public_key.clone(), Vec::new() ) );
 		assert_ok!( Registry::register_running_shard( Origin::signed(ALICE), 0 ) );
 

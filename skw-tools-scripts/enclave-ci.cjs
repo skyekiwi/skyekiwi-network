@@ -7,19 +7,20 @@ console.log('$ yarn enclave:ci', process.argv.slice(2).join(' '));
 
 function enclaveCI() {
 
-  const pathName = path.join(__dirname, "..");
-  execSync(`sudo docker run -v ${pathName}:/root/sgx \
-    baiduxlab/sgx-rust \
-    bash -c " \
-      source /opt/sgxsdk/environment \
-      && source /root/.cargo/env \
-      && cd /root/sgx/enclave \
-      && export SGX_MODE=SW \
-      && make \
-      && cd bin \
-      && ./skw_sgx_host \
-      && exit"`
-  );
+  console.log("skipped ... for now")
+  // const pathName = path.join(__dirname, "..");
+  // execSync(`sudo docker run -v ${pathName}:/root/sgx \
+  //   baiduxlab/sgx-rust \
+  //   bash -c " \
+  //     source /opt/sgxsdk/environment \
+  //     && source /root/.cargo/env \
+  //     && cd /root/sgx/enclave \
+  //     && export SGX_MODE=SW \
+  //     && make \
+  //     && cd bin \
+  //     && ./skw_sgx_host \
+  //     && exit"`
+  // );
 }
 
 enclaveCI()

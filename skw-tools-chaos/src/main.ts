@@ -31,7 +31,7 @@ const main = async () => {
   }
 
   // each account will make 10 random push calls
-  const callCounts = 10;
+  const callCounts = 100;
 
   for (let i = 1; i <= 20; i++) {
     execSync(`${pm2Path} start "${tsnodePath} ${indexPath} ${i} ${callCounts}" --log ${logBasePath}/${i}.log`);

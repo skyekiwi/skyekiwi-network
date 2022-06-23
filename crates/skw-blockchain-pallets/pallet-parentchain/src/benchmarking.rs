@@ -7,18 +7,13 @@ use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_sui
 use crate::Pallet as Parentchain;
 use pallet_registry::Pallet as Registry;
 use sp_std::vec::Vec;
+use skw_blockchain_primitives::types::CallIndex;
 
-const PUBLIC_KEY: &str = "38d58afd1001bb265bce6ad24ff58239c62e1c98886cda9d7ccf41594f37d52f";
-fn decode_hex_uncompressed(s: &str) -> Vec<u8> {
-	(0..s.len())
-		.step_by(1)
-		.map(|i| u8::from_str_radix(&s[i..i + 1], 16).unwrap())
-		.collect()
-}
+const PUBLIC_KEY: [u8; 32] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 
 benchmarks! {
 	set_shard_confirmation_threshold {
-		let s = 0u64;
+		let s = 0u32;
 		let caller: T::AccountId = whitelisted_caller();
 	}: set_shard_confirmation_threshold(RawOrigin::Root, s, 2)
 	verify {
@@ -28,7 +23,7 @@ benchmarks! {
 	submit_outcome {
 		let s in 1 .. 100;
 
-		let shard_id = 0u64;
+		let shard_id = 0u32;
 		let caller: T::AccountId = whitelisted_caller();
 		let now = frame_system::Pallet::<T>::block_number();
 
@@ -42,8 +37,7 @@ benchmarks! {
 			outcome.push([i as u8; 50_000].to_vec());
 		}
 		
-		let public_key = decode_hex_uncompressed(PUBLIC_KEY);
-		Registry::<T>::register_secret_keeper( RawOrigin::Signed(caller.clone()).into(),  public_key.clone(), Vec::new() )?;
+		Registry::<T>::register_secret_keeper( RawOrigin::Signed(caller.clone()).into(), PUBLIC_KEY.to_vec(), Vec::new() )?;
 		Registry::<T>::register_running_shard( RawOrigin::Signed(caller.clone()).into(), 0 )?;
 		Parentchain::<T>::set_shard_confirmation_threshold( RawOrigin::Root.into(), shard_id, 1 )?;
 	}: submit_outcome(RawOrigin::Signed(caller), now, shard_id, state_root, outcome_call_index, outcome)

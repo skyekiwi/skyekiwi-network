@@ -17,7 +17,7 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use frame_support::{ pallet_prelude::* };
 	use frame_system::pallet_prelude::*;
-	use skw_blockchain_primitives::{SecretId};
+	use skw_blockchain_primitives::types::{SecretId};
 	use super::WeightInfo;
 	use sp_std::vec::Vec;
 

@@ -2,7 +2,10 @@
 use pallet_secrets;
 use crate as pallet_s_contract;
 
-use frame_support::traits::{ConstU16, ConstU32, ConstU64};
+use frame_support::{
+	traits::{ConstU16, ConstU32, ConstU64},
+	PalletId,
+};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -25,6 +28,7 @@ frame_support::construct_runtime!(
 		SContract: pallet_s_contract::{Pallet, Call, Storage, Event<T>},
 	}
 );
+pub type AccountId = <<sp_runtime::MultiSignature as sp_runtime::traits::Verify>::Signer as sp_runtime::traits::IdentifyAccount>::AccountId;
 
 impl system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
@@ -37,7 +41,7 @@ impl system::Config for Test {
 	type BlockNumber = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
@@ -59,6 +63,10 @@ impl pallet_secrets::Config for Test {
 	type IPFSCIDLength = ConstU32<46>;
 }
 
+
+frame_support::parameter_types! {
+	pub const SContractPalletId: PalletId = PalletId(*b"scontrac");
+}
 impl pallet_s_contract::Config for Test {
 	type WeightInfo = ();
 	type Event = Event;
@@ -66,6 +74,7 @@ impl pallet_s_contract::Config for Test {
 	type MinContractNameLength = ConstU32<1>;
 	type MaxContractNameLength = ConstU32<32>;
 	type MaxCallPerBlock = ConstU32<1_000>;
+	type SContractRoot = SContractPalletId;
 }
 
 // Build genesis storage according to the mock runtime.

@@ -113,10 +113,11 @@ pub fn testnet_alpha_config() -> Result<ChainSpec, String> {
 // 		// Telemetry
 // 		None,
 // 		// Protocol ID
-// 		Some("skw"),
+// 		None,
 // 		// Properties
 // 		None,
 // 		// Extensions
+// 		None,
 // 		None,
 // 	))
 // }

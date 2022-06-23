@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { ApiPromise } from '@polkadot/api';
-import type { EventRecord } from '@polkadot/types/interfaces';
 import type { CallRecord } from './types';
 
 import level from 'level';
-import { getLogger, hexToU8a, u8aToString } from '@skyekiwi/util';
+import { getLogger, hexToU8a } from '@skyekiwi/util';
 import { 
-  Calls, ExecutionSummary, ShardMetadata, Block, LocalMetadata, parseCalls, Contract,
+  ExecutionSummary, ShardMetadata, Block, LocalMetadata, parseCalls, baseEncode,
 } from '@skyekiwi/s-contract/borsh';
 
 import { DBOps } from './types';
@@ -36,11 +35,11 @@ export class Indexer {
     const localMetadata = new LocalMetadata({
       shard_id: [0],
       high_local_block: 0,
-      latest_state_root: new Uint8Array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
     });
 
     const executionSummary = new ExecutionSummary({
       high_local_execution_block: 0,
+      latest_state_root: new Uint8Array(32),
     });
 
     this.#ops.push(Storage.writeMetadata(localMetadata));
@@ -60,38 +59,34 @@ export class Indexer {
 
     let fetchingCount = 0;
 
-    logger.info(`highest local block at ${localMetadata.high_local_block}`);
+    logger.info(`💁 highest local block at ${localMetadata.high_local_block}`);
     let currentBlockNumber = highLocalBlock;
 
     while (true && this.#active) {
-      logger.debug(`fetching all info from block# ${currentBlockNumber}`);
+      logger.debug(`⬇️ fetching all info from block# ${currentBlockNumber}`);
 
       for (const shardId of localMetadata.shard_id) {
-        for (let i = 0; i < 10; i ++) {
-          const s = await this.fetchCalls(api, shardId, currentBlockNumber);
-          if (s) break;
-
-          logger.info(`retrying for ${currentBlockNumber}`)
-        }
+        await this.fetchCalls(api, shardId, currentBlockNumber);
       }
 
       currentBlockNumber++;
       const currentHighBlockNumber = Number((await api.query.system.number()).toJSON());
 
       if (isNaN(currentHighBlockNumber) || currentBlockNumber >= currentHighBlockNumber) {
-        logger.info(`all catchuped ... for now at block# ${currentHighBlockNumber}`);
+        logger.info(`✅ all catchuped ... for now at block# ${currentHighBlockNumber}`);
 
         const localMetadata = await Storage.getMetadata(this.#db);
         localMetadata.high_local_block = currentHighBlockNumber - 1;
+
         this.#ops.push(Storage.writeMetadata(localMetadata));
         break;
       }
 
+      // if we have fetched 1000 blocks - write to DB NOW!
       fetchingCount = fetchingCount + 1;
-
       if (fetchingCount === 1000) {
         fetchingCount = 0;
-        logger.info("writting some calls to local DB")
+        logger.info("💯 writting some buffered blocks to local DB")
 
         const localMetadata = await Storage.getMetadata(this.#db);
         localMetadata.high_local_block = currentBlockNumber;
@@ -105,72 +100,26 @@ export class Indexer {
     const logger = getLogger('indexer.fetchCalls');
 
     const calls = (await api.query.sContract.callHistory(shardId, blockNumber)).toJSON() as number[];
-    let contracts: string[] = []
-
-    // 1. build new contract deployments
-    const blockHash = ((await api.rpc.chain.getBlockHash(blockNumber)).toJSON()) as string;
-    if (blockHash === '0x0000000000000000000000000000000000000000000000000000000000000000')
-      return false;
-    const events = (await api.query.system.events.at(blockHash)).toHuman() as unknown as EventRecord[];
-
-    for (const evt of events) {
-      if (evt.event) {
-        if (evt.event.method === 'SecretContractRegistered') {
-          const shardId = Number(evt.event.data[0]);
-          const contractName = evt.event.data[1].toString();
-          const callIndex = Number(evt.event.data[2]);
-
-          let call
-          const encodedCall = (await api.query.sContract.callRecord(callIndex)).toJSON() as CallRecord;
-          if (encodedCall[0] === '0x') {
-            call = new Calls({ops: [] });
-          }
-          else {
-            call = parseCalls( u8aToString( hexToU8a(encodedCall[0].substring(2)) ) );
-          }
-
-          contracts.push(contractName);
-          const wasmCIDRaw = (await api.query.sContract.wasmBlobCID(shardId, contractName)).toJSON() as string;
-          const wasmCID = u8aToString(hexToU8a(wasmCIDRaw.substring(2)));
-
-          const contract = new Contract({
-            home_shard: shardId,
-            wasm_blob: wasmCID,
-            deployment_call: call,
-            deployment_call_index: callIndex,
-          });
-
-          this.#ops.push(Storage.writeContractRecord(contractName, contract));
-        }
-      }
-    };
-
-    if (!calls && !contracts) return true;
-
-    // 2. build calls
     if (calls) {
       for (const call of calls) {
         const callContent = (await api.query.sContract.callRecord(call)).toJSON() as CallRecord;
-        let encodedCall
-        if (callContent[0] === '0x') {
-          encodedCall = ""
-        }
-        else encodedCall = u8aToString(hexToU8a(callContent[0].substring(2)));
-        this.#ops.push(Storage.writeCallsRecord(shardId, call, parseCalls(encodedCall)));
+        const rawCall = hexToU8a(callContent[0].substring(2)); // trim out the '0x'
+
+        // TODO: we no longer force base64 encoding of calls anymore
+        this.#ops.push(Storage.writeCallsRecord(shardId, call, 
+            parseCalls( baseEncode(rawCall) )
+          )
+        );
       }
     }
 
-    // 3. build blocks
     const block = new Block({
       shard_id: shardId,
       block_number: blockNumber,
       calls: calls,
-      contracts: contracts
     });
     this.#ops.push(Storage.writeBlockRecord(shardId, blockNumber, block));
-
-    logger.info(`📦 block import complete at block# ${blockNumber}, imported ${calls ? calls.length : 0} calls and ${contracts ? contracts.length : 0} contracts`);
-    
+    logger.info(`📦 block import complete at block# ${blockNumber}, imported ${calls ? calls.length : 0} calls`);
     return true;
   }
 
@@ -200,6 +149,7 @@ export class Indexer {
         // shard has not been recorded in the system
         // Recording ...
         shardInfo = new ShardMetadata({
+          // TODO: shard_key 
           shard_key: new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
           shard_members: members as string[],
           beacon_index: beaconIndex,
@@ -207,9 +157,15 @@ export class Indexer {
         });
       }
 
+      // TODO: better handle of this - we do not force registration on genesis anymore
+      if (!shardInfo.shard_members) {
+        shardInfo.shard_members = []
+      }
+
       this.#ops.push(Storage.writeShardMetadataRecord(shard, shardInfo));
     }
   }
+
   public async writeAll (): Promise<void> {
     if (this.#active) {
       await Storage.writeAll(this.#db, this.#ops);

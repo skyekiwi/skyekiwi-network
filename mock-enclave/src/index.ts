@@ -1,115 +1,21 @@
+import type { QueuedTransaction } from './host/types';
+
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import level from 'level'
 
-import {baseDecode, baseEncode} from 'borsh';
-
-import {Calls, parseRawOutcomes, Outcomes, BlockSummary, buildCalls, ExecutionSummary} from '@skyekiwi/s-contract/borsh';
-import { getLogger} from '@skyekiwi/util';
+import { Calls, ExecutionSummary } from '@skyekiwi/s-contract/borsh';
+import { getLogger } from '@skyekiwi/util';
+import { sleep } from '@skyekiwi/util/util';
 
 import { Indexer } from './host/indexer';
 import { Storage } from './host/storage'
 import { ShardManager } from './host/shard';
-
 import { Dispatcher } from './host/dispatcher';
-import { callRuntime  } from './vm';
-import { validateIndexer, validateExecutor } from './validate';
 
-import { DBOps, QueuedTransaction } from './host/types';
+import { validateIndexer, validateExecutor } from './validate';
 
 require("dotenv").config()
 
-const padSize = (size: number): Uint8Array => {
-  const res = new Uint8Array(4);
-
-  res[3] = size & 0xff;
-  res[2] = (size >> 8) & 0xff;
-  res[1] = (size >> 16) & 0xff;
-  res[0] = (size >> 24) & 0xff;
-
-  return res;
-};
-
-const unpadSize = (size: Uint8Array): number => {
-  return size[3] | (size[2] << 8) | (size[1] << 16) | (size[0] << 24);
-};
-
-const sleep = (ms: number) => {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
-const processCalls = async (
-  calls: {[key: number]: Calls},
-  blockNumber: number,
-  lastStateRoot: Uint8Array
-): Promise<[DBOps[], Uint8Array]> => {
-
-  if (Object.keys(calls).length === 0) {
-    return [[], new Uint8Array(0)];
-  }
-
-  let lastBlockSummary = new BlockSummary({
-    block_number: blockNumber - 1,
-    block_state_root: lastStateRoot,
-    contract_state_patch_from_previous_block: new Uint8Array(0),
-    call_state_patch_from_previous_block: new Uint8Array(0),
-  });
-
-  let dbOps: DBOps[] = [];
-  let blockSummary = new BlockSummary({
-    block_number: blockNumber,
-    block_state_root: new Uint8Array(0),
-    contract_state_patch_from_previous_block: new Uint8Array(0),
-    call_state_patch_from_previous_block: new Uint8Array(0),
-  })
-
-  // Execute Calls
-  let callRaw = new Uint8Array(0);
-  for (const callIndex in calls) {
-    const call = calls[callIndex];
-    const encodedCall = baseDecode(buildCalls(call));
-    callRaw = new Uint8Array([
-      ...callRaw,
-      ...padSize(encodedCall.length + 4),
-      ...padSize(Number(callIndex)),
-      ...encodedCall,
-    ]);
-  }
-
-  // 3. send for execution
-  const callOutcome = callRuntime(baseEncode(callRaw), lastBlockSummary.block_state_root)
-
-  // 4. parse outcomes
-  const decodedCallOutcome = baseDecode(callOutcome);
-  let callOutcomeOffset = 0;
-  
-  while (callOutcomeOffset < callOutcome.length) {
-    const outcomeSize = unpadSize(decodedCallOutcome.slice(callOutcomeOffset, callOutcomeOffset + 4));
-    if (outcomeSize === 0) {
-      break;
-    }
-    const callIndex = unpadSize(decodedCallOutcome.slice(callOutcomeOffset + 4, callOutcomeOffset + 8));
-    const rawOutcome = parseRawOutcomes(baseEncode(decodedCallOutcome.slice(callOutcomeOffset + 8, callOutcomeOffset + 4 + outcomeSize)));
-
-    callOutcomeOffset += 4 + outcomeSize;
-    lastBlockSummary.block_state_root = rawOutcome.state_root;
-    blockSummary.block_state_root = lastBlockSummary.block_state_root;
-    blockSummary.call_state_patch_from_previous_block = rawOutcome.state_patch;
-    
-    const outcome = new Outcomes({
-      ops: rawOutcome.ops,
-      state_root: rawOutcome.state_root,
-    })
-    dbOps.push(Storage.writeCallOutcome(0, callIndex, outcome));
-  }
-
-  dbOps.push(Storage.writeBlockSummary(0, blockNumber, blockSummary));
-  dbOps.push(Storage.writeExecutionSummary(new ExecutionSummary({
-    high_local_execution_block: blockNumber,
-  })))
-  return [dbOps, lastBlockSummary.block_state_root]
-}
-
-const SHUTDOWN_SIGNALS = ['SIGINT', 'SIGTERM'];
 const main = async () => {
 
   const logger = getLogger("mock-enclave")
@@ -119,14 +25,15 @@ const main = async () => {
 
   const db = level('local');
   const indexer = new Indexer(db);
-  const shard = new ShardManager([0]);
-  const dispatcher = new Dispatcher();
 
+  // define which shard the current machine is running
+  const shard = new ShardManager([0]);
   await shard.init();
 
   let lightSwitch = true;
 
-  SHUTDOWN_SIGNALS.forEach(signal => {
+  // 1. register the shutdown signals for gracefully shutdown
+  ['SIGINT', 'SIGTERM'].forEach(signal => {
     process.once(signal, () => {
       lightSwitch = false;
       const shutdown = async() => {
@@ -149,6 +56,7 @@ const main = async () => {
   });
 
 
+  // 2. initialze local storage if it is currently unavalaible 
   try {
     await Storage.getMetadata(db);
   } catch(e) {
@@ -157,9 +65,10 @@ const main = async () => {
     await indexer.initialzeLocalDatabase();
   }
 
+  // 3. fetch the current shard info
   await indexer.fetchShardInfo(api, '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY');
 
-  // pre-launch validation
+  // 4. pre-launch validation
   let validedIndexer = await validateIndexer(db, api);
   let validedExecutor = await validateExecutor(db, api);
 
@@ -171,44 +80,56 @@ const main = async () => {
   logger.info(`highest validated indexed block at #${validedIndexer}`);
   logger.info(`highest validated executed block at #${validedExecutor}`);
 
+  // 5. initialzed the pending transaction queue
   let txBuffer: QueuedTransaction[] = [{
     transaction: null,
     blockNumber: -1,
   }];
 
+  // MAIN LOOP
   while (true && lightSwitch) {
 
+    // 6. sync with the blockchain data
     let localMetadata = await Storage.getMetadata(db);
-    let executionSummary = await Storage.getExecutionSummary(db);
-
     await indexer.fetchAll(api, localMetadata.high_local_block);
     await indexer.writeAll();
+
     localMetadata = await Storage.getMetadata(db);
-    executionSummary = await Storage.getExecutionSummary(db);
+    let executionSummary = await Storage.getExecutionSummary(db);
 
-
+    // 7. Main execution loop
     for (let blockNumber = executionSummary.high_local_execution_block; 
       blockNumber < localMetadata.high_local_block; blockNumber ++ ) 
     {
       try {
+        // whether the block has been executed?
         await Storage.getBlockSummary(db, 0, blockNumber)
+        // Ok -- funny shit happend or we should not be here.
       } catch(e) {
 
         // the block has not been executed
         const block = await Storage.getBlockRecord(db, 0, blockNumber);
         if (
           !block ||
-          (!block.calls || block.calls.length === 0) && 
-          (!block.contracts || block.contracts.length === 0)
+          (!block.calls || block.calls.length === 0)
         ) {
+          logger.info(`🙌 skipping block number ${blockNumber} for execution as it's empty`);
           // empty block
+
+          await Storage.writeAll(db, [Storage.writeExecutionSummary(new ExecutionSummary({
+                high_local_execution_block: blockNumber,
+                latest_state_root: executionSummary.latest_state_root,
+              })
+            )]
+          )
           continue;
         }
 
         logger.info(`🙌 sending block number ${blockNumber} for execution`);
-        let callsOfBlock: {[key: number]: Calls} = {}
+
         // check whether to register the secret keeper & push to the tx buffer
-        if (blockNumber % 20 === 0) {
+        if (blockNumber % 20 === 0 || await shard.secretKeeperRegistryExpiredOrMissing(api, blockNumber)) {
+          // Extra-8: if not registerd, register ourselves as a secret keeper
           const txs = await shard.maybeRegisterSecretKeeper(api, blockNumber);
           txBuffer.push(
             ...[... (txs ? txs : [])].map(tx => ({
@@ -219,49 +140,36 @@ const main = async () => {
           );
         }
 
-        // the main process of executing
-        if (dispatcher.isDispatchable(db, blockNumber)) {
+        // 8. re-pack all calls in this block and send for execution
+        let callsOfBlock: {[key: number]: Calls} = {}
 
-          let deploymentCalls: number[] = [];
-          if (block.contracts && block.contracts.length > 0) {
-            for (const contractName of block.contracts) {
-              const [newCalls, deploymentCallIndex] = await dispatcher.dispatchNewContract(db, contractName);
-              deploymentCalls.push(deploymentCallIndex);
-              callsOfBlock[deploymentCallIndex] = newCalls;
-            }
-          }
+        // 9. The main execution loop
+        if (Dispatcher.isDispatchable(db, blockNumber)) {
 
           if (block.calls && block.calls.length > 0) {
-            for (let call of block.calls) {
-              if (deploymentCalls.filter(i => i === call).length === 0) {
-                const newCalls = await dispatcher.dispatchCalls(db, call)
-                callsOfBlock[call] = newCalls;
-              }
+            for (let callIndex of block.calls) {
+              logger.info(`⬆️ CallIndex ${callIndex} is sent for pre-dispatch processing`);
+              const newCalls = await Dispatcher.preDispatchProcessing(api, db, callIndex)
+              callsOfBlock[callIndex] = newCalls;
             }
           }
 
           if (Object.keys(callsOfBlock).length > 0) {
-            const [dbOps, newStateRoot] = await processCalls(
+            const [dbOps, newStateRoot] = Dispatcher.dispatchBatch(
               callsOfBlock, 
-              blockNumber,
-              localMetadata.latest_state_root,
+              executionSummary.latest_state_root,
             );
-            localMetadata.latest_state_root = newStateRoot; 
-
-            // console.log(localMetadata)
-
-            dbOps.push(Storage.writeMetadata(localMetadata));
+            executionSummary.latest_state_root = newStateRoot;
             await Storage.writeAll(db, dbOps);
           }
         }
-
+        // 10. check for chain confirmation of the current block and try to decide if we should submit an outcomes
         const conf = (await api.query.parentchain.confirmation(0, block.block_number)).toJSON();
         if (
             // no reports has been submitted yet || confirmation is below the threshold?
-            (conf === null) && (
-              (block.calls && block.calls.length !== 0) || 
-              (block.contracts && block.contracts.length !== 0)
-            ) && dispatcher.isDispatchable(db, block.block_number)
+            conf === null &&
+            (block.calls && block.calls.length !== 0) && 
+            Dispatcher.isDispatchable(db, block.block_number)
         ) {
           // console.log("submitting report for ", block.block_number)
           txBuffer.push(
@@ -276,7 +184,6 @@ const main = async () => {
         }
       }
     }
-
     txBuffer = await shard.maybeSubmitTxBatch(api, txBuffer);
     await indexer.writeAll();
 

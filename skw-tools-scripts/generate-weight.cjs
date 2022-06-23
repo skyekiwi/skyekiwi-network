@@ -54,6 +54,17 @@ function generateBenchmark() {
     --heap-pages 4096 \
     --output ${palletRootFolder}/pallet-s-contract/src/weights.rs \
     --template ${weightTemplate}`);
+
+    execSync(`${node} benchmark pallet\
+    --steps 50 \
+    --repeat 20 \
+    --pallet pallet_s_account \
+    --extrinsic '*' \
+    --execution wasm \
+    --wasm-execution compiled \
+    --heap-pages 4096 \
+    --output ${palletRootFolder}/pallet-s-account/src/weights.rs \
+    --template ${weightTemplate}`);
 }
 
 generateBenchmark()

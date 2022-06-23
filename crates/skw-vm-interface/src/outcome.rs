@@ -1,35 +1,21 @@
-use crate::runtime::{init_runtime, RuntimeStandalone};
+#![allow(unused_must_use)]
 
 use core::fmt;
-use skw_vm_primitives::profile::ProfileData;
-use skw_vm_primitives::transaction::{
-    ExecutionStatus::{SuccessReceiptId, SuccessValue}
-};
+use std::convert::TryFrom;
 use skw_vm_primitives::{
-    contract_runtime::{AccountId, CryptoHash},
+    contract_runtime::CryptoHash,
     transaction::{ExecutionOutcome, ExecutionStatus},
 };
 use skw_vm_runtime::state_viewer::errors::CallFunctionError;
-use skw_contract_sdk::borsh::BorshDeserialize;
-use skw_contract_sdk::serde::de::DeserializeOwned;
-use skw_contract_sdk::serde_json::Value;
-use skw_contract_sdk::Gas;
+use skw_blockchain_primitives::types::Bytes;
 
-use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::fmt::Debug;
 use std::fmt::Formatter;
-use std::rc::Rc;
-
-pub type TxResult = Result<ExecutionOutcome, ExecutionOutcome>;
 
 /// An ExecutionResult is created by a UserAccount submitting a transaction.
 /// It wraps an ExecutionOutcome which is the same object returned from an RPC call.
-#[derive(Clone)]
 pub struct ExecutionResult {
-    runtime: Rc<RefCell<RuntimeStandalone>>,
     outcome: ExecutionOutcome,
-    hash: CryptoHash,
 }
 
 impl Debug for ExecutionResult {
@@ -42,8 +28,6 @@ impl Default for ExecutionResult {
     fn default() -> Self {
         ExecutionResult::new(
             ExecutionOutcome::default(),
-            &Rc::new(RefCell::new(init_runtime(&"root",None, None, None).0)),
-            CryptoHash::default(),
         )
     }
 }
@@ -52,88 +36,8 @@ impl ExecutionResult {
     #[doc(hidden)]
     pub fn new(
         outcome: ExecutionOutcome,
-        runtime: &Rc<RefCell<RuntimeStandalone>>,
-        hash: CryptoHash,
     ) -> Self {
-        Self { runtime: Rc::clone(runtime), outcome, hash }
-    }
-
-    /// Interpret the SuccessValue as a JSON value
-    pub fn unwrap_json_value(&self) -> Value {
-        use skw_vm_primitives::transaction::ExecutionStatus::*;
-        match &(self.outcome).status {
-            SuccessValue(s) => skw_contract_sdk::serde_json::from_slice(s).unwrap(),
-            err => panic!("Expected Success value but got: {:#?}", err),
-        }
-    }
-
-    /// Deserialize SuccessValue from Borsh
-    pub fn unwrap_borsh<T: BorshDeserialize>(&self) -> T {
-        use skw_vm_primitives::transaction::ExecutionStatus::*;
-        match &(self.outcome).status {
-            SuccessValue(s) => BorshDeserialize::try_from_slice(s).unwrap(),
-            _ => panic!("Cannot get value of failed transaction"),
-        }
-    }
-
-    /// Deserialize SuccessValue from JSON
-    pub fn unwrap_json<T: DeserializeOwned>(&self) -> T {
-        skw_contract_sdk::serde_json::from_value(self.unwrap_json_value()).unwrap()
-    }
-
-    /// Check if transaction was successful
-    pub fn is_ok(&self) -> bool {
-        matches!(&(self.outcome).status, SuccessValue(_) | SuccessReceiptId(_))
-    }
-
-    /// Test whether there is a SuccessValue
-    pub fn has_value(&self) -> bool {
-        matches!(self.outcome.status, SuccessValue(_))
-    }
-
-    /// Asserts that the outcome is successful
-    pub fn assert_success(&self) {
-        assert!(self.is_ok(), "Outcome {:#?} was a failure", self.outcome);
-    }
-
-    /// Lookup an execution result from a hash
-    pub fn lookup_hash(&self, hash: &CryptoHash) -> Option<ExecutionResult> {
-        self.get_outcome(hash)
-    }
-
-    fn get_outcome(&self, hash: &CryptoHash) -> Option<ExecutionResult> {
-        (*self.runtime)
-            .borrow()
-            .outcome(hash)
-            .map(|out| ExecutionResult::new(out, &self.runtime, *hash))
-    }
-
-    /// Reference to internal ExecutionOutcome
-    pub fn outcome(&self) -> &ExecutionOutcome {
-        &self.outcome
-    }
-
-    /// Return results of promises from the `receipt_ids` in the ExecutionOutcome
-    pub fn get_receipt_results(&self) -> Vec<Option<ExecutionResult>> {
-        self.get_outcomes(&self.outcome.receipt_ids)
-    }
-
-    fn get_outcomes(&self, ids: &[CryptoHash]) -> Vec<Option<ExecutionResult>> {
-        ids.iter().map(|id| self.get_outcome(id)).collect()
-    }
-
-    /// Return the results of any promises created since the last transaction
-    pub fn promise_results(&self) -> Vec<Option<ExecutionResult>> {
-        self.get_outcomes(&(*self.runtime).borrow().last_outcomes)
-    }
-
-    pub fn promise_errors(&self) -> Vec<Option<ExecutionResult>> {
-        let mut res = self.promise_results();
-        res.retain(|outcome| match outcome {
-            Some(o) => !o.is_ok(),
-            _ => false,
-        });
-        res
+        Self { outcome }
     }
 
     /// Execution status. Contains the result in case of successful execution.
@@ -143,27 +47,26 @@ impl ExecutionResult {
         self.outcome.status.clone()
     }
 
-    /// The amount of the gas burnt by the given transaction or receipt.
-    pub fn gas_burnt(&self) -> Gas {
-        Gas(self.outcome.gas_burnt)
-    }
-
     /// The amount of tokens burnt corresponding to the burnt gas amount.
     /// This value doesn't always equal to the `gas_burnt` multiplied by the gas price, because
     /// the prepaid gas price might be lower than the actual gas price and it creates a deficit.
-    pub fn tokens_burnt(&self) -> u128 {
-        self.outcome.tokens_burnt
+    pub fn tokens_burnt(&self) -> u32 {
+        u32::try_from(
+            self.outcome.tokens_burnt / 10u128.pow(24)
+        ).expect("Burnt tokens should fit in u32")
     }
 
     /// Logs from this transaction or receipt.
-    pub fn logs(&self) -> &Vec<String> {
-        &self.outcome.logs
-    }
-
-    /// The id of the account on which the execution happens. For transaction this is signer_id,
-    /// for receipt this is receiver_id.
-    pub fn executor_id(&self) -> &AccountId {
-        &self.outcome.executor_id
+    pub fn logs(&self) -> Vec<Bytes> {
+        let logs = &self.outcome.logs;
+        let mut res = Vec::new();
+        
+        logs
+            .iter()
+            .map(|log| {
+                res.push(log.as_bytes().to_vec());
+            });
+        res
     }
 
     /// Receipt IDs generated by this transaction or receipt.
@@ -171,19 +74,15 @@ impl ExecutionResult {
         &self.outcome.receipt_ids
     }
 
-    pub fn profile_data(&self) -> ProfileData {
-        (*self.runtime).borrow().profile_of_outcome(&self.hash).unwrap()
-    }
 }
 
 #[doc(hidden)]
 pub fn outcome_into_result(
-    outcome: (CryptoHash, ExecutionOutcome),
-    runtime: &Rc<RefCell<RuntimeStandalone>>,
+    outcome: ExecutionOutcome,
 ) -> ExecutionResult {
-    match (outcome.1).status {
+    match (outcome).status {
         ExecutionStatus::SuccessValue(_) |
-        ExecutionStatus::Failure(_) => ExecutionResult::new(outcome.1, runtime, outcome.0),
+        ExecutionStatus::Failure(_) => ExecutionResult::new(outcome),
         ExecutionStatus::SuccessReceiptId(_) => panic!("Unresolved ExecutionOutcome run runtime.resolve(tx) to resolve the final outcome of tx"),
         ExecutionStatus::Unknown => unreachable!()
     }
@@ -203,63 +102,32 @@ impl ViewResult {
     }
 
     /// Logs made during the view call
-    pub fn logs(&self) -> &Vec<String> {
-        &self.logs
-    }
-
-    pub fn is_err(&self) -> bool {
-        self.result.is_err()
-    }
-
-    pub fn is_ok(&self) -> bool {
-        self.result.is_ok()
+    pub fn logs(&self) -> Vec<Bytes> {
+        let logs = &self.logs;
+        let mut res = Vec::new();
+        
+        logs
+            .iter()
+            .map(|log| {
+                res.push(log.as_bytes().to_vec());
+            });
+        res
     }
 
     /// Attempt unwrap the value returned by the view call and panic if it is an error
-    pub fn unwrap(&self) -> Vec<u8> {
-        (&self.result).as_ref().borrow().unwrap().clone()
-    }
+    pub fn result(&self) -> (Option<Bytes>, Option<Bytes>) {
+        let mut res = (None, None);
+        match &self.result {
+            Ok(x) => {
+                res.0 = Some(x.clone());
+                res.1 = None;
+            },
+            Err(e) => {
+                res.0 = None;
+                res.1 = Some(e.to_string().as_bytes().to_vec());
+            }
+        }
 
-    // pub fn unwrap_err(&self) -> &dyn std::error::Error {
-    //     (&self.result).as_ref().borrow().unwrap_err().as_ref().borrow()
-    // }
-
-    /// Interpret the value as a JSON::Value
-    pub fn unwrap_json_value(&self) -> Value {
-        skw_contract_sdk::serde_json::from_slice(self.result.as_ref().expect("ViewResult is an error"))
-            .unwrap()
-    }
-
-    /// Deserialize the value with Borsh
-    pub fn unwrap_borsh<T: BorshDeserialize>(&self) -> T {
-        BorshDeserialize::try_from_slice(self.result.as_ref().expect("ViewResult is an error"))
-            .unwrap()
-    }
-
-    /// Deserialize the value with JSON
-    pub fn unwrap_json<T: DeserializeOwned>(&self) -> T {
-        skw_contract_sdk::serde_json::from_value(self.unwrap_json_value()).unwrap()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::runtime::init_runtime;
-    use skw_vm_primitives::transaction::ExecutionStatus::SuccessValue;
-    use skw_contract_sdk::serde_json::json;
-
-    #[test]
-    fn value_test() {
-        let value = json!({
-          "id": "hello"
-        });
-        let status = SuccessValue(value.to_string().as_bytes().to_vec());
-        let outcome = ExecutionOutcome { status, ..Default::default() };
-        let result = outcome_into_result(
-            (CryptoHash::default(), outcome),
-            &Rc::new(RefCell::new(init_runtime(&"root", None, None, None).0)),
-        );
-        assert_eq!(value, result.unwrap_json_value());
+        res
     }
 }

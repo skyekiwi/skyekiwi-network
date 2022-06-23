@@ -12,10 +12,13 @@ version = '3.0.0'
 targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
+skw-blockchain-primitives = { default-features = false, path = '../skw-blockchain-pallets/primitives', version = '3.0.0' }
+
 pallet-secrets = { default-features = false, path = '../skw-blockchain-pallets/pallet-secrets', version = '3.0.0' }
 pallet-s-contract = { default-features = false, path = '../skw-blockchain-pallets/pallet-s-contract', version = '3.0.0' }
 pallet-registry = { default-features = false, path = '../skw-blockchain-pallets/pallet-registry', version = '3.0.0' }
 pallet-parentchain = { default-features = false, path = '../skw-blockchain-pallets/pallet-parentchain', version = '3.0.0' }
+pallet-s-account = { default-features = false, path = '../skw-blockchain-pallets/pallet-s-account', version = '3.0.0' }
 
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
@@ -69,10 +72,11 @@ runtime-benchmarks = [
     'pallet-balances/runtime-benchmarks',
     'pallet-grandpa/runtime-benchmarks',
     'pallet-timestamp/runtime-benchmarks',
-    # 'pallet-treasury/runtime-benchmarks',
+    'pallet-treasury/runtime-benchmarks',
 
     'pallet-secrets/runtime-benchmarks',
     'pallet-s-contract/runtime-benchmarks',
+    'pallet-s-account/runtime-benchmarks',
     'pallet-registry/runtime-benchmarks',
     'pallet-parentchain/runtime-benchmarks',
 

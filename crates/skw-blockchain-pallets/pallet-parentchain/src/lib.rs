@@ -13,14 +13,11 @@ mod mock;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-pub type CallIndex = u64;
-pub type ShardId = u64;
-
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use skw_blockchain_primitives::{ShardId, CallIndex};
+	use skw_blockchain_primitives::types::{ShardId, CallIndex};
 	use sp_std::vec::Vec;	
 	use super::WeightInfo;
 	
@@ -117,7 +114,8 @@ pub mod pallet {
 			outcome: Vec<Vec<u8>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			
+		
+			// TODO: validate outcome
 			ensure!(pallet_registry::Pallet::<T>::is_valid_shard_id(shard_id), Error::<T>::InvalidShardId);
 			ensure!(pallet_registry::Pallet::<T>::is_valid_secret_keeper(&who), Error::<T>::Unauthorized);
 			let now = frame_system::Pallet::<T>::block_number();
