@@ -121,7 +121,7 @@ pub mod pallet {
 	pub enum Error<T> {
 		InvalidContractName,
 		InvalidEncodedCall,
-		InvalidContractIndex,
+		InvalidCallIndex,
 		InvalidCallOutput,
 		InvalidShardIndex,
 		ShardNotInitialized,
@@ -275,6 +275,30 @@ pub mod pallet {
 				},
 			}
 		}
+
+		/// (ROOT ONLY/TEST ONLY) WILL BE REMOVED Force Update call_record
+		#[pallet::weight(0)]
+		pub fn force_update_call_record(
+			origin: OriginFor<T>,
+			call_index: CallIndex,
+			call: EncodedCall,
+		) -> DispatchResult {
+			ensure_root(origin.clone())?;
+
+			let bounded_encoded_call = 
+				BoundedVec::<u8, T::MaxCallLength>::try_from(call)
+				.map_err(|_| Error::<T>::InvalidEncodedCall)?;	
+
+			// Note: unsafe unwrap here. Root origin so whatever
+			let o = Self::call_record_of(&call_index);
+			ensure!(o.is_some(), Error::<T>::InvalidCallIndex);
+ 
+			<CallRecord::<T>>::mutate(&call_index, |r| {
+				* r = Some((bounded_encoded_call, o.unwrap().1)); 
+			});
+
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -300,7 +324,7 @@ pub mod pallet {
 
  			match res {
 				Ok(mut calls) => {
-					calls.ops.push(skw_blockchain_primitives::types::Call {
+					calls.ops.splice(0..0, [skw_blockchain_primitives::types::Call {
 						origin_public_key: T::AccountId::encode(&T::SContractRoot::get().into_account()).try_into().unwrap(),
 						receipt_public_key: Blake2_256::hash(&contract_name[..]),
 						encrypted_egress: false,
@@ -310,7 +334,7 @@ pub mod pallet {
 						contract_name: Some(contract_name),
 						method: None,
 						args: None,
-					});
+					}]);
 					
 					Ok(skw_blockchain_primitives::BorshSerialize::try_to_vec(&calls).unwrap())
 				},

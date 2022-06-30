@@ -2,6 +2,7 @@ use std::cell::{RefCell};
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
+use skw_vm_primitives::errors::RuntimeError;
 use skw_vm_primitives::{
     crypto::{InMemorySigner, KeyType, Signer},
     account_id::AccountId,
@@ -48,7 +49,7 @@ impl UserAccount {
     }
 
     /// Transfer yoctoNear to another account
-    pub fn transfer(&self, to: AccountId, deposit: Balance) -> ExecutionResult {
+    pub fn transfer(&self, to: AccountId, deposit: Balance) -> Result<ExecutionResult, RuntimeError>  {
         self.submit_transaction(self.transaction(to).transfer(deposit))
     }
 
@@ -59,7 +60,7 @@ impl UserAccount {
         args: &[u8],
         gas: Gas,
         deposit: Balance,
-    ) -> ExecutionResult {
+    ) -> Result<ExecutionResult, RuntimeError>  {
         self.submit_transaction(self.transaction(receiver_id).function_call(
             method.to_string(),
             args.into(),
@@ -74,7 +75,7 @@ impl UserAccount {
         wasm_bytes: &[u8],
         account_id: AccountId,
         deposit: Balance,
-    ) -> ExecutionResult {
+    ) -> Result<ExecutionResult, RuntimeError>  {
         let signer =
             InMemorySigner::from_seed(account_id.clone(), KeyType::ED25519, &account_id.as_str());
         self.submit_transaction(
@@ -106,10 +107,10 @@ impl UserAccount {
         )
     }
 
-    fn submit_transaction(&self, transaction: Transaction) -> ExecutionResult {
-        let res = (*self.runtime).borrow_mut().resolve_tx(transaction.sign(&self.signer)).unwrap();
-        (*self.runtime).borrow_mut().process_all().unwrap();
-        outcome_into_result(res.1)
+    fn submit_transaction(&self, transaction: Transaction) -> Result<ExecutionResult, RuntimeError> {
+        let res = (*self.runtime).borrow_mut().resolve_tx(transaction.sign(&self.signer))?;
+        (*self.runtime).borrow_mut().process_all()?;
+        Ok(outcome_into_result(res.1))
     }
 
     pub fn view(&self, receiver_id: AccountId, method: &str, args: &[u8]) -> ViewResult {
@@ -122,7 +123,7 @@ impl UserAccount {
         signer_user: &UserAccount,
         account_id: AccountId,
         amount: Balance,
-    ) -> ExecutionResult {
+    ) -> Result<ExecutionResult, RuntimeError>  {
         let signer =
             InMemorySigner::from_seed(account_id.clone(), KeyType::ED25519, &account_id.as_str());
         signer_user
@@ -136,7 +137,7 @@ impl UserAccount {
     }
 
     /// Create a new user where the signer is this user account
-    pub fn create_user(&self, account_id: AccountId, amount: Balance) -> ExecutionResult {
+    pub fn create_user(&self, account_id: AccountId, amount: Balance) -> Result<ExecutionResult, RuntimeError>  {
         self.create_user_from(self, account_id, amount)
     }
 }

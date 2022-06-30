@@ -18,7 +18,7 @@ use utils::{offchain_id_into_account_id, vec_to_str};
 use skw_vm_primitives::{
     contract_runtime::CryptoHash,
     transaction::ExecutionStatus,
-    account_id::AccountId
+    account_id::AccountId, errors::RuntimeError
 };
 use borsh::{BorshSerialize, BorshDeserialize};
 
@@ -107,7 +107,7 @@ fn main() {
 
             script.update_account(origin_account_id);
             
-            let mut outcome: Option<ExecutionResult> = None; 
+            let mut raw_outcome: Option<Result<ExecutionResult, RuntimeError>> = None; 
             let mut view_outcome: Option<ViewResult> = None; 
     
             match input.transaction_action {
@@ -119,7 +119,7 @@ fn main() {
                         "amount must be provided when transaction_action is set"
                     );
     
-                    outcome = Some(script.create_account(
+                    raw_outcome = Some(script.create_account(
                         receipt_account_id,
                         u128::from(input.amount.unwrap()) * 10u128.pow(24),
                     ));
@@ -132,7 +132,7 @@ fn main() {
                         "amount must be provided when transaction_action is set"
                     );
     
-                    outcome = Some(script.transfer(
+                    raw_outcome = Some(script.transfer(
                         receipt_account_id,
                         u128::from(input.amount.unwrap()) * 10u128.pow(24),
                     ));
@@ -152,7 +152,7 @@ fn main() {
     
                     let method_str = vec_to_str(&input.method.as_ref().unwrap());
 
-                    outcome = Some(script.call(
+                    raw_outcome = Some(script.call(
                         receipt_account_id,
                         method_str.as_str(),
                         &input.args.as_ref().unwrap()[..],
@@ -191,7 +191,7 @@ fn main() {
                     let wasm_path = PathBuf::from(wasm_file_name);
                     let code = fs::read(&wasm_path).unwrap();
     
-                    outcome = Some(script.deploy(
+                    raw_outcome = Some(script.deploy(
                         &code,
                         receipt_account_id,
                         u128::from(input.amount.unwrap()) * 10u128.pow(24),
@@ -203,8 +203,9 @@ fn main() {
             state_root = script.state_root();
             let mut execution_result: Outcome = Outcome::default();
     
-            match &outcome {
-                Some(outcome) => {
+
+            match &raw_outcome {
+                Some(Ok(outcome)) => {
                     execution_result.outcome_logs = outcome.logs();
                     execution_result.outcome_receipt_ids = outcome.receipt_ids().clone();
                     execution_result.outcome_tokens_burnt = outcome.tokens_burnt();
@@ -212,8 +213,11 @@ fn main() {
                         ExecutionStatus::SuccessValue(x) => Some(x),
                         _ => None,
                     };
-                }
-                _ => {}
+                },
+                Some(Err(err)) => {
+                    execution_result.outcome_status = Some(format!("{:?}", err).as_bytes().to_vec());
+                },
+                None => {} 
             }
     
             match &view_outcome {

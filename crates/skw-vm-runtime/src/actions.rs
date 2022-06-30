@@ -1,4 +1,4 @@
-use borsh::{BorshSerialize};
+use skw_blockchain_primitives::BorshSerialize; 
 use skw_vm_primitives::errors::{ActionErrorKind, ContractCallError, RuntimeError, ActionError};
 use skw_vm_primitives::contract_runtime::{CryptoHash, ContractCode, AccountId};
 use skw_vm_primitives::receipt::{ActionReceipt, Receipt};

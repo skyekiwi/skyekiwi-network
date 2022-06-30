@@ -20,9 +20,11 @@ tracing = "0.1"
 borsh = "0.9"
 thiserror = "1"
 lru = "0.6.5"
-hashbrown = "0.12.0"
+hashbrown = "0.12.1"
 skw-vm-primitives = { path = "../skw-vm-primitives" }
 skw-myers-diff = { path = "../skw-myers-diff" }
+
+
 [dev-dependencies]
 tempfile = "3"
 bencher = "0.1.5"

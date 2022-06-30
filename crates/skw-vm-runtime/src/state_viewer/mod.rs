@@ -1,6 +1,6 @@
 use crate::{actions::execute_function_call, ext::RuntimeExt};
 use log::debug;
-use borsh::BorshDeserialize;
+use skw_blockchain_primitives::BorshDeserialize;
 
 use skw_vm_primitives::crypto::{KeyType, PublicKey};
 use skw_vm_primitives::config::RuntimeConfig;

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use log::debug;
-use borsh::BorshDeserialize;
+use skw_blockchain_primitives::BorshDeserialize;
 use skw_vm_primitives::account::{AccessKey, AccessKeyPermission, FunctionCallPermission};
 use skw_vm_primitives::crypto::PublicKey;
 use skw_vm_primitives::errors::{StorageError};
