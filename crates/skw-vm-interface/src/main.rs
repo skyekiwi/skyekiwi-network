@@ -20,13 +20,13 @@ use skw_vm_primitives::{
     transaction::ExecutionStatus,
     account_id::AccountId, errors::RuntimeError
 };
-use borsh::{BorshSerialize, BorshDeserialize};
 
 use skw_vm_store::{create_store};
 
 use skw_blockchain_primitives::{
     types::{Calls, Outcome, Outcomes, StatePatch},
     util::{decode_hex, unpad_size, pad_size, public_key_to_offchain_id},
+    BorshDeserialize, BorshSerialize,
 };
 #[derive(clap::Parser, Debug)]
 struct CliArgs {
