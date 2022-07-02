@@ -66,7 +66,7 @@ const main = async () => {
   }
 
   // 3. fetch the current shard info
-  await indexer.fetchShardInfo(api, '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY');
+  await indexer.fetchShardInfo(api, shard.getAddress());
 
   // 4. pre-launch validation
   let validedIndexer = await validateIndexer(db, api);

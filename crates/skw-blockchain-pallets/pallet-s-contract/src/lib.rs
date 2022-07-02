@@ -18,7 +18,7 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*, ensure, PalletId,
-		sp_runtime::traits::AccountIdConversion, StorageHasher
+		sp_runtime::traits::AccountIdConversion, StorageHasher, dispatch::DispatchResult
 	};
 	use frame_system::pallet_prelude::*;
 	use super::WeightInfo;
@@ -297,6 +297,22 @@ pub mod pallet {
 				* r = Some((bounded_encoded_call, o.unwrap().1)); 
 			});
 
+			Ok(())
+		}
+
+		/// (ROOT ONLY/TEST ONLY) WILL BE REMOVED force remove all call_records
+		#[pallet::weight(0)]
+		pub fn reset_call_record(origin: OriginFor<T>) -> DispatchResult {
+			ensure_root(origin.clone())?;
+
+			let high_call_index = Self::current_call_index_of();
+
+			<CallHistory::<T>>::remove_prefix(0, None);
+			for call_index in 0u64..high_call_index {
+				<CallRecord::<T>>::remove(call_index);
+			}
+
+			<CurrentCallIndex::<T>>::put(0u64);
 			Ok(())
 		}
 	}

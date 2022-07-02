@@ -78,6 +78,7 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		Unauthorized,
+		NotInBeaconTurn,
 		OutcomeSubmissionTooLate,
 		InvalidShardId,
 		InvalidOutcome,
@@ -117,7 +118,7 @@ pub mod pallet {
 		
 			// TODO: validate outcome
 			ensure!(pallet_registry::Pallet::<T>::is_valid_shard_id(shard_id), Error::<T>::InvalidShardId);
-			ensure!(pallet_registry::Pallet::<T>::is_valid_secret_keeper(&who), Error::<T>::Unauthorized);
+			ensure!(pallet_registry::Pallet::<T>::is_valid_secret_keeper(&who), Error::<T>::NotInBeaconTurn);
 			let now = frame_system::Pallet::<T>::block_number();
 			ensure!(now <= block_number + T::DelayThreshold::get(), Error::<T>::OutcomeSubmissionTooLate);
 
@@ -125,7 +126,7 @@ pub mod pallet {
 			let threshold = Self::shard_confirmation_threshold(shard_id).unwrap_or(1);
 
 			// TODO: maybe we should allow any submission and let clients handle the rest
-			ensure!(pallet_registry::Pallet::<T>::is_beacon_turn(block_number, &who, shard_id, threshold), Error::<T>::Unauthorized);
+			// ensure!(pallet_registry::Pallet::<T>::is_beacon_turn(block_number, &who, shard_id, threshold), Error::<T>::Unauthorized);
 			ensure!(outcome_call_index.len() == outcome.len(), Error::<T>::InvalidOutcome);
 			ensure!(outcome_call_index.len() < T::MaxOutcomePerSubmission::get() as usize, Error::<T>::InvalidOutcome);
 
@@ -151,7 +152,7 @@ pub mod pallet {
 					*confirmation = Some(confirmation.unwrap_or(0) + 1);
 				});
 				let confirms = Self::confirmation_of(shard_id, block_number).unwrap_or(0);
-				ensure!(confirms <= threshold, Error::<T>::Unauthorized);
+				// ensure!(confirms <= threshold, Error::<T>::Unauthorized);
 
 				// 6. threshold has been met. The block is confirmed!
 				if confirms == threshold {
@@ -188,6 +189,23 @@ pub mod pallet {
 				// the block is confirmed!
 				Self::deposit_event(Event::<T>::BlockConfirmed(block_number));
 			}
+			Ok(())
+		}
+		
+		/// (ROOT ONLY/TEST ONLY) WILL BE REMOVED force remove all call_records
+		#[pallet::weight(0)]
+		pub fn reset_outcomes_record(origin: OriginFor<T>) -> DispatchResult {
+			ensure_root(origin)?;
+
+			<StateRoot::<T>>::remove_prefix(0, None);
+			<Confirmation::<T>>::remove_prefix(0, None);
+
+			let mut cur_call_index: CallIndex = 0;
+			while Self::outcome_of(cur_call_index).is_some() {
+				<Outcome::<T>>::remove(cur_call_index);
+				cur_call_index += 1;
+			}
+
 			Ok(())
 		}
 	}

@@ -121,8 +121,6 @@ pub mod pallet {
 			ensure!(!<Expiration<T>>::contains_key(&who), Error::<T>::DuplicateRegistration);
 			ensure!(Self::validate_signature(signature), Error::<T>::InvalidSecretKeeper);
 
-			// TODO: check for key validity
-//			let pk = compress_hex_key(&public_key);
 			let pk = &public_key[..];
 			let bounded_pk: PublicKeyType = pk.try_into().map_err(|_| Error::<T>::InvalidPublicKey)?;
 
@@ -175,7 +173,7 @@ pub mod pallet {
 
 			match Self::try_remove_registration(who.clone()) {
 				true => {
-					Self::deposit_event(Event::<T>::SecretKeeperRenewed(who));
+					Self::deposit_event(Event::<T>::SecretKeeperRemoved(who));
 					Ok(())
 				},
 				false => Err(Error::<T>::RegistrationNotFound.into())
@@ -216,8 +214,7 @@ pub mod pallet {
 		}
 
 		/// register a user's public key
-		// #[pallet::weight(<T as pallet::Config>::WeightInfo::register_user_public_key())]
-		#[pallet::weight(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::register_user_public_key())]
 		pub fn register_user_public_key(
 			origin: OriginFor<T>,
 			public_key: Vec<u8>,

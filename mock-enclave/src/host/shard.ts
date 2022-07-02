@@ -153,6 +153,10 @@ export class ShardManager {
     blockNumber: number, shard: ShardMetadata
   ): boolean {
 
+    return true;
+
+    // disable beacon check for now - 
+
     const beaconIndex = shard.beacon_index;
     const threshold = shard.threshold;
     const beaconCount = shard.shard_members.length;
@@ -172,5 +176,9 @@ export class ShardManager {
               beaconIndex <= blockNumber % beaconCount + threshold - 1 - beaconCount
           )
       );
+  }
+
+  public getAddress(): string {
+    return this.#keyring.address;
   }
 }
