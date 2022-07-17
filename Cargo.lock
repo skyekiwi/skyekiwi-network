@@ -4534,6 +4534,8 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-balances",
+ "pallet-preimage",
  "parity-scale-codec 3.1.5",
  "scale-info",
  "skw-blockchain-primitives",

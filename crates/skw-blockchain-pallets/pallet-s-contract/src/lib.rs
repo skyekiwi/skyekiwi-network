@@ -62,9 +62,9 @@ pub mod pallet {
 
 	/// wasm_blob of a deployed contracts
 	#[pallet::storage]
-	#[pallet::getter(fn wasm_blob_cid_of)]
-	pub(super) type WasmBlobCID<T: Config> = StorageDoubleMap<_, Twox64Concat,
-		ShardId, Blake2_128Concat, BoundedVec<u8, T::MaxContractNameLength>, BoundedVec<u8, T::IPFSCIDLength> >;
+	#[pallet::getter(fn wasm_blob_of)]
+	pub(super) type WasmBlob<T: Config> = StorageDoubleMap<_, Twox64Concat,
+		ShardId, Blake2_128Concat, BoundedVec<u8, T::MaxContractNameLength>, T::Hash>;
 
 	/// call history of a block (ShardId, BlockNumber) -> Vec<CallIndex>
 	#[pallet::storage]

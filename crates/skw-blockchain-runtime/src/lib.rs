@@ -199,8 +199,6 @@ impl frame_system::Config for Runtime {
 }
 
 
-impl pallet_randomness_collective_flip::Config for Runtime {}
-
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
@@ -346,7 +344,7 @@ impl pallet_parentchain::Config for Runtime {
 impl pallet_secrets::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
-	type IPFSCIDLength = ConstU32<46>;
+	type Preimage = Preimage;
 }
 
 impl pallet_s_contract::Config for Runtime {
