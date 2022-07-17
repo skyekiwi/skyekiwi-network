@@ -4,6 +4,7 @@
 #![no_std]
 extern crate sgx_tstd as std;
 extern crate sgx_rand as rand;
+
 #[cfg(target_env = "sgx")]
 extern crate core;
 

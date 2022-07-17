@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use log::debug;
 
-use borsh::BorshSerialize;
+use skw_blockchain_primitives::BorshSerialize;
 pub use skw_vm_primitives::crypto;
 
 use skw_vm_primitives::profile::ProfileData;

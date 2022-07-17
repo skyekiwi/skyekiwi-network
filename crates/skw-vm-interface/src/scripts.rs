@@ -11,7 +11,7 @@ use crate::{
     user::UserAccount,
 };
 use skw_vm_primitives::{
-    contract_runtime::{CryptoHash, AccountId, Balance},
+    contract_runtime::{CryptoHash, AccountId, Balance}, errors::RuntimeError,
 };
 use skw_vm_store::{Store};
 
@@ -74,19 +74,19 @@ impl Script {
         self.account = Some(account);
     }
 
-    pub(crate) fn create_account(&self, receiver: AccountId, deposit: Balance) -> ExecutionResult{
+    pub(crate) fn create_account(&self, receiver: AccountId, deposit: Balance) -> Result<ExecutionResult, RuntimeError> {
         self.account
             .as_ref().unwrap()
             .create_user( receiver, deposit )
     }
 
-    pub(crate) fn transfer(&self, receiver: AccountId, deposit: Balance) -> ExecutionResult {
+    pub(crate) fn transfer(&self, receiver: AccountId, deposit: Balance) -> Result<ExecutionResult, RuntimeError>  {
         self.account
             .as_ref().unwrap()
             .transfer( receiver, deposit )
     }
 
-    pub(crate) fn call(&self, receiver: AccountId, method: &str, args: &[u8], deposit: Balance) -> ExecutionResult {
+    pub(crate) fn call(&self, receiver: AccountId, method: &str, args: &[u8], deposit: Balance) -> Result<ExecutionResult, RuntimeError>  {
         self.account
             .as_ref().unwrap()
             .call(
@@ -104,7 +104,7 @@ impl Script {
             .view( receiver, method, args )
     }
 
-    pub(crate) fn deploy(&self, wasm_bytes: &[u8], receiver: AccountId, deposit: Balance) -> ExecutionResult {
+    pub(crate) fn deploy(&self, wasm_bytes: &[u8], receiver: AccountId, deposit: Balance) -> Result<ExecutionResult, RuntimeError>  {
         self.account
             .as_ref().unwrap()
             .deploy( wasm_bytes, receiver, deposit )

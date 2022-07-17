@@ -46,7 +46,6 @@ fn it_register_secret_contracts() {
 		
 		let events = System::events();
 
-		println!("{:?}", events);
 		assert! (events[0].event == Event::Secrets(SecretsEvent::SecretRegistered(0)));
 		assert! (events[1].event == Event::SContract(SContractEvent::ShardInitialized(0)));
 		assert! (events[2].event == Event::SContract(SContractEvent::SecretContractRegistered(

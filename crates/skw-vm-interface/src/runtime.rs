@@ -10,7 +10,7 @@ use skw_vm_primitives::{
     crypto::{InMemorySigner, KeyType, PublicKey, Signer},
     errors::RuntimeError,
     contract_runtime::{
-        CryptoHash, Balance, BlockNumber, Gas,
+        CryptoHash, Balance, BlockNumber, Gas, Duration
     },
     profile::ProfileData,
     receipt::Receipt,
@@ -24,7 +24,6 @@ use skw_vm_primitives::{
 use skw_vm_primitives::test_utils::account_new;
 
 use skw_vm_runtime::{state_viewer::TrieViewer, ApplyState, Runtime};
-use skw_contract_sdk::{Duration};
 use skw_vm_store::{
     create_store, ShardTries, Store, get_access_key,
 };

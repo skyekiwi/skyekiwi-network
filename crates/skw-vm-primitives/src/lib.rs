@@ -43,6 +43,7 @@ pub mod contract_runtime {
     pub type StorageUsage = u64;
     pub type Gas = u64;
     pub type Nonce = u64;
+    pub type Duration = u64;
     pub struct ContractCode {
         pub code: Vec<u8>,
         pub hash: CryptoHash,

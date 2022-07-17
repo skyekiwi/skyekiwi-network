@@ -1,5 +1,5 @@
 use crate::runtime_group_tools::RuntimeGroup;
-use borsh::{BorshSerialize};
+use skw_blockchain_primitives::{BorshSerialize};
 use skw_vm_primitives::contract_runtime::{CryptoHash};
 use skw_vm_primitives::account::{AccessKeyPermission, FunctionCallPermission};
 use skw_vm_primitives::receipt::{ActionReceipt, ReceiptEnum};
