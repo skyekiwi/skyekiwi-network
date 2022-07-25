@@ -3,10 +3,10 @@ use pallet_secrets;
 use crate as pallet_s_contract;
 
 use frame_support::{
-	traits::{ConstU16, ConstU32, ConstU64},
+	traits::{Nothing, ConstU32, ConstU64},
 	PalletId,
 };
-use frame_system as system;
+use frame_system::{EnsureRoot};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -24,6 +24,8 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		Balances: pallet_balances::{Pallet, Call, Event<T>, Storage},
+		Preimage: pallet_preimage::{Pallet, Call, Event<T>, Storage},
 		Secrets: pallet_secrets::{Pallet, Call, Storage, Event<T>},
 		SContract: pallet_s_contract::{Pallet, Call, Storage, Event<T>},
 	}
@@ -40,7 +42,7 @@ impl frame_system::Config for Test {
 	type Hash = H256;
 	type Call = Call;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
@@ -84,7 +86,6 @@ impl pallet_secrets::Config for Test {
 	type Preimage = Preimage;
 }
 
-
 frame_support::parameter_types! {
 	pub const SContractPalletId: PalletId = PalletId(*b"scontrac");
 }
@@ -100,5 +101,5 @@ impl pallet_s_contract::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+	frame_system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
 }

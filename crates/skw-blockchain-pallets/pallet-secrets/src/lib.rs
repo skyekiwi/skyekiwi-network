@@ -83,7 +83,7 @@ pub mod pallet {
 	impl<T:Config> Pallet<T> {
 
 		/// write a metadata to the secret registry and assign a secret_id
-		#[pallet::weight(<T as Config>::WeightInfo::register_secret())]
+		#[pallet::weight(<T as Config>::WeightInfo::register_secret(metadata.len() as u32))]
 		pub fn register_secret(
 			origin: OriginFor<T>, 
 			metadata: Vec<u8>
@@ -91,7 +91,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;			
 			let id = <CurrentSecretId<T>>::get();
 			
-			let hash = Self::maybe_note_metadata(metadata)?;
+			let hash = Self::maybe_note_bytes(metadata)?;
 			<Metadata<T>>::insert(&id, &hash);
 			<Owner<T>>::insert(&id, who);
 			<CurrentSecretId<T>>::set(id.saturating_add(1));
@@ -133,7 +133,7 @@ pub mod pallet {
 		}
 
 		/// update the metadata of a secret
-		#[pallet::weight(<T as Config>::WeightInfo::update_metadata())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_metadata(metadata.len() as u32))]
 		pub fn update_metadata(
 			origin: OriginFor<T>,
 			secret_id: SecretId,
@@ -145,11 +145,11 @@ pub mod pallet {
 
 			// so far, it is garenteed the secret_id is valid 
 			match <Metadata<T>>::take(&secret_id) {
-				Some(h) => Self::maybe_remove_metadata(&h),
+				Some(h) => Self::maybe_remove_bytes(&h),
 				None => {}
 			};
 
-			let hash = Self::maybe_note_metadata(metadata.clone())?;
+			let hash = Self::maybe_note_bytes(metadata.clone())?;
 			<Metadata<T>>::insert(&secret_id, &hash);
 
 			Self::deposit_event(Event::<T>::SecretUpdated(secret_id));
@@ -245,21 +245,22 @@ pub mod pallet {
 				.collect()
 		}
 
-		pub fn maybe_note_metadata(metadata: Vec<u8>) -> Result<T::Hash, DispatchError> {
+		// Preimage func are dumped here ... for now
+		pub fn maybe_note_bytes(bytes: Vec<u8>) -> Result<T::Hash, DispatchError> {
 
-			let bounded_metadata = BoundedVec::<u8, <<T as crate::pallet::Config>::Preimage as PreimageRecipient<T::Hash>>::MaxSize>::try_from(metadata.clone())
+			let bounded_bytes= BoundedVec::<u8, <<T as crate::pallet::Config>::Preimage as PreimageRecipient<T::Hash>>::MaxSize>::try_from(bytes.clone())
 				.map_err(|_| Error::<T>::MetadataNotValid)?;
-			let hash = T::Hashing::hash(&bounded_metadata);
+			let hash = T::Hashing::hash(&bounded_bytes);
 
-			T::Preimage::note_preimage(bounded_metadata);
+			T::Preimage::note_preimage(bounded_bytes);
 			Ok(hash)
 		}
 
-		pub fn maybe_remove_metadata(hash: &T::Hash) -> () {
+		pub fn maybe_remove_bytes(hash: &T::Hash) -> () {
 			T::Preimage::unnote_preimage(hash);
 		}
 
-		pub fn try_get_metadata(hash: &T::Hash) -> Option<Vec<u8>> {
+		pub fn try_get_bytes(hash: &T::Hash) -> Option<Vec<u8>> {
 			T::Preimage::get_preimage(hash)
 		}
 	}

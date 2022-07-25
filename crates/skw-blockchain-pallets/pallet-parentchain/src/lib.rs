@@ -127,6 +127,7 @@ pub mod pallet {
 
 			// TODO: maybe we should allow any submission and let clients handle the rest
 			// ensure!(pallet_registry::Pallet::<T>::is_beacon_turn(block_number, &who, shard_id, threshold), Error::<T>::Unauthorized);
+
 			ensure!(outcome_call_index.len() == outcome.len(), Error::<T>::InvalidOutcome);
 			ensure!(outcome_call_index.len() < T::MaxOutcomePerSubmission::get() as usize, Error::<T>::InvalidOutcome);
 

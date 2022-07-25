@@ -27,7 +27,7 @@ fn it_register_secrets() {
 		assert_eq! (Secrets::owner_of(0).unwrap(), ALICE);
 
 		let hash = Secrets::metadata_of(0).unwrap();
-		assert_eq! (Secrets::try_get_metadata(&hash).unwrap(), METADATA1[..].to_vec());
+		assert_eq! (Secrets::try_get_bytes(&hash).unwrap(), METADATA1[..].to_vec());
 	});
 }
 
@@ -44,14 +44,14 @@ fn it_updates_metadata() {
 		assert_eq! (Secrets::owner_of(0).unwrap(), ALICE);
 
 		let hash = Secrets::metadata_of(0).unwrap();
-		assert_eq! (Secrets::try_get_metadata(&hash).unwrap(), METADATA1[..].to_vec());
+		assert_eq! (Secrets::try_get_bytes(&hash).unwrap(), METADATA1[..].to_vec());
 
 		// 2. Alice update the Metadata
 		assert_ok!(
 			Secrets::update_metadata( Origin::signed(ALICE), 0,  METADATA2[..].to_vec())
 		);
 		let hash = Secrets::metadata_of(0).unwrap();
-		assert_eq! (Secrets::try_get_metadata(&hash).unwrap(), METADATA2[..].to_vec());
+		assert_eq! (Secrets::try_get_bytes(&hash).unwrap(), METADATA2[..].to_vec());
 	});
 }
 
@@ -112,7 +112,7 @@ fn members_can_update_metaedata() {
 		);
 
 		let hash = Secrets::metadata_of(0).unwrap();
-		assert_eq! (Secrets::try_get_metadata(&hash).unwrap(), METADATA2[..].to_vec());
+		assert_eq! (Secrets::try_get_bytes(&hash).unwrap(), METADATA2[..].to_vec());
 	});
 }
 

@@ -53,7 +53,6 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type SContractRoot: Get<PalletId>;
-
 	}
 
 	#[pallet::pallet]
@@ -127,7 +126,7 @@ pub mod pallet {
 		ShardNotInitialized,
 		ShardHasBeenInitialized,
 		TooManyCallsInCurrentBlock,
-		InvalidWasmBlobCID,	
+		InvalidWasmBlob,	
 		Unauthorized, 
 		Unexpected,
 	}
@@ -140,7 +139,7 @@ pub mod pallet {
 		pub fn register_contract(
 			origin: OriginFor<T>, 
 			contract_name: Vec<u8>,
-			wasm_blob_cid: Vec<u8>,
+			wasm_blob: Bytes,
 			deployment_call: EncodedCall,
 			shard_id: ShardId,
 		) -> DispatchResult {
@@ -149,9 +148,8 @@ pub mod pallet {
 			// Deployment Call Layout: [("action_deploy"), init_call1, init_call2 ...]
 			// ("action_deploy") will be automatically appended by the offchain bridge
 
-			let bounded_wasm_blob_cid = BoundedVec::<u8, T::IPFSCIDLength>::try_from(wasm_blob_cid)
-			.map_err(|_| Error::<T>::InvalidWasmBlobCID)?;
-	
+
+			let hash = pallet_secrets::Pallet::<T>::maybe_note_bytes(wasm_blob)?;
 			let bounded_contract_name = BoundedVec::<u8, T::MaxContractNameLength>::try_from(contract_name.clone())
 				.map_err(|_| Error::<T>::InvalidContractName)?;
 
@@ -169,7 +167,7 @@ pub mod pallet {
 			)?;
 
 			// No error below this line 
-			<WasmBlobCID<T>>::insert(&shard_id, &bounded_contract_name, bounded_wasm_blob_cid);
+			<WasmBlob<T>>::insert(&shard_id, &bounded_contract_name, hash);
 			Self::deposit_event(Event::<T>::SecretContractRegistered(shard_id, contract_name, call_index));
 			Ok(())
 		}
@@ -321,7 +319,7 @@ pub mod pallet {
 		pub fn validate_name(shard_id: ShardId, name: &BoundedVec::<u8, T::MaxContractNameLength>) -> bool {
 			name.len() >= T::MinContractNameLength::get() as usize
 				&& 
-			Self::wasm_blob_cid_of(shard_id, name).is_none() // as name is not taken
+			Self::wasm_blob_of(shard_id, name).is_none() // as name is not taken
 		}
 
 		pub fn is_shard_running(shard_id: ShardId) -> bool {
