@@ -75,33 +75,32 @@ const genesis = async () => {
     api.tx.parentchain.setShardConfirmationThreshold(0, 1)
   );
 
-  const wasmBlobSM = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/status_message_collections.wasm')));
-  // const wasmBlobFT = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/fungible_token.wasm')));
+  // const wasmBlobSM = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/status_message_collections.wasm')));
+  // // const wasmBlobFT = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/fungible_token.wasm')));
 
-  const cidSM = await IPFS.add(u8aToHex(wasmBlobSM));
-  // const cidFT = await IPFS.add(u8aToHex(wasmBlobFT));
-  const deploymentCalls = new Calls({ ops: [ ], block_number: null, shard_id: 0 });
-  const encodedDeploymentCall = '0x' + u8aToHex(new Uint8Array(baseDecode( buildCalls(deploymentCalls) ))) 
-  const deployContract = [
-    api.tx.sContract.registerContract(
-      "status_message", cidSM.cid.toString(), encodedDeploymentCall,  0
-    ),
-    // api.tx.sContract.registerContract(
-    //   "skw_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
-    // ),
-    // api.tx.sContract.registerContract(
-    //   "dot_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
-    // ),
-    // api.tx.sContract.registerContract(
-    //   "usdt_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
-    // )
-  ];
+  // const cidSM = await IPFS.add(u8aToHex(wasmBlobSM));
+  // // const cidFT = await IPFS.add(u8aToHex(wasmBlobFT));
+  // const deploymentCalls = new Calls({ ops: [ ], block_number: null, shard_id: 0 });
+  // const encodedDeploymentCall = '0x' + u8aToHex(new Uint8Array(baseDecode( buildCalls(deploymentCalls) ))) 
+  // const deployContract = [
+  //   api.tx.sContract.registerContract(
+  //     "status_message", cidSM.cid.toString(), encodedDeploymentCall,  0
+  //   ),
+  //   // api.tx.sContract.registerContract(
+  //   //   "skw_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
+  //   // ),
+  //   // api.tx.sContract.registerContract(
+  //   //   "dot_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
+  //   // ),
+  //   // api.tx.sContract.registerContract(
+  //   //   "usdt_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
+  //   // )
+  // ];
 
   const submitInitialize = api.tx.utility.batch(
     [
       ...fundAccounts,
       authorizeRoot, initializeShard, shardConfirmationThreshold,
-      ...deployContract,
     ]
   );
   await sendTx(submitInitialize, rootKeypair, logger);

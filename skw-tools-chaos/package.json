@@ -18,6 +18,7 @@
     "@skyekiwi/s-contract": "0.7.7-4",
     "@skyekiwi/secret-registry": "0.7.7-4",
     "@skyekiwi/util": "0.7.7-4",
+
     "borsh": "^0.7.0",
     "dotenv": "^16.0.0",
     "pm2": "^5.2.0"

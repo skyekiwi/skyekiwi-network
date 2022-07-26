@@ -21,7 +21,6 @@ skw-vm-pool = { path = "../skw-vm-pool", default-features = false}
 hex = { version = "0.4", default-features = false }
 
 lazy-static-include = "3"
-# Temporary workaround see https://github.com/bitvecto-rs/bitvec/issues/105
 getrandom = { version = "0.2", features = ["js"] }
 
 bs58 = { version = "0.4.0", default-features = false} 

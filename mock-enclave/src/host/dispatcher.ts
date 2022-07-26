@@ -5,7 +5,6 @@ import Level from 'level';
 import fs from 'fs';
 
 import { execSync } from 'child_process';
-import { IPFS } from '@skyekiwi/ipfs'
 import {  baseDecode, baseEncode, BlockSummary, buildCalls, Calls } from '@skyekiwi/s-contract';
 import { ExecutionSummary, Outcomes, parseRawOutcomes } from '@skyekiwi/s-contract/borsh';
 import { getLogger, u8aToHex, padSize, unpadSize } from '@skyekiwi/util';
@@ -84,10 +83,12 @@ export class Dispatcher {
 
           // 0.2 Fetch contract 
           const contractName = u8aToString(op.contract_name);
-          const wasmBlobCID = await api.query.sContract.wasmBlobCID(shardId, contractName);
-          const content = await IPFS.cat(u8aToString(hexToU8a(wasmBlobCID.toString().substring(2))) );
+          const wasmBlobHash = await api.query.sContract.wasmBlob(shardId, contractName);
+
+          const content = await api.query.preimage.preimageFor(wasmBlobHash.toString());
+
           const wasmPath = `${bridgeConfig.localWASMStorage}/${u8aToHex(op.receipt_public_key)}.wasm`;
-          fs.writeFileSync(wasmPath, hexToU8a(content));
+          fs.writeFileSync(wasmPath, hexToU8a(content.toString()));
 
           // 0.3 Put the call to res
           res.ops.push(op);
