@@ -39,18 +39,22 @@ export class ShardManager {
     this.#keyring = new Keyring({ type: 'sr25519' }).addFromUri(seed);
   }
 
-  public async secretKeeperRegistryExpiredOrMissing(api: ApiPromise, blockNumber: number): Promise<boolean> {
+  public async secretKeeperRegistryExpiredOrMissing(api: ApiPromise, blockNumber: number): Promise<[boolean, boolean]> {
     const maybeExpiration = await api.query.registry.expiration(this.#keyring.address);
     const expiration = Number(maybeExpiration.toString());
     
-    return isNaN(expiration) || expiration - 10 < blockNumber 
+    return [ 
+      isNaN(expiration),
+      expiration - 10 < blockNumber,
+    ]
   }
 
   public async maybeRegisterSecretKeeper (api: ApiPromise, blockNumber: number): Promise<SubmittableExtrinsic[]> {
     const logger = getLogger(`shardManager.maybeRegisterSecretKeeper`); 
     const allExtrinsics = [];
 
-    if (await this.secretKeeperRegistryExpiredOrMissing(api, blockNumber)) {
+    const registrationStatus = await this.secretKeeperRegistryExpiredOrMissing(api, blockNumber);
+    if (registrationStatus[0]) {
       logger.info(`📣 registering secret keeper at blockNumber ${blockNumber}`);
 
       // not previously registered
@@ -63,6 +67,17 @@ export class ShardManager {
       for (const shard of this.#shards) {
         allExtrinsics.push(api.tx.registry.registerRunningShard(shard));
       }
+
+      return allExtrinsics;
+    } else if (registrationStatus[1]) {
+      logger.info(`📣 renewing secret keeper at blockNumber ${blockNumber}`);
+
+      // not previously registered
+      allExtrinsics.push(api.tx.registry.renewRegistration(
+        '0x' + u8aToHex(AsymmetricEncryption.getPublicKey(this.#key)),
+        // TODO: replace with real siganture
+        '0x0000'
+      ));
 
       return allExtrinsics;
     }
