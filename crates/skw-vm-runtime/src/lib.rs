@@ -294,7 +294,7 @@ impl Runtime {
                 // metrics::ACTION_CREATE_ACCOUNT_TOTAL.inc();
                 action_create_account(
                     &apply_state.config.transaction_costs,
-                    &apply_state.config.account_creation_config,
+                    // &apply_state.config.account_creation_config,
                     account,
                     actor_id,
                     &receipt.receiver_id,

@@ -10,7 +10,6 @@ use skw_vm_primitives::account_id::AccountId;
 use skw_vm_primitives::contract_runtime::CryptoHash;
 use skw_vm_primitives::receipt::{DataReceipt, Receipt, ReceiptEnum};
 // use skw_vm_primitives::shard_layout::{ShardUId, ShardVersion};
-use std::str::from_utf8;
 
 /// Creates an in-memory database.
 pub fn create_test_store() -> Arc<Store> {
@@ -45,31 +44,28 @@ pub fn test_populate_trie(
     root
 }
 
-fn gen_accounts_from_alphabet(
+fn gen_accounts(
     rng: &mut impl Rng,
     max_size: usize,
-    alphabet: &[u8],
 ) -> Vec<AccountId> {
     let size = rng.gen_range(0, max_size) + 1;
 
-    std::iter::repeat_with(|| gen_account(rng, alphabet)).take(size).collect()
+    std::iter::repeat_with(|| gen_account(rng)).take(size).collect()
 }
 
-pub fn gen_account(rng: &mut impl Rng, alphabet: &[u8]) -> AccountId {
-    let str_length = rng.gen_range(4, 8);
-    let s: Vec<u8> = (0..str_length).map(|_| *alphabet.choose(rng).unwrap()).collect();
-    from_utf8(&s).unwrap().parse().unwrap()
+pub fn gen_account(rng: &mut impl Rng) -> AccountId {
+    let key:[u8; 32] = rng.gen();
+
+    AccountId::from_bytes(key)
 }
 
 pub fn gen_unique_accounts(rng: &mut impl Rng, max_size: usize) -> Vec<AccountId> {
-    let alphabet = b"abcdefghijklmn";
-    let accounts = gen_accounts_from_alphabet(rng, max_size, alphabet);
+    let accounts = gen_accounts(rng, max_size);
     accounts.into_iter().collect::<HashSet<_>>().into_iter().collect()
 }
 
 pub fn gen_receipts(rng: &mut impl Rng, max_size: usize) -> Vec<Receipt> {
-    let alphabet = &b"abcdefgh"[0..rng.gen_range(4, 8)];
-    let accounts = gen_accounts_from_alphabet(rng, max_size, alphabet);
+    let accounts = gen_accounts(rng, max_size);
     accounts
         .iter()
         .map(|account_id| Receipt {

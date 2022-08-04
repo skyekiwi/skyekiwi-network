@@ -482,28 +482,25 @@ pub fn get_delayed_receipt_indices(
 pub fn set_access_key(
     state_update: &mut TrieUpdate,
     account_id: AccountId,
-    public_key: PublicKey,
     access_key: &AccessKey,
 ) {
-    set(state_update, TrieKey::AccessKey { account_id, public_key }, access_key);
+    set(state_update, TrieKey::AccessKey { account_id }, access_key);
 }
 
 pub fn remove_access_key(
     state_update: &mut TrieUpdate,
     account_id: AccountId,
-    public_key: PublicKey,
 ) {
-    state_update.remove(TrieKey::AccessKey { account_id, public_key });
+    state_update.remove(TrieKey::AccessKey { account_id });
 }
 
 pub fn get_access_key(
     state_update: &TrieUpdate,
     account_id: &AccountId,
-    public_key: &PublicKey,
 ) -> Result<Option<AccessKey>, StorageError> {
     get(
         state_update,
-        &TrieKey::AccessKey { account_id: account_id.clone(), public_key: public_key.clone() },
+        &TrieKey::AccessKey { account_id: account_id.clone() },
     )
 }
 
@@ -542,9 +539,9 @@ pub fn remove_account(
 
     // Removing access keys
     let public_keys = state_update
-        .iter(&trie_key_parsers::get_raw_prefix_for_access_keys(account_id))?
+        .iter(&trie_key_parsers::get_raw_prefix_for_access_keys())?
         .map(|raw_key| {
-            trie_key_parsers::parse_public_key_from_access_key_key(&raw_key?, account_id).map_err(
+            trie_key_parsers::parse_public_key_from_access_key_key(&raw_key?).map_err(
                 |_e| {
                     StorageError::StorageInconsistentState(
                         "Can't parse public key from raw key for AccessKey".to_string(),
@@ -554,7 +551,7 @@ pub fn remove_account(
         })
         .collect::<Result<Vec<_>, _>>()?;
     for public_key in public_keys {
-        state_update.remove(TrieKey::AccessKey { account_id: account_id.clone(), public_key });
+        state_update.remove(TrieKey::AccessKey { account_id: account_id.clone() });
     }
 
     // Removing contract data

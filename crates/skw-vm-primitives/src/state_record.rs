@@ -2,7 +2,6 @@ use borsh::BorshDeserialize;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-use crate::crypto::PublicKey;
 use crate::contract_runtime::{hash_bytes, CryptoHash, AccountId};
 use crate::account::{Account, AccessKey};
 use crate::receipt::{Receipt, ReceivedData};
@@ -12,7 +11,7 @@ use crate::trie_key::trie_key_parsers::{
     parse_account_id_from_access_key_key, parse_account_id_from_account_key,
     parse_account_id_from_contract_code_key, parse_account_id_from_contract_data_key,
     parse_account_id_from_received_data_key, parse_data_id_from_received_data_key,
-    parse_data_key_from_contract_data_key, parse_public_key_from_access_key_key,
+    parse_data_key_from_contract_data_key, 
 };
 
 /// Record in the state storage.
@@ -35,7 +34,7 @@ pub enum StateRecord {
         code: Vec<u8>,
     },
     /// Access key associated with some account.
-    AccessKey { account_id: AccountId, public_key: PublicKey, access_key: AccessKey },
+    AccessKey { account_id: AccountId, access_key: AccessKey },
     /// Postponed Action Receipt.
     PostponedReceipt(Box<Receipt>),
     /// Received data from DataReceipt encoded in base64 for the given account_id and data_id.
@@ -74,8 +73,8 @@ impl StateRecord {
             col::ACCESS_KEY => {
                 let access_key = AccessKey::try_from_slice(&value).unwrap();
                 let account_id = parse_account_id_from_access_key_key(&key).unwrap();
-                let public_key = parse_public_key_from_access_key_key(&key, &account_id).unwrap();
-                Some(StateRecord::AccessKey { account_id, public_key, access_key })
+                // let public_key = parse_public_key_from_access_key_key(&key, &account_id).unwrap();
+                Some(StateRecord::AccessKey { account_id, access_key })
             }
             col::RECEIVED_DATA => {
                 let data = ReceivedData::try_from_slice(&value).unwrap().data;
@@ -115,8 +114,8 @@ impl Display for StateRecord {
             StateRecord::Contract { account_id, code: _ } => {
                 write!(f, "Code for {:?}: ...", account_id)
             }
-            StateRecord::AccessKey { account_id, public_key, access_key } => {
-                write!(f, "Access key {:?},{:?}: {:?}", account_id, public_key, access_key)
+            StateRecord::AccessKey { account_id, access_key } => {
+                write!(f, "Access key {:?}: {:?}", account_id, access_key)
             }
             StateRecord::ReceivedData { account_id, data_id, data } => write!(
                 f,

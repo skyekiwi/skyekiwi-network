@@ -7,7 +7,7 @@ pub use self::mocked_blockchain::MockedBlockchain;
 pub use self::receipt::{Receipt, VmAction};
 use crate::AccountId;
 use core::cell::RefCell;
-use skw_vm_primitives::account_id::ParseAccountError;
+use skw_vm_primitives::account_id_old::ParseAccountError;
 
 thread_local! {
     /// Low-level blockchain interface wrapped by the environment. Prefer using `env::*` and

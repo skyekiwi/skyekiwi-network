@@ -646,7 +646,7 @@ impl Display for ActionsValidationError {
             ActionsValidationError::InvalidAccountId { account_id } => write!(
                 f,
                 "Invalid account ID `{}`",
-                account_id
+                String::from(account_id)
             ),
             ActionsValidationError::ContractSizeExceeded { size, limit } => write!(
                 f,
@@ -881,7 +881,8 @@ impl fmt::Display for CompilationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
             CompilationError::CodeDoesNotExist { account_id } => {
-                write!(f, "cannot find contract code for account {}", account_id)
+                write!(f, "cannot find contract code for account {}", String::from(account_id)
+            )
             }
             CompilationError::PrepareError(p) => write!(f, "PrepareError: {}", p),
             CompilationError::FloatingPointError => write!(f, "floating points operations not allowed in wasm"),

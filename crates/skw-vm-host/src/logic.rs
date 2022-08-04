@@ -6,6 +6,7 @@ use crate::utils::split_method_names;
 use crate::ValuePtr;
 use byteorder::ByteOrder;
 
+use skw_vm_primitives::borsh::BorshSerialize;
 use skw_vm_primitives::crypto::Secp256K1Signature;
 
 use skw_vm_primitives::config::ExtCosts::*;
@@ -484,7 +485,7 @@ impl<'a> VMLogic<'a> {
 
         self.internal_write_register(
             register_id,
-            self.context.current_account_id.as_ref().as_bytes().to_vec(),
+            self.context.current_account_id.as_ref().try_to_vec().unwrap(),
         )
     }
 
@@ -512,7 +513,7 @@ impl<'a> VMLogic<'a> {
         }
         self.internal_write_register(
             register_id,
-            self.context.signer_account_id.as_ref().as_bytes().to_vec(),
+            self.context.signer_account_id.as_ref().try_to_vec().unwrap(),
         )
     }
 
@@ -563,7 +564,7 @@ impl<'a> VMLogic<'a> {
         }
         self.internal_write_register(
             register_id,
-            self.context.predecessor_account_id.as_ref().as_bytes().to_vec(),
+            self.context.predecessor_account_id.as_ref().try_to_vec().unwrap(),
         )
     }
 
@@ -1929,19 +1930,23 @@ impl<'a> VMLogic<'a> {
     /// `utf8_decoding_base + utf8_decoding_byte * num_bytes`.
     fn read_and_parse_account_id(&mut self, ptr: u64, len: u64) -> Result<AccountId> {
         let buf = self.get_vec_from_memory_or_register(ptr, len)?;
+        
+        // TODO: this gas counter is wrong
         self.gas_counter.pay_base(utf8_decoding_base)?;
         self.gas_counter.pay_per(utf8_decoding_byte, buf.len() as u64)?;
 
-        // We return an illegally constructed AccountId here for the sake of ensuring
-        // backwards compatibility. For paths previously involving validation, like receipts
-        // we retain validation further down the line in node-runtime/verifier.rs#fn(validate_receipt)
-        // mimicing previous behaviour.
-        let account_id = String::from_utf8(buf)
-            .map(
-                #[allow(deprecated)]
-                AccountId::new_unvalidated,
-            )
-            .map_err(|_| HostError::BadUTF8)?;
+
+        // TODO: this error message is wrong
+        let key_with_type: [u8; 33] = buf.try_into().map_err(|_| HostError::InvalidAccountId)?;
+
+        // TODO: we want only sr25519 for now
+        if key_with_type[0] != 2 {
+            return Err(HostError::InvalidAccountId.into());
+        }
+
+        let key: [u8; 32] = key_with_type[1..].try_into().map_err(|_| HostError::InvalidAccountId)?;
+
+        let account_id = AccountId::from_bytes(key);
         Ok(account_id)
     }
 

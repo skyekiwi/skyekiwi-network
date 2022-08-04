@@ -330,7 +330,7 @@ pub struct ExecutionOutcome {
     pub tokens_burnt: Balance,
     /// The id of the account on which the execution happens. For transaction this is signer_id,
     /// for receipt this is receiver_id.
-    #[default("test".parse().unwrap())]
+    #[default(AccountId::test())]
     pub executor_id: AccountId,
     /// Execution status. Contains the result in case of successful execution.
     /// NOTE: Should be the latest field since it contains unparsable by light client
@@ -422,12 +422,12 @@ mod tests {
 
     #[test]
     fn test_verify_transaction() {
-        let signer = InMemorySigner::from_random("test".parse().unwrap(), KeyType::ED25519);
+        let signer = InMemorySigner::from_random(KeyType::SR25519);
         let tx = Transaction {
-            signer_id: "test".parse().unwrap(),
+            signer_id: AccountId::test(), 
             public_key: signer.public_key(),
             nonce: 0,
-            receiver_id: "test".parse().unwrap(),
+            receiver_id: AccountId::test(), 
             block_hash: Default::default(),
             actions: vec![],
         };
@@ -435,7 +435,7 @@ mod tests {
 
         let transaction = SignedTransaction::new(signature, tx);
 
-        let wrong_public_key = PublicKey::from_seed(KeyType::ED25519, "wrong");
+        let wrong_public_key = PublicKey::from_seed(KeyType::SR25519, "wrong");
         let valid_keys = vec![signer.public_key(), wrong_public_key.clone()];
         assert!(verify_transaction_signature(&transaction, &valid_keys));
 
@@ -453,10 +453,10 @@ mod tests {
     fn test_serialize_transaction() {
         let public_key: PublicKey = "22skMptHjFWNyuEWY22ftn2AbLPSYpmYwGJRGwpNHbTV".parse().unwrap();
         let transaction = Transaction {
-            signer_id: "test.near".parse().unwrap(),
+            signer_id: AccountId::test(),
             public_key: public_key.clone(),
             nonce: 1,
-            receiver_id: "123".parse().unwrap(),
+            receiver_id: AccountId::test(),
             block_hash: Default::default(),
             actions: vec![
                 Action::DeployContract(DeployContractAction { code: vec![1, 2, 3] }),
@@ -468,13 +468,13 @@ mod tests {
                 }),
             ],
         };
-        let signed_tx = SignedTransaction::new(Signature::empty(KeyType::ED25519), transaction);
+        let signed_tx = SignedTransaction::new(Signature::empty(KeyType::SR25519), transaction);
         let new_signed_tx =
             SignedTransaction::try_from_slice(&signed_tx.try_to_vec().unwrap()).unwrap();
 
         assert_eq!(
             to_base(&new_signed_tx.get_hash()),
-            "Lg7phGrzH1upCaX5wYtAKV2ZStrNc1TppoivbMwZWZB"
+            "A8HW3vN5rNp1pTnbbQ3gkLvCZQYhA5xnNuH31ooBnJ24"
         );
     }
 
@@ -486,7 +486,7 @@ mod tests {
             receipt_ids: vec![],
             gas_burnt: 123,
             tokens_burnt: 1234000,
-            executor_id: "alice".parse().unwrap(),
+            executor_id: AccountId::system(),
             profile_data: None,
         };
         let hashes = outcome.to_hashes();

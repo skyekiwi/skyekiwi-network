@@ -3,7 +3,7 @@ use skw_vm_primitives::errors::{ActionErrorKind, ContractCallError, RuntimeError
 use skw_vm_primitives::contract_runtime::{CryptoHash, ContractCode, AccountId};
 use skw_vm_primitives::receipt::{ActionReceipt, Receipt};
 use skw_vm_primitives::fees::{RuntimeFeesConfig};
-use skw_vm_primitives::config::{AccountCreationConfig};
+// use skw_vm_primitives::config::{AccountCreationConfig};
 
 use skw_vm_primitives::account::{Account, AccessKeyPermission};
 use skw_vm_primitives::crypto::PublicKey;
@@ -144,39 +144,39 @@ pub(crate) fn action_transfer(
 
 pub(crate) fn action_create_account(
     fee_config: &RuntimeFeesConfig,
-    account_creation_config: &AccountCreationConfig,
+    // account_creation_config: &AccountCreationConfig,
     account: &mut Option<Account>,
     actor_id: &mut AccountId,
     account_id: &AccountId,
     predecessor_id: &AccountId,
     result: &mut ActionResult,
 ) {
-    if account_id.is_top_level() {
-        if account_id.len() < account_creation_config.min_allowed_top_level_account_length as usize
-            && predecessor_id != &account_creation_config.registrar_account_id
-        {
-            // A short top-level account ID can only be created registrar account.
-            result.result = Err(ActionErrorKind::CreateAccountOnlyByRegistrar {
-                account_id: account_id.clone(),
-                registrar_account_id: account_creation_config.registrar_account_id.clone(),
-                predecessor_id: predecessor_id.clone(),
-            }
-            .into());
-            return;
-        } else {
-            // OK: Valid top-level Account ID
-        }
-    } else if !account_id.is_sub_account_of(predecessor_id) {
-        // The sub-account can only be created by its root account. E.g. `alice.near` only by `near`
-        result.result = Err(ActionErrorKind::CreateAccountNotAllowed {
-            account_id: account_id.clone(),
-            predecessor_id: predecessor_id.clone(),
-        }
-        .into());
-        return;
-    } else {
-        // OK: Valid sub-account ID by proper predecessor.
-    }
+    // if account_id.is_top_level() {
+    //     if account_id.len() < account_creation_config.min_allowed_top_level_account_length as usize
+    //         && predecessor_id != &account_creation_config.registrar_account_id
+    //     {
+    //         // A short top-level account ID can only be created registrar account.
+    //         result.result = Err(ActionErrorKind::CreateAccountOnlyByRegistrar {
+    //             account_id: account_id.clone(),
+    //             registrar_account_id: account_creation_config.registrar_account_id.clone(),
+    //             predecessor_id: predecessor_id.clone(),
+    //         }
+    //         .into());
+    //         return;
+    //     } else {
+    //         // OK: Valid top-level Account ID
+    //     }
+    // } else if !account_id.is_sub_account_of(predecessor_id) {
+    //     // The sub-account can only be created by its root account. E.g. `alice.near` only by `near`
+    //     result.result = Err(ActionErrorKind::CreateAccountNotAllowed {
+    //         account_id: account_id.clone(),
+    //         predecessor_id: predecessor_id.clone(),
+    //     }
+    //     .into());
+    //     return;
+    // } else {
+    //     // OK: Valid sub-account ID by proper predecessor.
+    // }
 
     *actor_id = account_id.clone();
     *account = Some(Account::new(

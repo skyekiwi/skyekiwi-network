@@ -47,7 +47,7 @@ impl TransactionPool {
     fn key(&self, account_id: &AccountId, public_key: &PublicKey) -> PoolKey {
         let mut v = public_key.try_to_vec().unwrap();
         v.extend_from_slice(&self.key_seed);
-        v.extend_from_slice(account_id.as_ref().as_bytes());
+        v.extend_from_slice(&account_id.as_ref().try_to_vec().unwrap()[..]);
         hash_bytes(&v)
     }
 
