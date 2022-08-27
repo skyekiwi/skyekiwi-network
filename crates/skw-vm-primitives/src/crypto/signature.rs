@@ -331,27 +331,31 @@ impl PublicKey {
         Self::SR25519(SR25519PublicKey([1u8; schnorrkel::PUBLIC_KEY_LENGTH]))
     }
 
+    pub fn test2() -> Self {
+        Self::SR25519(SR25519PublicKey([2u8; schnorrkel::PUBLIC_KEY_LENGTH]))
+    }
+
     pub fn from_bytes(bytes: [u8; 32]) -> Self {
         Self::SR25519(SR25519PublicKey(bytes))
     }
 
-    // pub fn as_bytes(&self) -> [u8; 33] {
-    //     let mut res = [0u8; 33];
+    pub fn as_bytes(&self) -> [u8; 33] {
+        let mut res = [0u8; 33];
 
-    //     let key_type_byte = match self {
-    //         Self::ED25519(key) => res[0] = 0,
-    //         Self::SR25519(key) => res[0] = 1,
-    //         _ => panic!()
-    //     };
+        match self {
+            Self::ED25519(_) => res[0] = 0,
+            Self::SECP256K1(_) => res[0] = 1,
+            Self::SR25519(_) => res[0] = 2,
+        };
 
-    //     let key = match self {
-    //         Self::ED25519(key) => res[1..].copy_from_slice(key.as_ref()),
-    //         Self::SR25519(key) => res[1..].copy_from_slice(key.as_ref()),
-    //         _ => panic!(),
-    //     };
+        match self {
+            Self::ED25519(key) => res[1..].copy_from_slice(key.as_ref()),
+            Self::SECP256K1(key) => panic!("cannot use as_bytes for secp256k1"),
+            Self::SR25519(key) => res[1..].copy_from_slice(key.as_ref()),
+        };
 
-    //     res
-    // }
+        res
+    }
 }
 
 // This `Hash` implementation is safe since it retains the property

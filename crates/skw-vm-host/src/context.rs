@@ -1,5 +1,3 @@
-use crate::types::PublicKey;
-
 use skw_vm_primitives::contract_runtime::{AccountId, Balance, BlockNumber, Gas, StorageUsage};
 use skw_vm_primitives::config::ViewConfig;
 
@@ -13,10 +11,6 @@ pub struct VMContext {
     /// The account id of that signed the original transaction that led to this
     /// execution.
     pub signer_account_id: AccountId,
-    #[serde(with = "crate::serde_with::bytes_as_base58")]
-    /// The public key that was used to sign the original transaction that led to
-    /// this execution.
-    pub signer_account_pk: PublicKey,
     /// If this execution is the result of cross-contract call or a callback then
     /// predecessor is the account that called it.
     /// If this execution is the result of direct execution of transaction then it

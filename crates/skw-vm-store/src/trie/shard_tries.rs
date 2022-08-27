@@ -272,7 +272,6 @@ impl WrappedTrieChanges {
             match &change_with_trie_key.trie_key {
                 TrieKey::Account { .. }
                 | TrieKey::ContractCode { .. }
-                | TrieKey::AccessKey { .. }
                 | TrieKey::ContractData { .. } => {}
                 _ => continue,
             };

@@ -40,7 +40,7 @@ pub struct InMemorySigner {
 }
 
 impl InMemorySigner {
-    pub fn from_seed(key_type: KeyType, seed: &str) -> Self {
+    pub fn from_seed(key_type: KeyType, seed: &[u8]) -> Self {
         let secret_key = SecretKey::from_seed(key_type, seed);
         Self { public_key: secret_key.public_key(), secret_key }
     }

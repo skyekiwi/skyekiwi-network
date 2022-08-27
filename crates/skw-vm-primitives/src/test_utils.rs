@@ -1,26 +1,25 @@
-use crate::crypto::{EmptySigner, PublicKey, Signer};
+use crate::crypto::{EmptySigner, Signer};
 
-use crate::account::{Account, AccessKey, AccessKeyPermission};
+use crate::account::{Account};
 use crate::transaction::{
     Action, CreateAccountAction, DeleteAccountAction,
     DeployContractAction, FunctionCallAction, SignedTransaction, Transaction,
-    TransferAction, AddKeyAction, DeleteKeyAction,
+    TransferAction,
 };
 use crate::contract_runtime::{AccountId, Balance, CryptoHash, Gas, Nonce};
 
-pub fn account_new(amount: Balance, code_hash: CryptoHash) -> Account {
-    Account::new(amount, 0, code_hash, std::mem::size_of::<Account>() as u64)
+pub fn account_new(amount: Balance, code_hash: CryptoHash, nonce: Nonce) -> Account {
+    Account::new(amount, 0, code_hash, std::mem::size_of::<Account>() as u64, nonce)
 }
 
 impl Transaction {
     pub fn new(
         signer_id: AccountId,
-        public_key: PublicKey,
         receiver_id: AccountId,
         nonce: Nonce,
         block_hash: CryptoHash,
     ) -> Self {
-        Self { signer_id, public_key, nonce, receiver_id, block_hash, actions: vec![] }
+        Self { signer_id, nonce, receiver_id, block_hash, actions: vec![] }
     }
 
     pub fn sign(self, signer: &dyn Signer) -> SignedTransaction {
@@ -59,16 +58,6 @@ impl Transaction {
         self
     }
 
-    pub fn add_key(mut self, public_key: PublicKey, access_key: AccessKey) -> Self {
-        self.actions.push(Action::AddKey(AddKeyAction { public_key, access_key }));
-        self
-    }
-
-    pub fn delete_key(mut self, public_key: PublicKey) -> Self {
-        self.actions.push(Action::DeleteKey(DeleteKeyAction { public_key }));
-        self
-    }
-
     pub fn delete_account(mut self, beneficiary_id: AccountId) -> Self {
         self.actions.push(Action::DeleteAccount(DeleteAccountAction { beneficiary_id }));
         self
@@ -87,7 +76,6 @@ impl SignedTransaction {
         Transaction {
             nonce,
             signer_id,
-            public_key: signer.public_key(),
             receiver_id,
             block_hash,
             actions,
@@ -118,7 +106,7 @@ impl SignedTransaction {
         originator: AccountId,
         new_account_id: AccountId,
         amount: Balance,
-        public_key: PublicKey,
+        // public_key: PublicKey,
         signer: &dyn Signer,
         block_hash: CryptoHash,
     ) -> Self {
@@ -129,10 +117,6 @@ impl SignedTransaction {
             signer,
             vec![
                 Action::CreateAccount(CreateAccountAction {}),
-                Action::AddKey(AddKeyAction {
-                    public_key,
-                    access_key: AccessKey { nonce: 0, permission: AccessKeyPermission::FullAccess },
-                }),
                 Action::Transfer(TransferAction { deposit: amount }),
             ],
             block_hash,
@@ -145,7 +129,7 @@ impl SignedTransaction {
         new_account_id: AccountId,
         code: Vec<u8>,
         amount: Balance,
-        public_key: PublicKey,
+        // public_key: PublicKey,
         signer: &dyn Signer,
         block_hash: CryptoHash,
     ) -> Self {
@@ -156,10 +140,10 @@ impl SignedTransaction {
             signer,
             vec![
                 Action::CreateAccount(CreateAccountAction {}),
-                Action::AddKey(AddKeyAction {
-                    public_key,
-                    access_key: AccessKey { nonce: 0, permission: AccessKeyPermission::FullAccess },
-                }),
+                // Action::AddKey(AddKeyAction {
+                //     public_key,
+                //     access_key: AccessKey { nonce: 0, permission: AccessKeyPermission::FullAccess },
+                // }),
                 Action::Transfer(TransferAction { deposit: amount }),
                 Action::DeployContract(DeployContractAction { code }),
             ],

@@ -355,13 +355,13 @@ pub enum TxExecutionError {
 )]
 pub enum ReceiptValidationError {
     /// The `predecessor_id` of a Receipt is not valid.
-    InvalidPredecessorId { account_id: String },
+    InvalidPredecessorId { account_id: AccountId },
     /// The `receiver_id` of a Receipt is not valid.
-    InvalidReceiverId { account_id: String },
+    InvalidReceiverId { account_id: AccountId },
     /// The `signer_id` of an ActionReceipt is not valid.
-    InvalidSignerId { account_id: String },
+    InvalidSignerId { account_id: AccountId },
     /// The `receiver_id` of a DataReceiver within an ActionReceipt is not valid.
-    InvalidDataReceiverId { account_id: String },
+    InvalidDataReceiverId { account_id: AccountId },
     /// The length of the returned data exceeded the limit in a DataReceipt.
     ReturnedValueLengthExceeded { length: u64, limit: u64 },
     /// The number of input data dependencies exceeds the limit in an ActionReceipt.
@@ -458,7 +458,7 @@ pub enum InvalidAccessKeyError {
     /// The access key identified by the `public_key` doesn't exist for the account
     AccessKeyNotFound { account_id: AccountId, public_key: PublicKey },
     /// Transaction `receiver_id` doesn't match the access key receiver_id
-    ReceiverMismatch { tx_receiver: AccountId, ak_receiver: String },
+    ReceiverMismatch { tx_receiver: AccountId, ak_receiver: AccountId },
     /// Transaction method name isn't allowed by the access key
     MethodNameMismatch { method_name: String },
     /// Transaction requires a full permission access key.

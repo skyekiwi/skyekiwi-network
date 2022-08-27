@@ -8,14 +8,18 @@ use skw_vm_host::types::Gas;
 use skw_vm_host::{VMConfig, VMLogic};
 use vm_logic_builder::VMLogicBuilder;
 
+use skw_vm_primitives::account_id::AccountId;
+
 #[test]
 fn test_dont_burn_gas_when_exceeding_attached_gas_limit() {
+    let test_account = AccountId::test().as_bytes();
+
     let gas_limit = 10u64.pow(14);
 
     let mut logic_builder = VMLogicBuilder::default().max_gas_burnt(gas_limit * 2);
     let mut logic = logic_builder.build_with_prepaid_gas(gas_limit);
 
-    let index = promise_create(&mut logic, b"rick.test", 0, 0).expect("should create a promise");
+    let index = promise_create(&mut logic, &test_account, 0, 0).expect("should create a promise");
     promise_batch_action_function_call(&mut logic, index, 0, gas_limit * 2)
         .expect_err("should fail with gas limit");
     let outcome = logic.outcome();
@@ -29,11 +33,12 @@ fn test_dont_burn_gas_when_exceeding_attached_gas_limit() {
 fn test_limit_wasm_gas_after_attaching_gas() {
     let gas_limit = 10u64.pow(14);
     let op_limit = op_limit(gas_limit);
+    let test_account = AccountId::test().as_bytes();
 
     let mut logic_builder = VMLogicBuilder::default().max_gas_burnt(gas_limit * 2);
     let mut logic = logic_builder.build_with_prepaid_gas(gas_limit);
 
-    let index = promise_create(&mut logic, b"rick.test", 0, 0).expect("should create a promise");
+    let index = promise_create(&mut logic, &test_account, 0, 0).expect("should create a promise");
     promise_batch_action_function_call(&mut logic, index, 0, gas_limit / 2)
         .expect("should add action to receipt");
     logic.gas((op_limit / 2) as u32).expect_err("should fail with gas limit");
@@ -78,11 +83,12 @@ fn test_cant_burn_more_than_prepaid_gas() {
 fn test_hit_max_gas_burnt_limit() {
     let gas_limit = 10u64.pow(14);
     let op_limit = op_limit(gas_limit);
+    let test_account = AccountId::test().as_bytes();
 
     let mut logic_builder = VMLogicBuilder::default().max_gas_burnt(gas_limit);
     let mut logic = logic_builder.build_with_prepaid_gas(gas_limit * 3);
 
-    promise_create(&mut logic, b"rick.test", 0, gas_limit / 2).expect("should create a promise");
+    promise_create(&mut logic, &test_account, 0, gas_limit / 2).expect("should create a promise");
     logic.gas(op_limit * 2).expect_err("should fail with gas limit");
     let outcome = logic.outcome();
 
@@ -94,11 +100,12 @@ fn test_hit_max_gas_burnt_limit() {
 fn test_hit_prepaid_gas_limit() {
     let gas_limit = 10u64.pow(14);
     let op_limit = op_limit(gas_limit);
+    let test_account = AccountId::test().as_bytes();
 
     let mut logic_builder = VMLogicBuilder::default().max_gas_burnt(gas_limit * 3);
     let mut logic = logic_builder.build_with_prepaid_gas(gas_limit);
 
-    promise_create(&mut logic, b"rick.test", 0, gas_limit / 2).expect("should create a promise");
+    promise_create(&mut logic, &test_account, 0, gas_limit / 2).expect("should create a promise");
     logic.gas(op_limit * 2).expect_err("should fail with gas limit");
     let outcome = logic.outcome();
 

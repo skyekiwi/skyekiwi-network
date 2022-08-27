@@ -1,12 +1,10 @@
 use std::sync::Arc;
 use log::debug;
-use skw_blockchain_primitives::BorshDeserialize;
-use skw_vm_primitives::account::{AccessKey, AccessKeyPermission, FunctionCallPermission};
-use skw_vm_primitives::crypto::PublicKey;
+
 use skw_vm_primitives::errors::{StorageError};
 use skw_vm_primitives::receipt::{ActionReceipt, DataReceiver, Receipt, ReceiptEnum};
 use skw_vm_primitives::transaction::{
-    Action, AddKeyAction, CreateAccountAction, DeleteAccountAction, DeleteKeyAction,
+    Action, CreateAccountAction, DeleteAccountAction,
     DeployContractAction, FunctionCallAction, TransferAction,
 };
 use skw_vm_primitives::trie_key::{trie_key_parsers, TrieKey};
@@ -21,7 +19,6 @@ pub struct RuntimeExt<'a> {
     account_id: &'a AccountId,
     action_receipts: Vec<(AccountId, ActionReceipt)>,
     signer_id: &'a AccountId,
-    signer_public_key: &'a PublicKey,
     gas_price: Balance,
     action_hash: &'a CryptoHash,
     data_count: u64,
@@ -59,7 +56,6 @@ impl<'a> RuntimeExt<'a> {
         trie_update: &'a mut TrieUpdate,
         account_id: &'a AccountId,
         signer_id: &'a AccountId,
-        signer_public_key: &'a PublicKey,
         gas_price: Balance,
         action_hash: &'a CryptoHash,
     ) -> Self {
@@ -68,7 +64,6 @@ impl<'a> RuntimeExt<'a> {
             account_id,
             action_receipts: vec![],
             signer_id,
-            signer_public_key,
             gas_price,
             action_hash,
             data_count: 0,
@@ -200,7 +195,6 @@ impl<'a> External for RuntimeExt<'a> {
 
         let new_receipt = ActionReceipt {
             signer_id: self.signer_id.clone(),
-            signer_public_key: self.signer_public_key.clone(),
             gas_price: self.gas_price,
             output_data_receivers: vec![],
             input_data_ids,
@@ -218,71 +212,6 @@ impl<'a> External for RuntimeExt<'a> {
 
     fn append_action_transfer(&mut self, receipt_index: u64, deposit: u128) -> ExtResult<()> {
         self.append_action(receipt_index, Action::Transfer(TransferAction { deposit }));
-        Ok(())
-    }
-
-    fn append_action_add_key_with_full_access(
-        &mut self,
-        receipt_index: u64,
-        public_key: Vec<u8>,
-        nonce: u64,
-    ) -> ExtResult<()> {
-        self.append_action(
-            receipt_index,
-            Action::AddKey(AddKeyAction {
-                public_key: PublicKey::try_from_slice(&public_key)
-                    .map_err(|_| HostError::InvalidPublicKey)?,
-                access_key: AccessKey { nonce, permission: AccessKeyPermission::FullAccess },
-            }),
-        );
-        Ok(())
-    }
-
-    fn append_action_add_key_with_function_call(
-        &mut self,
-        receipt_index: u64,
-        public_key: Vec<u8>,
-        nonce: u64,
-        allowance: Option<u128>,
-        receiver_id: AccountId,
-        method_names: Vec<Vec<u8>>,
-    ) -> ExtResult<()> {
-        self.append_action(
-            receipt_index,
-            Action::AddKey(AddKeyAction {
-                public_key: PublicKey::try_from_slice(&public_key)
-                    .map_err(|_| HostError::InvalidPublicKey)?,
-                access_key: AccessKey {
-                    nonce,
-                    permission: AccessKeyPermission::FunctionCall(FunctionCallPermission {
-                        allowance,
-                        receiver_id: receiver_id.into(),
-                        method_names: method_names
-                            .into_iter()
-                            .map(|method_name| {
-                                String::from_utf8(method_name)
-                                    .map_err(|_| HostError::InvalidMethodName)
-                            })
-                            .collect::<std::result::Result<Vec<_>, _>>()?,
-                    }),
-                },
-            }),
-        );
-        Ok(())
-    }
-
-    fn append_action_delete_key(
-        &mut self,
-        receipt_index: u64,
-        public_key: Vec<u8>,
-    ) -> ExtResult<()> {
-        self.append_action(
-            receipt_index,
-            Action::DeleteKey(DeleteKeyAction {
-                public_key: PublicKey::try_from_slice(&public_key)
-                    .map_err(|_| HostError::InvalidPublicKey)?,
-            }),
-        );
         Ok(())
     }
 

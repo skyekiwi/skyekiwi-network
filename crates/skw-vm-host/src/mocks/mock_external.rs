@@ -126,51 +126,6 @@ impl RuntimeExternal for MockedExternal {
         Ok(())
     }
 
-
-    fn append_action_add_key_with_full_access(
-        &mut self,
-        receipt_index: u64,
-        public_key: Vec<u8>,
-        nonce: u64,
-    ) -> Result<()> {
-        self.receipts
-            .get_mut(receipt_index as usize)
-            .unwrap()
-            .actions
-            .push(Action::AddKeyWithFullAccess(AddKeyWithFullAccessAction { public_key, nonce }));
-        Ok(())
-    }
-
-    fn append_action_add_key_with_function_call(
-        &mut self,
-        receipt_index: u64,
-        public_key: Vec<u8>,
-        nonce: u64,
-        allowance: Option<u128>,
-        receiver_id: AccountId,
-        method_names: Vec<Vec<u8>>,
-    ) -> Result<()> {
-        self.receipts.get_mut(receipt_index as usize).unwrap().actions.push(
-            Action::AddKeyWithFunctionCall(AddKeyWithFunctionCallAction {
-                public_key,
-                nonce,
-                allowance,
-                receiver_id,
-                method_names,
-            }),
-        );
-        Ok(())
-    }
-
-    fn append_action_delete_key(&mut self, receipt_index: u64, public_key: Vec<u8>) -> Result<()> {
-        self.receipts
-            .get_mut(receipt_index as usize)
-            .unwrap()
-            .actions
-            .push(Action::DeleteKey(DeleteKeyAction { public_key }));
-        Ok(())
-    }
-
     fn append_action_delete_account(
         &mut self,
         receipt_index: u64,

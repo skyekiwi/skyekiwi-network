@@ -1,14 +1,12 @@
 use std::borrow::Borrow;
 use std::fmt;
 
-use crate::crypto::{KeyType, PublicKey};
 use serde::{Deserialize, Serialize};
 use borsh::{BorshSerialize, BorshDeserialize};
 use crate::contract_runtime::{CryptoHash, AccountId, Balance};
 use crate::transaction::{Action, TransferAction};
 use crate::serialize::{option_base64_format, u128_dec_format_compatible};
 use crate::logging;
-// use crate::borsh::maybestd::collections::HashMap;
 
 /// Receipts are used for a cross-shard communication.
 /// Receipts could be 2 types (determined by a `ReceiptEnum`): `ReceiptEnum::Action` of `ReceiptEnum::Data`.
@@ -31,7 +29,6 @@ impl Borrow<CryptoHash> for Receipt {
     }
 }
 
-
 impl Receipt {
     /// It's not a content hash, but receipt_id is unique.
     pub fn get_hash(&self) -> CryptoHash {
@@ -41,7 +38,7 @@ impl Receipt {
     /// Generates a receipt with a transfer from system for a given balance without a receipt_id.
     /// This should be used for token refunds instead of gas refunds. It doesn't refund the
     /// allowance of the access key. For gas refunds use `new_gas_refund`.
-    pub fn new_balance_refund(receiver_id: &AccountId, refund: Balance) -> Self {
+    pub fn new_force_transfer(receiver_id: &AccountId, balance: Balance) -> Self {
         Receipt {
             predecessor_id: AccountId::system(), 
             receiver_id: receiver_id.clone(),
@@ -49,38 +46,10 @@ impl Receipt {
 
             receipt: ReceiptEnum::Action(ActionReceipt {
                 signer_id: AccountId::system(),
-                signer_public_key: PublicKey::empty(KeyType::ED25519),
                 gas_price: 0,
                 output_data_receivers: vec![],
                 input_data_ids: vec![],
-                actions: vec![Action::Transfer(TransferAction { deposit: refund })],
-            }),
-        }
-    }
-
-    /// Generates a receipt with a transfer action from system for a given balance without a
-    /// receipt_id. It contains `signer_id` and `signer_public_key` to indicate this is a gas
-    /// refund. The execution of this receipt will try to refund the allowance of the
-    /// access key with the given public key.
-    /// NOTE: The access key may be replaced by the owner, so the execution can't rely that the
-    /// access key is the same and it should use best effort for the refund.
-    pub fn new_gas_refund(
-        receiver_id: &AccountId,
-        refund: Balance,
-        signer_public_key: PublicKey,
-    ) -> Self {
-        Receipt {
-            predecessor_id: AccountId::system(),
-            receiver_id: receiver_id.clone(),
-            receipt_id: CryptoHash::default(),
-
-            receipt: ReceiptEnum::Action(ActionReceipt {
-                signer_id: receiver_id.clone(),
-                signer_public_key,
-                gas_price: 0,
-                output_data_receivers: vec![],
-                input_data_ids: vec![],
-                actions: vec![Action::Transfer(TransferAction { deposit: refund })],
+                actions: vec![Action::Transfer(TransferAction { deposit: balance })],
             }),
         }
     }
@@ -98,8 +67,6 @@ pub enum ReceiptEnum {
 pub struct ActionReceipt {
     /// A signer of the original transaction
     pub signer_id: AccountId,
-    /// An access key which was used to sign the original transaction
-    pub signer_public_key: PublicKey,
     /// A gas_price which has been used to buy gas in the original transaction
     #[serde(with = "u128_dec_format_compatible")]
     pub gas_price: Balance,

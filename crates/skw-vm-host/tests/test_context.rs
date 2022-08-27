@@ -1,15 +1,15 @@
 mod fixtures;
 mod vm_logic_builder;
 use vm_logic_builder::VMLogicBuilder;
+use skw_vm_primitives::account_id::AccountId;
 
 use skw_vm_host::VMContext;
 
 pub fn create_context() -> VMContext {
     VMContext {
-        current_account_id: "alice".parse().unwrap(),
-        signer_account_id: "bob".parse().unwrap(),
-        signer_account_pk: vec![0, 1, 2, 3, 4],
-        predecessor_account_id: "carol".parse().unwrap(),
+        current_account_id: AccountId::test(),
+        signer_account_id: AccountId::test(),
+        predecessor_account_id: AccountId::system(),
         input: vec![0, 1, 2, 3, 5],
         block_number: 10,
         block_timestamp: 42,
@@ -67,22 +67,17 @@ macro_rules! decl_test_u128 {
 decl_test_bytes!(
     test_current_account_id,
     current_account_id,
-    create_context().current_account_id.as_ref().as_bytes()
+    create_context().current_account_id.as_bytes()
 );
 decl_test_bytes!(
     test_signer_account_id,
     signer_account_id,
-    create_context().signer_account_id.as_ref().as_bytes()
+    create_context().signer_account_id.as_bytes()
 );
 decl_test_bytes!(
     test_predecessor_account_id,
     predecessor_account_id,
-    create_context().predecessor_account_id.as_ref().as_bytes()
-);
-decl_test_bytes!(
-    test_signer_account_pk,
-    signer_account_pk,
-    create_context().signer_account_pk.as_slice()
+    create_context().predecessor_account_id.as_bytes()
 );
 
 decl_test_bytes!(test_random_seed, random_seed, create_context().random_seed.as_slice());
