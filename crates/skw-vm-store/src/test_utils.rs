@@ -55,8 +55,11 @@ fn gen_accounts(
 
 pub fn gen_account(rng: &mut impl Rng) -> AccountId {
     let key:[u8; 32] = rng.gen();
+    let mut key_with_type = Vec::new();
+    key_with_type.extend([2u8].iter());
+    key_with_type.extend(key);
 
-    AccountId::from_bytes(key)
+    AccountId::from_bytes(key_with_type.try_into().unwrap()).unwrap()
 }
 
 pub fn gen_unique_accounts(rng: &mut impl Rng, max_size: usize) -> Vec<AccountId> {

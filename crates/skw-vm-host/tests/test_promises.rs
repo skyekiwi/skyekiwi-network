@@ -51,7 +51,7 @@ fn test_promise_batch_action_function_call() {
     let expected = serde_json::json!([
     {
         "receipt_indices":[],
-        "receiver_id":"sr25519:4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi",
+        "receiver_id": AccountId::test(),
         "actions":[
             {
                 "FunctionCall":{
@@ -92,7 +92,7 @@ fn test_promise_batch_action_create_account() {
     let expected = serde_json::json!([
         {
             "receipt_indices": [],
-            "receiver_id": "sr25519:4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi",
+            "receiver_id": AccountId::test(),
             "actions": [
             {
                 "FunctionCall": {
@@ -139,7 +139,7 @@ fn test_promise_batch_action_deploy_contract() {
       [
         {
         "receipt_indices": [],
-        "receiver_id": "sr25519:4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi",
+        "receiver_id": AccountId::test(),
         "actions": [
           {
             "FunctionCall": {
@@ -197,7 +197,7 @@ fn test_promise_batch_action_transfer() {
     [
         {
             "receipt_indices": [],
-            "receiver_id": "sr25519:4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi",
+            "receiver_id": AccountId::test(),
             "actions": [
             {
                 "FunctionCall": {
@@ -248,7 +248,7 @@ fn test_promise_batch_then() {
     let expected = serde_json::json!([
         {
             "receipt_indices": [],
-            "receiver_id": "sr25519:4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi",
+            "receiver_id": AccountId::test(),
             "actions": [
                 {
                     "FunctionCall": {
@@ -264,14 +264,14 @@ fn test_promise_batch_then() {
             "receipt_indices": [
                 0
             ],
-            "receiver_id": "sr25519:4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi",
+            "receiver_id": AccountId::test(),
             "actions": []
         },
         {
             "receipt_indices": [
                 0
             ],
-            "receiver_id": "sr25519:4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi",
+            "receiver_id": AccountId::test(),
             "actions": []
         }
     ]);

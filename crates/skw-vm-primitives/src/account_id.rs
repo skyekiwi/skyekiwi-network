@@ -169,8 +169,9 @@ impl AccountId {
 	}
 
 	// Todo: this is a test func
-	pub fn from_bytes(bytes: [u8; 32]) -> Self {
-		AccountId(Box::new(PublicKey::from_bytes(bytes)))
+	pub fn from_bytes(bytes: [u8; 33]) -> Result<Self, crate::crypto::ParseKeyError> {
+		let pk = PublicKey::from_bytes(&bytes[..])?;
+		Ok(AccountId(Box::new(pk)))
 	}
 }
 

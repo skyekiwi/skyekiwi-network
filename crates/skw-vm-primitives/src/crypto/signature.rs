@@ -352,8 +352,17 @@ impl PublicKey {
     }
     /* SHOULD ONLY USED BY TESTS */ 
 
-    pub fn from_bytes(bytes: [u8; 32]) -> Self {
-        Self::SR25519(SR25519PublicKey(bytes))
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, crate::crypto::errors::ParseKeyError> {
+        match bytes[0] {
+            0 => Ok(Self::ED25519(ED25519PublicKey(bytes[1..].try_into()
+                .map_err(|_| crate::crypto::errors::ParseKeyError::InvalidLength { expected_length: 33, received_length: bytes.len() })?
+            ))),
+            1 => panic!("cannot use from_bytes for secp256k1"),
+            2 => Ok(Self::SR25519(SR25519PublicKey(bytes[1..].try_into()
+                .map_err(|_| crate::crypto::errors::ParseKeyError::InvalidLength { expected_length: 33, received_length: bytes.len() })?
+            ))),
+            _ => panic!("unknown key type")
+        }        
     }
 
     pub fn as_bytes(&self) -> [u8; 33] {
@@ -455,7 +464,7 @@ impl serde::Serialize for PublicKey {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&String::from(self))
+        serializer.serialize_bytes(&self.as_bytes()[..])
     }
 }
 
@@ -464,9 +473,9 @@ impl<'de> serde::Deserialize<'de> for PublicKey {
     where
         D: serde::Deserializer<'de>,
     {
-        let s = <String as serde::Deserialize>::deserialize(deserializer)?;
-        s.parse()
-            .map_err(|err: crate::crypto::errors::ParseKeyError| serde::de::Error::custom(err.to_string()))
+        let s = <Vec<u8> as serde::Deserialize>::deserialize(deserializer)?;
+        let res = PublicKey::from_bytes(&s).map_err(|err: crate::crypto::errors::ParseKeyError| serde::de::Error::custom(err.to_string()))?;
+        Ok(res)
     }
 }
 

@@ -1757,9 +1757,8 @@ impl<'a> VMLogic<'a> {
             return Err(HostError::InvalidAccountId.into());
         }
 
-        let key: [u8; 32] = key_with_type[1..].try_into().map_err(|_| HostError::InvalidAccountId)?;
-
-        let account_id = AccountId::from_bytes(key);
+        let account_id = AccountId::from_bytes(key_with_type)
+            .map_err(|_| HostError::InvalidAccountId)?;
         Ok(account_id)
     }
 

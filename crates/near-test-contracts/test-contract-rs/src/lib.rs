@@ -542,10 +542,21 @@ fn call_promise() {
         read_register(0, data.as_ptr() as u64);
         let input_args: serde_json::Value = serde_json::from_slice(&data).unwrap();
 
-        println!("{:?}", input_args);
+        let read_account_id = |value: &serde_json::Value| -> Vec<u8> {
+            value["account_id"].as_array().unwrap().iter().map(|i| {
+                i.as_u64().unwrap() as u8
+            }).collect()
+        };
+
+        let read_beneficiary_id = |value: &serde_json::Value| -> Vec<u8> {
+            value["beneficiary_id"].as_array().unwrap().iter().map(|i| {
+                i.as_u64().unwrap() as u8
+            }).collect()
+        };
+
         for arg in input_args.as_array().unwrap() {
             let actual_id = if let Some(create) = arg.get("create") {
-                let account_id = create["account_id"].as_str().unwrap().as_bytes();
+                let account_id = read_account_id(&create);
                 let method_name = create["method_name"].as_str().unwrap().as_bytes();
                 let arguments = serde_json::to_vec(&create["arguments"]).unwrap();
                 let amount = create["amount"].as_str().unwrap().parse::<u128>().unwrap();
@@ -562,7 +573,7 @@ fn call_promise() {
                 )
             } else if let Some(then) = arg.get("then") {
                 let promise_index = then["promise_index"].as_i64().unwrap() as u64;
-                let account_id = then["account_id"].as_str().unwrap().as_bytes();
+                let account_id = read_account_id(&then);
                 let method_name = then["method_name"].as_str().unwrap().as_bytes();
                 let arguments = serde_json::to_vec(&then["arguments"]).unwrap();
                 let amount = then["amount"].as_str().unwrap().parse::<u128>().unwrap();
@@ -586,11 +597,11 @@ fn call_promise() {
                 }
                 curr
             } else if let Some(batch_create) = arg.get("batch_create") {
-                let account_id = batch_create["account_id"].as_str().unwrap().as_bytes();
+                let account_id = read_account_id(&batch_create);
                 promise_batch_create(account_id.len() as u64, account_id.as_ptr() as u64)
             } else if let Some(batch_then) = arg.get("batch_then") {
                 let promise_index = batch_then["promise_index"].as_i64().unwrap() as u64;
-                let account_id = batch_then["account_id"].as_str().unwrap().as_bytes();
+                let account_id = read_account_id(&batch_then);
                 promise_batch_then(
                     promise_index,
                     account_id.len() as u64,
@@ -635,7 +646,7 @@ fn call_promise() {
                 promise_index
             } else if let Some(action) = arg.get("action_delete_account") {
                 let promise_index = action["promise_index"].as_i64().unwrap() as u64;
-                let beneficiary_id = action["beneficiary_id"].as_str().unwrap().as_bytes();
+                let beneficiary_id = read_beneficiary_id(&action);
                 promise_batch_action_delete_account(
                     promise_index,
                     beneficiary_id.len() as u64,

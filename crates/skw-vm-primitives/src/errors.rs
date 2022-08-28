@@ -733,13 +733,6 @@ impl Display for InvalidTxError {
     }
 }
 
-impl From<InvalidAccessKeyError> for InvalidTxError {
-    fn from(error: InvalidAccessKeyError) -> Self {
-        InvalidTxError::InvalidAccessKeyError(error)
-    }
-}
-
-
 impl From<ContractCallError> for FunctionCallErrorSer {
     fn from(e: ContractCallError) -> Self {
         match e {
