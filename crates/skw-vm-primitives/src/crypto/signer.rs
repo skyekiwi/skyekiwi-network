@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::crypto::{KeyType, PublicKey, SecretKey, Signature};
+use crate::{crypto::{KeyType, PublicKey, SecretKey, Signature}, contract_runtime::AccountId};
 
 use serde::{Deserialize, Serialize};
 
@@ -47,6 +47,10 @@ impl InMemorySigner {
 
     pub fn from_secret_key(secret_key: SecretKey) -> Self {
         Self { public_key: secret_key.public_key(), secret_key }
+    }
+
+    pub fn account_id(&self) -> AccountId {
+        AccountId::new(self.public_key.clone())
     }
 }
 

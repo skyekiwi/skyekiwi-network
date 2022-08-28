@@ -442,7 +442,7 @@ impl Runtime {
         };
 
         let gas_burnt: Gas = result.gas_burnt;
-        let mut tx_burnt_amount = safe_gas_to_balance(apply_state.gas_price, gas_burnt)?;
+        let tx_burnt_amount = safe_gas_to_balance(apply_state.gas_price, gas_burnt)?;
         let tokens_burnt = tx_burnt_amount;
 
         stats.tx_burnt_amount = safe_add_balance(stats.tx_burnt_amount, tx_burnt_amount)?;
@@ -1022,10 +1022,16 @@ mod tests {
     use super::*;
 
     pub fn alice_account() -> AccountId {
-        AccountId::test()
+        let signer = Arc::new(InMemorySigner::from_seed(
+            KeyType::SR25519, &[0; 32][..]
+        ));
+        signer.account_id()
     }
     pub fn bob_account() -> AccountId {
-        AccountId::system()
+        let signer = Arc::new(InMemorySigner::from_seed(
+            KeyType::SR25519, &[1; 32][..]
+        ));
+        signer.account_id()
     }
 
     const GAS_PRICE: Balance = 5000;
@@ -1052,7 +1058,6 @@ mod tests {
             }),
         }]
     }
-
 
     #[test]
     fn test_get_and_set_accounts() {
@@ -1097,10 +1102,11 @@ mod tests {
         let tries = create_tries();
         let root = MerkleHash::default();
         let runtime = Runtime::new();
-        let account_id = alice_account();
+
         let signer = Arc::new(InMemorySigner::from_seed(
-            KeyType::ED25519, &account_id.as_ref().as_bytes()[..]
+            KeyType::SR25519, &[0; 32][..]
         ));
+        let account_id = signer.account_id();
 
         let mut initial_state = tries.new_trie_update(root);
         let mut initial_account = account_new(initial_balance, hash_bytes(&[]), 0);
@@ -1507,33 +1513,33 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_apply_deficit_gas_for_transfer() {
-        let initial_balance = to_yocto(1_000_000);
-        let initial_locked = to_yocto(500_000);
-        let small_transfer = to_yocto(10_000);
-        let gas_limit = 10u64.pow(15);
-        let (runtime, tries, root, apply_state, _) =
-            setup_runtime(initial_balance, initial_locked, gas_limit);
+    // #[test]
+    // fn test_apply_deficit_gas_for_transfer() {
+    //     let initial_balance = to_yocto(1_000_000);
+    //     let initial_locked = to_yocto(500_000);
+    //     let small_transfer = to_yocto(10_000);
+    //     let gas_limit = 10u64.pow(15);
+    //     let (runtime, tries, root, apply_state, _) =
+    //         setup_runtime(initial_balance, initial_locked, gas_limit);
 
-        let n = 1;
-        let mut receipts = generate_receipts(small_transfer, n);
-        if let ReceiptEnum::Action(action_receipt) = &mut receipts.get_mut(0).unwrap().receipt {
-            action_receipt.gas_price = GAS_PRICE / 10;
-        }
+    //     let n = 1;
+    //     let mut receipts = generate_receipts(small_transfer, n);
+    //     if let ReceiptEnum::Action(action_receipt) = &mut receipts.get_mut(0).unwrap().receipt {
+    //         action_receipt.gas_price = GAS_PRICE / 10;
+    //     }
 
-        let result = runtime
-            .apply(
-                tries.get_trie(),
-                root,
-                &apply_state,
-                &receipts,
-                &[],
-            )
-            .unwrap();
-        // println!("{:?}", result);
-        // assert_eq!(result.stats.gas_deficit_amount, result.stats.tx_burnt_amount * 9)
-    }
+    //     let result = runtime
+    //         .apply(
+    //             tries.get_trie(),
+    //             root,
+    //             &apply_state,
+    //             &receipts,
+    //             &[],
+    //         )
+    //         .unwrap();
+    //     // println!("{:?}", result);
+    //     // assert_eq!(result.stats.gas_deficit_amount, result.stats.tx_burnt_amount * 9)
+    // }
 
     // #[test]
     // fn test_contract_precompilation() {

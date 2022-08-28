@@ -335,6 +335,10 @@ impl PublicKey {
         Self::SR25519(SR25519PublicKey([2u8; schnorrkel::PUBLIC_KEY_LENGTH]))
     }
 
+    pub fn testn(n: u8) -> Self {
+        Self::SR25519(SR25519PublicKey([n; schnorrkel::PUBLIC_KEY_LENGTH]))
+    }
+
     pub fn from_bytes(bytes: [u8; 32]) -> Self {
         Self::SR25519(SR25519PublicKey(bytes))
     }
@@ -350,7 +354,7 @@ impl PublicKey {
 
         match self {
             Self::ED25519(key) => res[1..].copy_from_slice(key.as_ref()),
-            Self::SECP256K1(key) => panic!("cannot use as_bytes for secp256k1"),
+            Self::SECP256K1(_) => panic!("cannot use as_bytes for secp256k1"),
             Self::SR25519(key) => res[1..].copy_from_slice(key.as_ref()),
         };
 

@@ -1,10 +1,11 @@
 use skw_vm_primitives::crypto::{InMemorySigner, KeyType};
 
-use skw_vm_primitives::account::{Account, AccessKey};
+use skw_vm_primitives::account::{Account};
 use skw_vm_primitives::contract_runtime::{hash_bytes, CryptoHash, AccountId, AccountInfo, Balance};
 use skw_vm_primitives::receipt::Receipt;
 use skw_vm_primitives::state_record::{StateRecord};
 use skw_vm_primitives::transaction::{ExecutionOutcomeWithId, SignedTransaction};
+use skw_vm_primitives::crypto::{PublicKey};
 
 use skw_vm_store::test_utils::create_tries;
 use skw_vm_store::ShardTries;
@@ -39,7 +40,7 @@ pub struct StandaloneRuntime {
 
 impl StandaloneRuntime {
     pub fn account_id(&self) -> AccountId {
-        self.signer.account_id.clone()
+        self.signer.account_id().clone()
     }
 
     pub fn new(
@@ -138,34 +139,34 @@ pub struct RuntimeGroup {
 }
 
 impl RuntimeGroup {
-    pub fn new_with_account_ids(
-        account_ids: Vec<AccountId>,
+    pub fn new_with_seeds(
+        seeds: Vec<[u8; 32]>,
         num_existing_accounts: u64,
         contract_code: &[u8],
     ) -> Arc<Self> {
         let mut res = Self::default();
-        assert!(num_existing_accounts <= account_ids.len() as u64);
+        assert!(num_existing_accounts <= seeds.len() as u64);
         let (state_records, signers) =
-            Self::state_records_signers(account_ids, num_existing_accounts, contract_code);
+            Self::state_records_signers(seeds, num_existing_accounts, contract_code);
         Arc::make_mut(&mut res.state_records).extend(state_records);
 
         for signer in signers {
             res.signers.push(signer.clone());
-            res.mailboxes.0.lock().unwrap().insert(signer.account_id, Default::default());
+            res.mailboxes.0.lock().unwrap().insert(signer.account_id(), Default::default());
         }
         Arc::new(res)
     }
 
     pub fn new(num_runtimes: u64, num_existing_accounts: u64, contract_code: &[u8]) -> Arc<Self> {
-        let account_ids = (0..num_runtimes)
-            .map(|i| AccountId::try_from(format!("near_{}", i)).unwrap())
+        let seeds = (0..num_runtimes)
+            .map(|i| [i as u8; 32])
             .collect();
-        Self::new_with_account_ids(account_ids, num_existing_accounts, contract_code)
+        Self::new_with_seeds(seeds, num_existing_accounts, contract_code)
     }
 
     /// Get state records and signers for standalone runtimes.
     fn state_records_signers(
-        account_ids: Vec<AccountId>,
+        seeds: Vec<[u8; 32]>,
         num_existing_accounts: u64,
         contract_code: &[u8],
     ) -> (Vec<StateRecord>, Vec<InMemorySigner>) {
@@ -173,24 +174,21 @@ impl RuntimeGroup {
         let mut state_records = vec![];
         let mut signers = vec![];
 
-        for (i, account_id) in account_ids.into_iter().enumerate() {
+        for (i, seed) in seeds.into_iter().enumerate() {
             let signer = InMemorySigner::from_seed(
-                account_id.clone(),
-                KeyType::ED25519,
-                account_id.as_ref(),
+                KeyType::SR25519,
+                &seed[..],
             );
             if (i as u64) < num_existing_accounts {
                 state_records.push(StateRecord::Account {
-                    account_id: account_id.clone(),
-                    account: Account::new(TESTING_INIT_BALANCE, TESTING_INIT_STAKE, code_hash, 0),
-                });
-                state_records.push(StateRecord::AccessKey {
-                    account_id: account_id.clone(),
-                    public_key: signer.public_key.clone(),
-                    access_key: AccessKey::full_access().into(),
+                    account_id: signer.account_id(),
+                    account: Account::new(TESTING_INIT_BALANCE, TESTING_INIT_STAKE, code_hash, 0, 0),
                 });
                 state_records
-                    .push(StateRecord::Contract { account_id, code: contract_code.to_vec() });
+                    .push(StateRecord::Contract {
+                        account_id: signer.account_id(),
+                        code: contract_code.to_vec() 
+                    });
             }
             signers.push(signer);
         }
@@ -275,11 +273,11 @@ impl RuntimeGroup {
     }
 
     /// Get receipt that was executed by the given runtime based on hash.
-    pub fn get_receipt(&self, executing_runtime: &str, hash: &CryptoHash) -> Receipt {
+    pub fn get_receipt(&self, executing_runtime: AccountId, hash: &CryptoHash) -> Receipt {
         self.executed_receipts
             .lock()
             .unwrap()
-            .get(executing_runtime)
+            .get(&executing_runtime)
             .expect("Runtime not found")
             .iter()
             .find_map(|r| if &r.get_hash() == hash { Some(r.clone()) } else { None })
@@ -352,9 +350,9 @@ macro_rules! assert_receipts {
     $actions_name:ident,
     $($action_name:ident, $action_pat:pat, $action_assert:block ),+
      => [ $($produced_receipt:ident),*] ) => {
-        let r = $group.get_receipt($to, $receipt);
-        assert_eq!(r.predecessor_id.as_ref(), $from);
-        assert_eq!(r.receiver_id.as_ref(), $to);
+        let r = $group.get_receipt($to.clone(), $receipt);
+        assert_eq!(r.predecessor_id, $from);
+        assert_eq!(r.receiver_id, $to);
         match &r.receipt {
             $receipt_pat => {
                 $receipt_assert

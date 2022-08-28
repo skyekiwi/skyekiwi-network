@@ -160,6 +160,10 @@ impl AccountId {
 		AccountId(Box::new(PublicKey::test2()))
     }
 
+	pub fn testn(n: u8) -> Self {
+		AccountId(Box::new(PublicKey::testn(n)))
+    }
+
 	pub fn validate(_: &Self) -> Result<(), ()> {
 		Ok(())
 	}
