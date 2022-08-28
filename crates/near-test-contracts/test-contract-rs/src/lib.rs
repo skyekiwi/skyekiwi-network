@@ -541,6 +541,8 @@ fn call_promise() {
         let data = vec![0u8; register_len(0) as usize];
         read_register(0, data.as_ptr() as u64);
         let input_args: serde_json::Value = serde_json::from_slice(&data).unwrap();
+
+        println!("{:?}", input_args);
         for arg in input_args.as_array().unwrap() {
             let actual_id = if let Some(create) = arg.get("create") {
                 let account_id = create["account_id"].as_str().unwrap().as_bytes();

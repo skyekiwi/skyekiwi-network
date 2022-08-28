@@ -5,7 +5,6 @@ use skw_vm_primitives::contract_runtime::{hash_bytes, CryptoHash, AccountId, Acc
 use skw_vm_primitives::receipt::Receipt;
 use skw_vm_primitives::state_record::{StateRecord};
 use skw_vm_primitives::transaction::{ExecutionOutcomeWithId, SignedTransaction};
-use skw_vm_primitives::crypto::{PublicKey};
 
 use skw_vm_store::test_utils::create_tries;
 use skw_vm_store::ShardTries;
@@ -128,6 +127,7 @@ pub struct RuntimeGroup {
     pub mailboxes: (Mutex<HashMap<AccountId, RuntimeMailbox>>, Condvar),
     pub state_records: Arc<Vec<StateRecord>>,
     pub signers: Vec<InMemorySigner>,
+    pub account_ids: Vec<AccountId>,
     pub validators: Vec<AccountInfo>,
 
     /// Account id of the runtime on which the transaction was executed mapped to the transactions.
@@ -152,6 +152,7 @@ impl RuntimeGroup {
 
         for signer in signers {
             res.signers.push(signer.clone());
+            res.account_ids.push(signer.account_id());
             res.mailboxes.0.lock().unwrap().insert(signer.account_id(), Default::default());
         }
         Arc::new(res)
@@ -176,8 +177,7 @@ impl RuntimeGroup {
 
         for (i, seed) in seeds.into_iter().enumerate() {
             let signer = InMemorySigner::from_seed(
-                KeyType::SR25519,
-                &seed[..],
+                KeyType::SR25519, &seed[..],
             );
             if (i as u64) < num_existing_accounts {
                 state_records.push(StateRecord::Account {
@@ -375,22 +375,10 @@ macro_rules! assert_receipts {
     };
 }
 
-/// A short form for refunds.
-/// ```
-/// assert_refund!(group, ref1 @ "near_0");
-/// ```
-/// expands into:
-/// ```
-/// assert_receipts!(group, "system" => ref1 @ "near_0",
-///                  ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
-///                  actions,
-///                  a0, Action::Transfer(TransferAction{..}), {}
-///                  => []);
-/// ```
 #[macro_export]
 macro_rules! assert_refund {
  ($group:ident, $receipt:ident @ $to:expr) => {
-        assert_receipts!($group, "system" => $receipt @ $to,
+        assert_receipts!($group, AccountId::system() => $receipt @ $to,
                          ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                          actions,
                          a0, Action::Transfer(TransferAction{..}), {}

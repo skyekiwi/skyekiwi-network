@@ -21,12 +21,13 @@ const GAS_3: u64 = GAS_2 / 3;
 fn test_simple_func_call() {
     let group = RuntimeGroup::new(2, 2, near_test_contracts::rs_contract());
     let signer_sender = group.signers[0].clone();
-    let signer_receiver = group.signers[1].clone();
+
+    let account_ids = group.account_ids.clone();
 
     let signed_transaction = SignedTransaction::from_actions(
         1,
-        signer_sender.account_id().clone(),
-        signer_receiver.account_id(),
+        account_ids[0].clone(),
+        account_ids[1].clone(),
         &signer_sender,
         vec![Action::FunctionCall(FunctionCallAction {
             method_name: "sum_n".to_string(),
@@ -43,12 +44,12 @@ fn test_simple_func_call() {
     }
 
     assert_receipts!(group, signed_transaction => [r0]);
-    assert_receipts!(group, AccountId::testn(1) => r0 @ AccountId::testn(2),
+    assert_receipts!(group, account_ids[0] => r0 @ account_ids[1],
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{..}), {}
                      => [ref1] );
-    // assert_refund!(group, ref1 @ &AccountId::testn(0));
+    assert_refund!(group, ref1 @ account_ids[0]);
 }
 
 // // single promise, no callback (A->B)
@@ -56,11 +57,13 @@ fn test_simple_func_call() {
 // fn test_single_promise_no_callback() {
 //     let group = RuntimeGroup::new(3, 3, near_test_contracts::rs_contract());
 //     let signer_sender = group.signers[0].clone();
-//     let signer_receiver = group.signers[1].clone();
+//     // let signer_receiver = group.signers[1].clone();
+
+//     let account_ids = group.account_ids.clone();
 
 //     let data = serde_json::json!([
 //         {"create": {
-//         "account_id": "near_2",
+//         "account_id": account_ids[2],
 //         "method_name": "call_promise",
 //         "arguments": [],
 //         "amount": "0",
@@ -70,8 +73,8 @@ fn test_simple_func_call() {
 
 //     let signed_transaction = SignedTransaction::from_actions(
 //         1,
-//         signer_sender.account_id.clone(),
-//         signer_receiver.account_id,
+//         account_ids[0].clone(),
+//         account_ids[1].clone(),
 //         &signer_sender,
 //         vec![Action::FunctionCall(FunctionCallAction {
 //             method_name: "call_promise".to_string(),
@@ -88,7 +91,7 @@ fn test_simple_func_call() {
 //     }
 
 //     assert_receipts!(group, signed_transaction => [r0]);
-//     assert_receipts!(group, "near_0" => r0 @ "near_1",
+//     assert_receipts!(group, account_ids[0].clone() => r0 @ account_ids[1].clone(),
 //                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
 //                      actions,
 //                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -96,7 +99,7 @@ fn test_simple_func_call() {
 //                         assert_eq!(*deposit, 0);
 //                      }
 //                      => [r1, ref0] );
-//     assert_receipts!(group, "near_1" => r1 @ "near_2",
+//     assert_receipts!(group, account_ids[1].clone() => r1 @ account_ids[2].clone(),
 //                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
 //                      actions,
 //                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -104,8 +107,8 @@ fn test_simple_func_call() {
 //                         assert_eq!(*deposit, 0);
 //                      }
 //                      => [ref1]);
-//     assert_refund!(group, ref0 @ "near_0");
-//     assert_refund!(group, ref1 @ "near_0");
+//     assert_refund!(group, ref0 @ account_ids[0].clone());
+//     assert_refund!(group, ref1 @ account_ids[0].clone());
 // }
 
 // // single promise with callback (A->B=>C)
@@ -935,7 +938,7 @@ fn test_simple_func_call() {
 //     assert_refund!(group, ref2 @ "near_0");
 // }
 
-// TODO: this is a very dangerous test - we removed implicit accounts 
+// // TODO: this is a very dangerous test - we removed implicit accounts 
 // #[test]
 // fn test_transfer_64len_hex() {
 //     let pk = InMemorySigner::from_seed("test_hex".parse().unwrap(), KeyType::ED25519, "test_hex");
@@ -998,7 +1001,7 @@ fn test_simple_func_call() {
 //     assert_refund!(group, ref1 @ "near_0");
 // }
 
-// This test will work because we have disabled implicit account check
+// // This test will work because we have disabled implicit account check
 // #[test]
 // fn test_create_transfer_64len_hex_fail() {
 //     let pk = InMemorySigner::from_seed("test_hex".parse().unwrap(), KeyType::ED25519, "test_hex");
@@ -1065,3 +1068,4 @@ fn test_simple_func_call() {
 //     assert_refund!(group, ref1 @ "near_1");
 //     assert_refund!(group, ref2 @ "near_0");
 // }
+ 

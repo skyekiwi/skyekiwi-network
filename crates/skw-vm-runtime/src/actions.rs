@@ -154,7 +154,6 @@ pub(crate) fn action_delete_account(
             return Ok(());
         }
     }
-    
 
     // We use current amount as a pay out to beneficiary.
     let account_balance = account.as_ref().unwrap().amount();
@@ -210,6 +209,8 @@ pub(crate) fn check_account_existence(
     action: &Action,
     account: &mut Option<Account>,
     account_id: &AccountId,
+    is_the_only_action: bool,
+    is_force_transfer: bool,
 ) -> Result<(), ActionError> {
     match action {
         Action::CreateAccount(_) => {
@@ -221,7 +222,7 @@ pub(crate) fn check_account_existence(
             } 
         }
         Action::Transfer(_) => {
-            if account.is_none() {
+            if account.is_none() && !is_force_transfer && is_the_only_action {
                 return Err(ActionErrorKind::AccountDoesNotExist { account_id: account_id.clone() }
                     .into())
             }

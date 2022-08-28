@@ -368,6 +368,7 @@ mod tests {
                 tx_burnt_amount: total_validator_reward,
                 other_burnt_amount: 0,
                 slashed_burnt_amount: 0,
+                gas_deficit_amount: 0,
             },
         )
         .unwrap();
@@ -384,8 +385,8 @@ mod tests {
         let signer2 =
             InMemorySigner::from_seed(KeyType::ED25519, &[1; 32][..]);
 
-        let alice_id = AccountId::new(signer1.public_key.clone());
-        let bob_id = AccountId::new(signer2.public_key.clone());
+        let alice_id = signer1.account_id();
+        let bob_id = signer2.account_id() ;
         
         let gas_price = 100;
         let deposit = 1000;

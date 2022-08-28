@@ -189,6 +189,7 @@ pub fn total_prepaid_exec_fees(
     }
     Ok(result)
 }
+
 /// Get the total sum of deposits for given actions.
 pub fn total_deposit(actions: &[Action]) -> Result<Balance, IntegerOverflowError> {
     let mut total_balance: Balance = 0;

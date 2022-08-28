@@ -319,16 +319,28 @@ impl PublicKey {
             PublicKey::ED25519(_) => false,
             PublicKey::SECP256K1(_) => false,
             PublicKey::SR25519(key) => 
-                key.0.clone() == [0u8; schnorrkel::PUBLIC_KEY_LENGTH] 
+                key.0.clone() == [
+                    109, 111, 100, 108, 115, 99, 111, 110, 116,
+                    114,  97,  99,   0,   0,  0,   0,   0,   0,
+                    0,   0,   0,   0,   0,  0,   0,   0,   0,
+                    0,   0,   0,   0,   0
+                ]
         }
     }
 
     pub fn system() -> Self {
-        Self::SR25519(SR25519PublicKey([0u8; schnorrkel::PUBLIC_KEY_LENGTH]))
+        // The PalletId: modlscontrac
+        Self::SR25519(SR25519PublicKey([
+            109, 111, 100, 108, 115, 99, 111, 110, 116,
+            114,  97,  99,   0,   0,  0,   0,   0,   0,
+            0,   0,   0,   0,   0,  0,   0,   0,   0,
+            0,   0,   0,   0,   0
+        ]))
     }
 
+    /* SHOULD ONLY USED BY TESTS */ 
     pub fn test() -> Self {
-        Self::SR25519(SR25519PublicKey([1u8; schnorrkel::PUBLIC_KEY_LENGTH]))
+        Self::SR25519(SR25519PublicKey([0u8; schnorrkel::PUBLIC_KEY_LENGTH]))
     }
 
     pub fn test2() -> Self {
@@ -338,6 +350,7 @@ impl PublicKey {
     pub fn testn(n: u8) -> Self {
         Self::SR25519(SR25519PublicKey([n; schnorrkel::PUBLIC_KEY_LENGTH]))
     }
+    /* SHOULD ONLY USED BY TESTS */ 
 
     pub fn from_bytes(bytes: [u8; 32]) -> Self {
         Self::SR25519(SR25519PublicKey(bytes))
