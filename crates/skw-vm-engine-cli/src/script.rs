@@ -5,7 +5,7 @@ use skw_vm_primitives::contract_runtime::ContractCode;
 use skw_vm_primitives::fees::RuntimeFeesConfig;
 
 use skw_vm_host::mocks::mock_external::MockedExternal;
-use skw_vm_host::types::PromiseResult;
+use skw_vm_host::types::{PromiseResult, AccountId};
 use skw_vm_host::{VMConfig, VMContext, VMOutcome};
 use skw_vm_engine::{VMError};
 use skw_vm_engine::WasmiVM;
@@ -151,10 +151,9 @@ impl Step {
 
 fn default_vm_context() -> VMContext {
     VMContext {
-        current_account_id: "alice".parse().unwrap(),
-        signer_account_id: "bob".parse().unwrap(),
-        signer_account_pk: vec![0, 1, 2],
-        predecessor_account_id: "carol".parse().unwrap(),
+        current_account_id: AccountId::testn(1),
+        signer_account_id: AccountId::testn(2),
+        predecessor_account_id: AccountId::testn(3),
         input: vec![],
         block_number: 1,
         block_timestamp: 1586796191203000000,

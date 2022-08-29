@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 use std::iter::Peekable;
 
-use skw_vm_primitives::contract_runtime::{
-    CryptoHash, RawStateChange, RawStateChanges, RawStateChangesWithTrieKey, StateChangeCause,
-};
+use skw_vm_primitives::contract_runtime::{CryptoHash};
+use skw_vm_primitives::state::{RawStateChange, RawStateChanges, RawStateChangesWithTrieKey, StateChangeCause};
+
 
 use crate::trie::TrieChanges;
 use crate::StorageError;

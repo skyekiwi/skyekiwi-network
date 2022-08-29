@@ -1,7 +1,7 @@
 use skw_vm_primitives::crypto::{InMemorySigner, KeyType};
 
 use skw_vm_primitives::account::{Account};
-use skw_vm_primitives::contract_runtime::{hash_bytes, CryptoHash, AccountId, AccountInfo, Balance};
+use skw_vm_primitives::contract_runtime::{hash_bytes, CryptoHash, AccountId, Balance};
 use skw_vm_primitives::receipt::Receipt;
 use skw_vm_primitives::state_record::{StateRecord};
 use skw_vm_primitives::transaction::{ExecutionOutcomeWithId, SignedTransaction};
@@ -128,7 +128,6 @@ pub struct RuntimeGroup {
     pub state_records: Arc<Vec<StateRecord>>,
     pub signers: Vec<InMemorySigner>,
     pub account_ids: Vec<AccountId>,
-    pub validators: Vec<AccountInfo>,
 
     /// Account id of the runtime on which the transaction was executed mapped to the transactions.
     pub executed_transactions: Mutex<HashMap<AccountId, Vec<SignedTransaction>>>,

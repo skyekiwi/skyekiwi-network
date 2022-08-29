@@ -1,16 +1,16 @@
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
 use crate::types::{PoolIterator, PoolKey, TransactionGroup};
-use borsh::BorshSerialize;
-
-use skw_vm_primitives::crypto::PublicKey;
 use skw_vm_primitives::transaction::SignedTransaction;
 use skw_vm_primitives::contract_runtime::{
-    AccountId, hash_bytes, CryptoHash, RngSeed
+    AccountId, hash_bytes, CryptoHash, RngSeed,
 };
 use std::ops::Bound;
 
 pub mod types;
+
+// TODO: this can be buggy now because we have removed AccessKey w/o Nonce
+// However, it is very unlikely this can affect the offchain VM
 
 /// Transaction pool: keeps track of transactions that were not yet accepted into the block chain.
 pub struct TransactionPool {
@@ -44,10 +44,10 @@ impl TransactionPool {
         }
     }
 
-    fn key(&self, account_id: &AccountId, public_key: &PublicKey) -> PoolKey {
-        let mut v = public_key.try_to_vec().unwrap();
+    fn key(&self, account_id: &AccountId) -> PoolKey {
+        let mut v = Vec::new();
         v.extend_from_slice(&self.key_seed);
-        v.extend_from_slice(&account_id.as_ref().try_to_vec().unwrap()[..]);
+        v.extend_from_slice(&account_id.as_bytes()[..]);
         hash_bytes(&v)
     }
 
@@ -60,9 +60,8 @@ impl TransactionPool {
         // metrics::TRANSACTION_POOL_TOTAL.inc();
 
         let signer_id = &signed_transaction.transaction.signer_id;
-        let signer_public_key = &signed_transaction.transaction.public_key;
         self.transactions
-            .entry(self.key(signer_id, signer_public_key))
+            .entry(self.key(signer_id))
             .or_insert_with(Vec::new)
             .push(signed_transaction);
         true
@@ -82,9 +81,8 @@ impl TransactionPool {
         for tx in transactions {
             if self.unique_transactions.contains(&tx.get_hash()) {
                 let signer_id = &tx.transaction.signer_id;
-                let signer_public_key = &tx.transaction.public_key;
                 grouped_transactions
-                    .entry(self.key(signer_id, signer_public_key))
+                    .entry(self.key(signer_id))
                     .or_insert_with(HashSet::new)
                     .insert(tx.get_hash());
             }
@@ -227,7 +225,7 @@ mod tests {
     use rand::thread_rng;
 
     use skw_vm_primitives::crypto::{InMemorySigner, KeyType};
-
+    use skw_vm_primitives::account_id::AccountId;
     use skw_vm_primitives::contract_runtime::{
         CryptoHash, Balance,
     };
@@ -235,20 +233,20 @@ mod tests {
     const TEST_SEED: RngSeed = [3; 32];
 
     fn generate_transactions(
-        signer_id: &str,
-        signer_seed: &str,
+        signer_seed: [u8; 32],
         starting_nonce: u64,
         end_nonce: u64,
     ) -> Vec<SignedTransaction> {
-        let signer_id: AccountId = signer_id.parse().unwrap();
         let signer =
-            Arc::new(InMemorySigner::from_seed(signer_id.clone(), KeyType::ED25519, signer_seed));
+            Arc::new(InMemorySigner::from_seed(KeyType::SR25519, &signer_seed));
+        let signer_id: AccountId = signer.account_id();
+
         (starting_nonce..=end_nonce)
             .map(|i| {
                 SignedTransaction::send_money(
                     i,
                     signer_id.clone(),
-                    "bob.near".parse().unwrap(),
+                    AccountId::testn(1),
                     &*signer,
                     i as Balance,
                     CryptoHash::default(),
@@ -306,7 +304,7 @@ mod tests {
     /// orders them correctly.
     #[test]
     fn test_order_nonce() {
-        let transactions = generate_transactions("alice.near", "alice.near", 1, 10);
+        let transactions = generate_transactions([0u8; 32], 1, 10);
         let (nonces, _) = process_txs_to_nonces(transactions, 10);
         assert_eq!(nonces, (1..=10).collect::<Vec<u64>>());
     }
@@ -315,35 +313,23 @@ mod tests {
     /// orders them correctly.
     #[test]
     fn test_order_nonce_two_signers() {
-        let mut transactions = generate_transactions("alice.near", "alice.near", 1, 10);
-        transactions.extend(generate_transactions("bob.near", "bob.near", 1, 10));
+        let mut transactions = generate_transactions([0u8; 32], 1, 10);
+        transactions.extend(generate_transactions([1u8; 32], 1, 10));
 
         let (nonces, _) = process_txs_to_nonces(transactions, 10);
         assert_eq!(nonces, (1..=5).map(|a| vec![a; 2]).flatten().collect::<Vec<u64>>());
-    }
-
-    /// Add transactions of nonce from 1..10 in random order from the same account but with
-    /// different public keys.
-    #[test]
-    fn test_order_nonce_same_account_two_access_keys_variable_nonces() {
-        let mut transactions = generate_transactions("alice.near", "alice.near", 1, 10);
-        transactions.extend(generate_transactions("alice.near", "bob.near", 21, 30));
-
-        let (mut nonces, _) = process_txs_to_nonces(transactions, 10);
-        sort_pairs(&mut nonces[..]);
-        assert_eq!(nonces, (1..=5).map(|a| vec![a, a + 20]).flatten().collect::<Vec<u64>>());
     }
 
     /// Add transactions of nonce from 1..=3 and transactions with nonce 21..=31. Pull 10.
     /// Then try to get another 10.
     #[test]
     fn test_retain() {
-        let mut transactions = generate_transactions("alice.near", "alice.near", 1, 3);
-        transactions.extend(generate_transactions("alice.near", "bob.near", 21, 31));
+        let mut transactions = generate_transactions([0u8; 32], 1, 3);
+        transactions.extend(generate_transactions([0u8; 32], 21, 31));
 
         let (mut nonces, mut pool) = process_txs_to_nonces(transactions, 10);
         sort_pairs(&mut nonces[..6]);
-        assert_eq!(nonces, vec![1, 21, 2, 22, 3, 23, 24, 25, 26, 27]);
+        assert_eq!(nonces, vec![1, 2, 3, 21, 22, 23, 24, 25, 26, 27]);
         let nonces: Vec<u64> =
             prepare_transactions(&mut pool, 10).iter().map(|tx| tx.transaction.nonce).collect();
         assert_eq!(nonces, vec![28, 29, 30, 31]);
@@ -354,17 +340,17 @@ mod tests {
         let n = 100;
         let mut transactions = (1..=n)
             .map(|i| {
-                let signer_id = AccountId::try_from(format!("user_{}", i % 5)).unwrap();
-                let signer_seed = format!("user_{}", i % 3);
+                let signer_seed = [i as u8; 32];
                 let signer = Arc::new(InMemorySigner::from_seed(
-                    signer_id.clone(),
-                    KeyType::ED25519,
+                    KeyType::SR25519,
                     &signer_seed,
                 ));
+                let signer_id = signer.account_id();
+
                 SignedTransaction::send_money(
                     i,
                     signer_id,
-                    "bob.near".parse().unwrap(),
+                    AccountId::testn(1),
                     &*signer,
                     i as Balance,
                     CryptoHash::default(),
@@ -399,8 +385,8 @@ mod tests {
     /// Then try to get another 10.
     #[test]
     fn test_pool_iterator() {
-        let mut transactions = generate_transactions("alice.near", "alice.near", 1, 3);
-        transactions.extend(generate_transactions("alice.near", "bob.near", 21, 31));
+        let mut transactions = generate_transactions([0u8; 32], 1, 3);
+        transactions.extend(generate_transactions([0u8; 32], 21, 31));
 
         let (nonces, mut pool) = process_txs_to_nonces(transactions, 0);
         assert!(nonces.is_empty());
@@ -416,13 +402,13 @@ mod tests {
         }
         let mut nonces: Vec<_> = res.into_iter().map(|tx| tx.transaction.nonce).collect();
         sort_pairs(&mut nonces[..4]);
-        assert_eq!(nonces, vec![1, 21, 3, 23, 25, 27, 29, 31]);
+        assert_eq!(nonces, vec![1, 3, 21, 23, 25, 27, 29, 31]);
     }
 
     /// Test pool iterator updates unique transactions.
     #[test]
     fn test_pool_iterator_removes_unique() {
-        let transactions = generate_transactions("alice.near", "alice.near", 1, 10);
+        let transactions = generate_transactions([0u8; 32], 1, 10);
 
         let (nonces, mut pool) = process_txs_to_nonces(transactions.clone(), 5);
         assert_eq!(nonces.len(), 5);
@@ -441,17 +427,17 @@ mod tests {
     fn test_pool_iterator_remembers_the_last_key() {
         let transactions = (1..=10)
             .map(|i| {
-                let signer_id = AccountId::try_from(format!("user_{}", i)).unwrap();
-                let signer_seed = signer_id.as_ref();
+                let signer_seed = [i as u8; 32];
                 let signer = Arc::new(InMemorySigner::from_seed(
-                    signer_id.clone(),
-                    KeyType::ED25519,
-                    signer_seed,
+                    KeyType::SR25519,
+                    &signer_seed,
                 ));
+                let signer_id = signer.account_id();
+
                 SignedTransaction::send_money(
                     i,
                     signer_id,
-                    "bob.near".parse().unwrap(),
+                    AccountId::testn(1),
                     &*signer,
                     i as Balance,
                     CryptoHash::default(),

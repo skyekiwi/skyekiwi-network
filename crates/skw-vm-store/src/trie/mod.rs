@@ -9,7 +9,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use skw_vm_primitives::challenge::PartialState;
-use skw_vm_primitives::contract_runtime::{hash_bytes as hash, CryptoHash, ContractCode, StateRoot, StateRootNode};
+use skw_vm_primitives::contract_runtime::{hash_bytes as hash, CryptoHash, ContractCode, StateRoot};
+use skw_vm_primitives::state::{StateRootNode};
 
 use crate::trie::insert_delete::NodesStorage;
 use crate::trie::iterator::TrieIterator;

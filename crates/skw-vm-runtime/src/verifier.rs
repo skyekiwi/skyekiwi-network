@@ -274,8 +274,9 @@ mod tests {
         CreateAccountAction, DeleteAccountAction, TransferAction,
     };
     use skw_vm_primitives::contract_runtime::{
-        AccountId, Balance, MerkleHash, StateChangeCause, CryptoHash, Nonce,
+        AccountId, Balance, MerkleHash, CryptoHash, Nonce,
     };
+    use skw_vm_primitives::state::{StateChangeCause};
     use skw_vm_store::test_utils::create_tries;
 
     pub fn alice_account() -> AccountId {

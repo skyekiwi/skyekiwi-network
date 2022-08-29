@@ -276,10 +276,6 @@ pub enum ActionErrorKind {
     /// Administrative actions like `DeployContract`, `Stake`, `AddKey`, `DeleteKey`. can be proceed only if sender=receiver
     /// or the first TX action is a `CreateAccount` action
     ActorNoPermission { account_id: AccountId, actor_id: AccountId },
-    /// Account tries to remove an access key that doesn't exist
-    DeleteKeyDoesNotExist { account_id: AccountId, public_key: PublicKey },
-    /// The public key is already used for an existing access key
-    AddKeyAlreadyExists { account_id: AccountId, public_key: PublicKey },
     /// Account is staking and can not be deleted
     DeleteAccountStaking { account_id: AccountId },
     /// ActionReceipt can't be completed, because the remaining balance will not be enough to cover storage.
@@ -358,8 +354,6 @@ pub enum ReceiptValidationError {
     InvalidPredecessorId { account_id: AccountId },
     /// The `receiver_id` of a Receipt is not valid.
     InvalidReceiverId { account_id: AccountId },
-    /// The `signer_id` of an ActionReceipt is not valid.
-    InvalidSignerId { account_id: AccountId },
     /// The `receiver_id` of a DataReceiver within an ActionReceipt is not valid.
     InvalidDataReceiverId { account_id: AccountId },
     /// The length of the returned data exceeded the limit in a DataReceipt.
@@ -376,10 +370,6 @@ pub enum ReceiptValidationError {
     BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
 )]
 pub enum InvalidTxError {
-    /// Happens if a wrong AccessKey used or AccessKey has not enough permissions
-    InvalidAccessKeyError(InvalidAccessKeyError),
-    /// TX signer_id is not a valid [`AccountId`]
-    InvalidSignerId { signer_id: String },
     /// TX signer_id is not found in a storage
     SignerDoesNotExist { signer_id: AccountId },
     /// Transaction nonce must be `account[access_key].nonce + 1`.
@@ -430,10 +420,6 @@ pub enum ActionsValidationError {
     TotalPrepaidGasExceeded { total_prepaid_gas: Gas, limit: Gas },
     /// The number of actions exceeded the given limit.
     TotalNumberOfActionsExceeded { total_number_of_actions: u64, limit: u64 },
-    /// The total number of bytes of the method names exceeded the limit in a Add Key action.
-    AddKeyMethodNamesNumberOfBytesExceeded { total_number_of_bytes: u64, limit: u64 },
-    /// The length of some method name exceeded the limit in a Add Key action.
-    AddKeyMethodNameLengthExceeded { length: u64, limit: u64 },
     /// Integer overflow during a compute.
     IntegerOverflow,
     /// Invalid account ID.
@@ -448,32 +434,6 @@ pub enum ActionsValidationError {
     UnsuitableStakingKey { public_key: PublicKey },
     /// The attached amount of gas in a FunctionCall action has to be a positive number.
     FunctionCallZeroAttachedGas,
-}
-
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
-#[derive(
-    BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
-)]
-pub enum InvalidAccessKeyError {
-    /// The access key identified by the `public_key` doesn't exist for the account
-    AccessKeyNotFound { account_id: AccountId, public_key: PublicKey },
-    /// Transaction `receiver_id` doesn't match the access key receiver_id
-    ReceiverMismatch { tx_receiver: AccountId, ak_receiver: AccountId },
-    /// Transaction method name isn't allowed by the access key
-    MethodNameMismatch { method_name: String },
-    /// Transaction requires a full permission access key.
-    RequiresFullAccess,
-    /// Access Key does not have enough allowance to cover transaction cost
-    NotEnoughAllowance {
-        account_id: AccountId,
-        public_key: PublicKey,
-        #[serde(with = "u128_dec_format")]
-        allowance: Balance,
-        #[serde(with = "u128_dec_format")]
-        cost: Balance,
-    },
-    /// Having a deposit with a function call action is not allowed with a function call access key.
-    DepositWithFunctionCall,
 }
 
 /// Error returned from `Runtime::apply`
@@ -516,44 +476,6 @@ impl std::fmt::Display for StorageError {
 
 impl std::error::Error for StorageError {}
 
-impl Display for InvalidAccessKeyError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            InvalidAccessKeyError::AccessKeyNotFound { account_id, public_key } => write!(
-                f,
-                "Signer {:?} doesn't have access key with the given public_key {}",
-                account_id, public_key
-            ),
-            InvalidAccessKeyError::ReceiverMismatch { tx_receiver, ak_receiver } => write!(
-                f,
-                "Transaction receiver_id {:?} doesn't match the access key receiver_id {:?}",
-                tx_receiver, ak_receiver
-            ),
-            InvalidAccessKeyError::MethodNameMismatch { method_name } => write!(
-                f,
-                "Transaction method name {:?} isn't allowed by the access key",
-                method_name
-            ),
-            InvalidAccessKeyError::RequiresFullAccess => {
-                write!(f, "Invalid access key type. Full-access keys are required for transactions that have multiple or non-function-call actions")
-            }
-            InvalidAccessKeyError::NotEnoughAllowance {
-                account_id,
-                public_key,
-                allowance,
-                cost,
-            } => write!(
-                f,
-                "Access Key {:?}:{} does not have enough balance {} for transaction costing {}",
-                account_id, public_key, allowance, cost
-            ),
-            InvalidAccessKeyError::DepositWithFunctionCall => {
-                write!(f, "Having a deposit with a function call action is not allowed with a function call access key.")
-            }
-        }
-    }
-}
-
 impl Display for TxExecutionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
@@ -589,9 +511,6 @@ impl Display for ReceiptValidationError {
             }
             ReceiptValidationError::InvalidReceiverId { account_id } => {
                 write!(f, "The receiver_id `{}` of a Receipt is not valid.", account_id)
-            }
-            ReceiptValidationError::InvalidSignerId { account_id } => {
-                write!(f, "The signer_id `{}` of an ActionReceipt is not valid.", account_id)
             }
             ReceiptValidationError::InvalidDataReceiverId { account_id } => write!(
                 f,
@@ -629,16 +548,6 @@ impl Display for ActionsValidationError {
                     total_number_of_actions, limit
                 )
             }
-            ActionsValidationError::AddKeyMethodNamesNumberOfBytesExceeded { total_number_of_bytes, limit } => write!(
-                f,
-                "The total number of bytes in allowed method names {} exceeds the maximum allowed number {} in a AddKey action",
-                total_number_of_bytes, limit
-            ),
-            ActionsValidationError::AddKeyMethodNameLengthExceeded { length, limit } => write!(
-                f,
-                "The length of some method name {} exceeds the maximum allowed length {} in a AddKey action",
-                length, limit
-            ),
             ActionsValidationError::IntegerOverflow => write!(
                 f,
                 "Integer overflow during a compute",
@@ -679,14 +588,8 @@ impl Display for ActionsValidationError {
 impl Display for InvalidTxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            InvalidTxError::InvalidSignerId { signer_id } => {
-                write!(f, "Invalid signer account ID {:?} according to requirements", signer_id)
-            }
             InvalidTxError::SignerDoesNotExist { signer_id } => {
                 write!(f, "Signer {:?} does not exist", signer_id)
-            }
-            InvalidTxError::InvalidAccessKeyError(access_key_error) => {
-                Display::fmt(&access_key_error, f)
             }
             InvalidTxError::InvalidNonce { tx_nonce, ak_nonce } => write!(
                 f,

@@ -6,7 +6,10 @@ use borsh::BorshSerialize;
 // use skw_vm_primitives::borsh::maybestd::collections::HashMap;
 use skw_vm_primitives::trie_key::TrieKey;
 use skw_vm_primitives::contract_runtime::{
-    CryptoHash, RawStateChange, RawStateChangesWithTrieKey, StateChangeCause, StateRoot,
+    CryptoHash, StateRoot,
+};
+use skw_vm_primitives::state::{
+    RawStateChange, RawStateChangesWithTrieKey, StateChangeCause,
 };
 
 use crate::db::{DBCol, DBOp, DBTransaction};

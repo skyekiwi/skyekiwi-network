@@ -11,7 +11,8 @@ use skw_vm_primitives::fees::RuntimeFeesConfig;
 
 use skw_vm_primitives::{
     errors::{ActionError, ActionErrorKind, RuntimeError, TxExecutionError},
-    contract_runtime::{CryptoHash, AccountId, Balance, Gas, StateChangeCause, StateRoot, RawStateChangesWithTrieKey, ContractCode},
+    contract_runtime::{CryptoHash, AccountId, Balance, Gas, StateRoot, ContractCode},
+    state::{StateChangeCause, RawStateChangesWithTrieKey},
     receipt::{
         ActionReceipt, DataReceipt, DelayedReceiptIndices, Receipt, ReceiptEnum, ReceivedData,
     },

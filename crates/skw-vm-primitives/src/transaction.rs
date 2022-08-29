@@ -389,11 +389,11 @@ mod tests {
 
     #[test]
     fn test_verify_transaction() {
-        let signer = InMemorySigner::from_random(KeyType::SR25519);
+        let signer = InMemorySigner::from_seed(KeyType::SR25519, &[0u8; 32]);
         let tx = Transaction {
-            signer_id: AccountId::test(), 
+            signer_id: AccountId::testn(1), 
             nonce: 0,
-            receiver_id: AccountId::test(), 
+            receiver_id: AccountId::testn(2), 
             block_hash: Default::default(),
             actions: vec![],
         };
@@ -401,7 +401,7 @@ mod tests {
 
         let transaction = SignedTransaction::new(signature, tx);
 
-        let wrong_public_key = PublicKey::from_seed(KeyType::SR25519, "wrong");
+        let wrong_public_key = PublicKey::from_seed(KeyType::SR25519, &[1u8; 32]);
         let valid_keys = vec![signer.public_key(), wrong_public_key.clone()];
         assert!(verify_transaction_signature(&transaction, &valid_keys));
 
@@ -417,7 +417,6 @@ mod tests {
     /// If it does - you MUST update all of the dependencies: like nearlib and other clients.
     #[test]
     fn test_serialize_transaction() {
-        let public_key: PublicKey = "22skMptHjFWNyuEWY22ftn2AbLPSYpmYwGJRGwpNHbTV".parse().unwrap();
         let transaction = Transaction {
             signer_id: AccountId::test(),
             nonce: 1,
@@ -439,8 +438,7 @@ mod tests {
 
         assert_eq!(
             to_base(&new_signed_tx.get_hash()),
-            "7j7iLRfYqFHdY2LgGtPA3Z5YLgJAyDY86UBdqtJ4ny49",
-            // "A8HW3vN5rNp1pTnbbQ3gkLvCZQYhA5xnNuH31ooBnJ24"
+            "E1q4wSCTzqL4MAv2Eyf2BhkzfdLve2cXY8JPECgaWFYh",
         );
     }
 

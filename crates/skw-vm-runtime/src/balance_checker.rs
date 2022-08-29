@@ -206,8 +206,10 @@ mod tests {
     use skw_vm_primitives::crypto::{InMemorySigner, KeyType};
 
     use skw_vm_primitives::contract_runtime::{
-        hash_bytes, CryptoHash, MerkleHash, StateChangeCause
+        hash_bytes, CryptoHash, MerkleHash
     };
+    use skw_vm_primitives::state::{StateChangeCause};
+
     use skw_vm_primitives::receipt::ActionReceipt;
     use skw_vm_primitives::fees::RuntimeFeesConfig;
     use skw_vm_primitives::test_utils::account_new;
@@ -316,9 +318,8 @@ mod tests {
             + cfg.action_creation_config.transfer_cost.exec_fee();
         let send_gas = cfg.action_receipt_creation_config.send_fee(false)
             + cfg.action_creation_config.transfer_cost.send_fee(false);
-        let contract_reward = send_gas as u128 * *cfg.burnt_gas_reward.numer() as u128 * gas_price
-            / (*cfg.burnt_gas_reward.denom() as u128);
-        let total_validator_reward = send_gas as Balance * gas_price - contract_reward;
+
+        let total_validator_reward = send_gas as Balance * gas_price;
         let mut initial_state = tries.new_trie_update(root);
         let initial_account = account_new(initial_balance, hash_bytes(&[]), 0);
         set_account(&mut initial_state, account_id.clone(), &initial_account);
@@ -326,8 +327,7 @@ mod tests {
 
         let mut final_state = tries.new_trie_update(root);
         let final_account = account_new(
-            initial_balance - (exec_gas + send_gas) as Balance * gas_price - deposit
-                + contract_reward,
+            initial_balance - (exec_gas + send_gas) as Balance * gas_price - deposit,
             hash_bytes(&[]),
             0
         );
