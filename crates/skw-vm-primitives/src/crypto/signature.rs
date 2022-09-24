@@ -9,6 +9,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use ed25519_dalek::ed25519::signature::{Signer, Verifier};
 use once_cell::sync::Lazy;
 use primitive_types::U256;
+use rand_core::OsRng;
 use secp256k1::Message;
 use serde::{Deserialize, Serialize};
 
@@ -608,6 +609,22 @@ impl SecretKey {
         }
     }
 
+    pub fn from_random(key_type: KeyType) -> SecretKey {
+        match key_type {
+            KeyType::ED25519 => {
+                let keypair = ed25519_dalek::Keypair::generate(&mut OsRng);
+                SecretKey::ED25519(ED25519SecretKey(keypair.to_bytes()))
+            }
+            KeyType::SECP256K1 => {
+                SecretKey::SECP256K1(secp256k1::key::SecretKey::new(&SECP256K1, &mut OsRng))
+            },
+            KeyType::SR25519 => {
+                // TODO: should we use OsRng for it?
+                SecretKey::SR25519(schnorrkel::MiniSecretKey::generate())
+            }
+        }
+    }
+
     pub fn sign(&self, data: &[u8]) -> Signature {
         match &self {
             SecretKey::ED25519(secret_key) => {
@@ -1147,7 +1164,7 @@ mod tests {
     #[test]
     fn test_sign_verify() {
         for key_type in vec![KeyType::ED25519, KeyType::SECP256K1, KeyType::SR25519] {
-            let sk = SecretKey::from_seed(key_type, &[0u8; 32]);
+            let secret_key = SecretKey::from_random(key_type);
             let public_key = secret_key.public_key();
             use sha2::Digest;
             let data = sha2::Sha256::digest(b"123").to_vec();
@@ -1239,7 +1256,7 @@ mod tests {
         let data = sha2::Sha256::digest(b"123").to_vec();
  
         for key_type in vec![KeyType::ED25519, KeyType::SECP256K1, KeyType::SR25519] {
-            let sk = SecretKey::from_seed(key_type, "test");
+            let sk = SecretKey::from_seed(key_type, b"test");
             let pk = sk.public_key();
 
             let bytes = pk.try_to_vec().unwrap();

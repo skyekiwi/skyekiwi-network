@@ -181,6 +181,7 @@ impl Runtime {
         apply_state: &ApplyState,
         signed_transaction: &SignedTransaction,
         stats: &mut ApplyStats,
+        bypass_singature_verification: bool,
     ) -> Result<(Receipt, ExecutionOutcomeWithId), RuntimeError> {
         // metrics::TRANSACTION_PROCESSED_TOTAL.inc();
 
@@ -189,7 +190,7 @@ impl Runtime {
             state_update,
             apply_state.gas_price,
             signed_transaction,
-            true,
+            bypass_singature_verification,
         ) {
             Ok(verification_result) => {
                 // metrics::TRANSACTION_PROCESSED_SUCCESSFULLY_TOTAL.inc();
@@ -817,6 +818,7 @@ impl Runtime {
         apply_state: &ApplyState,
         incoming_receipts: &[Receipt],
         transactions: &[SignedTransaction],
+        bypass_singature_verification: bool,
     ) -> Result<ApplyResult, RuntimeError> {
         let trie = Rc::new(trie);
 
@@ -839,6 +841,7 @@ impl Runtime {
                 apply_state,
                 signed_transaction,
                 &mut stats,
+                bypass_singature_verification,
             )?;
             if receipt.receiver_id == signed_transaction.transaction.signer_id {
                 local_receipts.push(receipt);
@@ -1240,6 +1243,7 @@ mod tests {
                 &apply_state,
                 &[],
                 &[],
+                false,
             )
             .unwrap();
     }
@@ -1267,6 +1271,7 @@ mod tests {
                     &apply_state,
                     prev_receipts,
                     &[],
+                    false,
                 )
                 .unwrap();
             let (store_update, new_root) =
@@ -1318,6 +1323,7 @@ mod tests {
                     &apply_state,
                     prev_receipts,
                     &[],
+                    false,
                 )
                 .unwrap();
             let (store_update, new_root) =
@@ -1366,6 +1372,7 @@ mod tests {
                     &apply_state,
                     prev_receipts,
                     &[],
+                    false,
                 )
                 .unwrap();
             let (store_update, new_root) =
@@ -1423,6 +1430,7 @@ mod tests {
                     &apply_state,
                     prev_receipts,
                     &[],
+                    false,
                 )
                 .unwrap();
             let (store_update, new_root) =
@@ -1512,6 +1520,7 @@ mod tests {
                 &apply_state,
                 &receipts[0..2],
                 &local_transactions[0..4],
+                false,
             )
             .unwrap();
         let (store_update, root) =
@@ -1549,6 +1558,7 @@ mod tests {
                 &apply_state,
                 &receipts[2..3],
                 &local_transactions[4..5],
+                false,
             )
             .unwrap();
         let (store_update, root) =
@@ -1581,6 +1591,7 @@ mod tests {
                 &apply_state,
                 &receipts[3..4],
                 &local_transactions[5..9],
+                false,
             )
             .unwrap();
         let (store_update, root) =
@@ -1618,6 +1629,7 @@ mod tests {
                 &apply_state,
                 &receipts[4..5],
                 &[],
+                false,
             )
             .unwrap();
         let (store_update, root) =
@@ -1646,6 +1658,7 @@ mod tests {
                 &apply_state,
                 &receipts[5..6],
                 &[],
+                false,
             )
             .unwrap();
 
@@ -1682,6 +1695,7 @@ mod tests {
                 &apply_state,
                 &receipts,
                 &[],
+                false,
             )
             .unwrap();
         assert_eq!(result.stats.gas_deficit_amount, result.stats.tx_burnt_amount * 9)
@@ -1737,6 +1751,7 @@ mod tests {
                 &apply_state,
                 &receipts,
                 &[],
+                false,
             )
             .unwrap();
         // We used part of the prepaid gas to paying extra fees.
@@ -1802,6 +1817,7 @@ mod tests {
                 &apply_state,
                 &receipts,
                 &[],
+                false,
             )
             .unwrap();
         // Used full prepaid gas, but it still not enough to cover deficit.

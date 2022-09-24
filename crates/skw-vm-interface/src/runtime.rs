@@ -46,25 +46,19 @@ pub fn init_runtime(
 
     config.runtime_config.wasm_config.limit_config.max_total_prepaid_gas = config.gas_limit;
     let signer = InMemorySigner::from_seed(
-        account_id.clone(), KeyType::ED25519, account_id.clone().as_str(),
+        KeyType::ED25519, account_id.clone().as_str(),
     );
 
     // TODO: look deeper into this u128 overflow
     let pallet_root_account = account_new(10u128.pow(30), CryptoHash::default());
     let pallet_root_account_id =  offchain_id_into_account_id(&PALLET_KEY.to_vec());
     let pallet_root_account_signer = InMemorySigner::from_seed(
-        pallet_root_account_id.clone(), KeyType::ED25519, &"6d6f646c73636f6e747261630000000000000000000000000000000000000000", 
+        pallet_root_account_id.clone(), KeyType::ED25519, &b"6d6f646c73636f6e747261630000000000000000000000000000000000000000", 
     );
 
     config.state_records.push(StateRecord::Account {
         account_id: pallet_root_account_id.clone(),
         account: pallet_root_account,
-    });
-
-    config.state_records.push(StateRecord::AccessKey {
-        account_id: pallet_root_account_id.clone(),
-        public_key: pallet_root_account_signer.public_key(),
-        access_key: AccessKey::full_access(),
     });
 
     let store = match store {

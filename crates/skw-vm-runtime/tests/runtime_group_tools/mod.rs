@@ -97,6 +97,7 @@ impl StandaloneRuntime {
                 &self.apply_state,
                 receipts,
                 transactions,
+                false,
             )
             .unwrap();
 

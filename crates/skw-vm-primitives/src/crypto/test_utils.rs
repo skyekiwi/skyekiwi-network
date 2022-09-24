@@ -1,7 +1,9 @@
+use rand::rngs::StdRng;
+
 use crate::crypto::signature::{
-    ED25519PublicKey, ED25519SecretKey, KeyType, PublicKey, SecretKey,
+    ED25519PublicKey, ED25519SecretKey, KeyType, PublicKey, SecretKey, SECP256K1,
 };
-use crate::crypto::{Signature};
+use crate::crypto::{InMemorySigner, Signature};
 
 fn ed25519_key_pair_from_seed(seed_bytes: &[u8]) -> ed25519_dalek::Keypair {
     let len = std::cmp::min(ed25519_dalek::SECRET_KEY_LENGTH, seed_bytes.len());
@@ -18,6 +20,14 @@ fn sr25519_secret_key_from_seed(seed_bytes: &[u8]) -> schnorrkel::MiniSecretKey 
     seed[..len].copy_from_slice(&seed_bytes[..len]);
     let secret = schnorrkel::MiniSecretKey::from_bytes(&seed).unwrap();
     secret
+}
+
+fn secp256k1_secret_key_from_seed(seed_bytes: &[u8]) -> secp256k1::key::SecretKey {
+    let len = std::cmp::min(32, seed_bytes.len());
+    let mut seed: [u8; 32] = [b' '; 32];
+    seed[..len].copy_from_slice(&seed_bytes[..len]);
+    let mut rng: StdRng = rand::SeedableRng::from_seed(seed);
+    secp256k1::key::SecretKey::new(&SECP256K1, &mut rng)
 }
 
 impl PublicKey {
@@ -49,7 +59,7 @@ impl SecretKey {
                 let key = sr25519_secret_key_from_seed(seed);
                 SecretKey::SR25519(key)
             },
-            _ => unimplemented!(),
+            _ => SecretKey::SECP256K1(secp256k1_secret_key_from_seed(seed)),
         }
     }
 }
@@ -76,5 +86,12 @@ impl Signature {
             },
             _ => unimplemented!(),
         }
+    }
+}
+
+impl InMemorySigner {
+    pub fn from_random(key_type: KeyType) -> Self {
+        let secret_key = SecretKey::from_random(key_type);
+        Self { public_key: secret_key.public_key(), secret_key }
     }
 }
