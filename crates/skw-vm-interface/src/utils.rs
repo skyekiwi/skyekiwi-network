@@ -15,16 +15,6 @@ pub fn to_yocto(value: &str) -> u128 {
     }
 }
 
-#[cfg(test)]
-pub fn str_to_account_id(s: &str) -> AccountId {
-    AccountId::try_from(s.to_string()).unwrap()
-}
-
-pub fn offchain_id_into_account_id(id: &Vec<u8>) -> AccountId {
-    let account_id_str = hex::encode(id);
-    AccountId::try_from(account_id_str).unwrap()
-}
-
 pub fn vec_to_str(buf: &Vec<u8>) -> String {
     match std::str::from_utf8(buf) {
         Ok(v) => v.to_string(),

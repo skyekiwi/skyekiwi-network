@@ -106,7 +106,6 @@ impl SignedTransaction {
         originator: AccountId,
         new_account_id: AccountId,
         amount: Balance,
-        // public_key: PublicKey,
         signer: &dyn Signer,
         block_hash: CryptoHash,
     ) -> Self {

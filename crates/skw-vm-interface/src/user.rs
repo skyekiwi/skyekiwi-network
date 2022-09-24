@@ -2,16 +2,12 @@ use std::cell::{RefCell};
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
-use skw_vm_primitives::errors::RuntimeError;
 use skw_vm_primitives::{
     crypto::{InMemorySigner, KeyType, Signer},
     account_id::AccountId,
-};
-
-use skw_vm_primitives::{
-    account::{AccessKey},
     contract_runtime::{CryptoHash, Balance, Gas},
     transaction::Transaction,
+    errors::RuntimeError,
 };
 
 use crate::{
@@ -23,7 +19,6 @@ use crate::{
 pub struct UserAccount {
     pub runtime: Rc<RefCell<RuntimeStandalone>>,
     pub account_id: AccountId,
-    pub signer: InMemorySigner,
 }
 
 impl Debug for UserAccount {
@@ -37,10 +32,9 @@ impl UserAccount {
     pub fn new(
         runtime: &Rc<RefCell<RuntimeStandalone>>,
         account_id: AccountId,
-        signer: InMemorySigner,
     ) -> Self {
         let runtime = Rc::clone(runtime);
-        Self { runtime, account_id, signer }
+        Self { runtime, account_id }
     }
 
     /// Look up the latest state_root
@@ -76,12 +70,9 @@ impl UserAccount {
         account_id: AccountId,
         deposit: Balance,
     ) -> Result<ExecutionResult, RuntimeError>  {
-        let signer =
-            InMemorySigner::from_seed(account_id.clone(), KeyType::ED25519, &account_id.as_str());
         self.submit_transaction(
             self.transaction(account_id.clone())
                 .create_account()
-                .add_key(signer.public_key(), AccessKey::full_access())
                 .transfer(deposit)
                 .deploy_contract(wasm_bytes.to_vec()),
         )
@@ -89,26 +80,22 @@ impl UserAccount {
 
     fn transaction(&self, receiver_id: AccountId) -> Transaction {
 
-        let access_key = (*self.runtime)
+        let account = (*self.runtime)
             .borrow()
-            .view_access_key(self.account_id.clone(), &self.signer.public_key());
+            .view_account(self.account_id.clone())
+            .unwrap();
  
-        let nonce = match access_key {
-            Some(key) => {key.nonce + 1},
-            None => 0
-        };
-
         Transaction::new(
             self.account_id.clone(),
-            self.signer.public_key(),
             receiver_id,
-            nonce,
+            account.nonce,
             CryptoHash::default(),
         )
     }
 
     fn submit_transaction(&self, transaction: Transaction) -> Result<ExecutionResult, RuntimeError> {
-        let res = (*self.runtime).borrow_mut().resolve_tx(transaction.sign(&self.signer))?;
+        let random_signer = InMemorySigner::from_seed(KeyType::SR25519, &[0]);
+        let res = (*self.runtime).borrow_mut().resolve_tx(transaction.sign(&random_signer))?;
         (*self.runtime).borrow_mut().process_all()?;
         Ok(outcome_into_result(res.1))
     }
@@ -124,14 +111,11 @@ impl UserAccount {
         account_id: AccountId,
         amount: Balance,
     ) -> Result<ExecutionResult, RuntimeError>  {
-        let signer =
-            InMemorySigner::from_seed(account_id.clone(), KeyType::ED25519, &account_id.as_str());
         signer_user
             .submit_transaction(
                 signer_user
                     .transaction(account_id.clone())
                     .create_account()
-                    .add_key(signer.public_key(), AccessKey::full_access())
                     .transfer(amount),
             )
     }

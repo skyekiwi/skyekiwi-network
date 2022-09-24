@@ -40,9 +40,9 @@ impl Default for Script {
 
 impl Script {
 
-    pub(crate) fn init(&mut self, store: &Arc<Store>, state_root: CryptoHash, signer: AccountId) {
-        let (runtime, s) = init_runtime(
-            signer.clone(), 
+    pub(crate) fn init(&mut self, store: &Arc<Store>, state_root: CryptoHash, id: AccountId) {
+        let runtime = init_runtime(
+            id.clone(), 
             None,
             Some(&store),
             Some(state_root),
@@ -50,8 +50,7 @@ impl Script {
 
         let account = UserAccount::new(
             &Rc::new(RefCell::new(runtime)),
-            signer, 
-            s
+            id,
         );
 
         self.state_root = state_root;
@@ -60,7 +59,7 @@ impl Script {
     }
 
     pub(crate) fn update_account(&mut self, signer: AccountId) {
-        let (runtime, s) = init_runtime(
+        let runtime = init_runtime(
             signer.clone(),
             None,
             self.store.as_ref(),
@@ -68,7 +67,7 @@ impl Script {
         );
 
         let account = UserAccount::new(
-            &Rc::new(RefCell::new(runtime)),signer, s
+            &Rc::new(RefCell::new(runtime)),signer
         );
 
         self.account = Some(account);
