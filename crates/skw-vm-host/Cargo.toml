@@ -23,6 +23,7 @@ sha3 = ">=0.8,<0.10"
 
 wasmi = { version = "0.11.0", default-features = false }
 skw-vm-primitives = { path = "../skw-vm-primitives" }
+secp256k1 = { version = "0.24.0", default-features = false, features = ["recovery", "alloc"]}
 
 [dev-dependencies]
 serde_json = { version = "1", features = ["preserve_order"] }

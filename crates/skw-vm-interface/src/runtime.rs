@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::{ViewResult};
+use crate::outcome::{ViewResult};
 
 use skw_vm_pool::{types::PoolIterator, TransactionPool};
 use skw_vm_primitives::{
@@ -30,9 +30,8 @@ use skw_vm_store::{
 
 const DEFAULT_BLOCK_PROD_TIME: Duration = 1_000_000_000;
 pub fn init_runtime(
-    account_id: AccountId,
     cfg: Option<GenesisConfig>,
-    store: Option<&Arc<Store>>,
+    store: Option<Arc<Store>>,
     state_root: Option<CryptoHash>,
 ) -> RuntimeStandalone {
     let mut config = cfg.unwrap_or_default();
@@ -46,16 +45,17 @@ pub fn init_runtime(
         account: pallet_root_account,
     });
 
-    let store = match store {
-        None => create_store(),
-        Some(s) => s.clone(),
-    };
     let state_root = match state_root {
         None => CryptoHash::default(),
         Some(sr) => sr
     };
 
-    let runtime = RuntimeStandalone::new(&config, store, state_root);
+    let s = match store {
+        Some(s) => s.clone(),
+        None => create_store()
+    };
+
+    let runtime = RuntimeStandalone::new(&config, s, state_root);
     runtime
 }
 
@@ -315,8 +315,18 @@ mod tests {
     use skw_vm_primitives::account::Account;
     use skw_vm_store::get_account;
 
+    fn to_yocto(value: &str) -> u128 {
+        let vals: Vec<_> = value.split('.').collect();
+        let part1 = vals[0].parse::<u128>().unwrap() * 10u128.pow(24);
+        if vals.len() > 1 {
+            let power = vals[1].len() as u32;
+            let part2 = vals[1].parse::<u128>().unwrap() * 10u128.pow(24 - power);
+            part1 + part2
+        } else {
+            part1
+        }
+    }
     use super::*;
-    use crate::utils::to_yocto;
 
     impl RuntimeStandalone {
          /// Just puts tx into the transaction pool
@@ -337,17 +347,11 @@ mod tests {
             }
             Ok(())
         }
-
-        // pub fn view_account(&self, account_id: AccountId) -> Option<Account> {
-        //     let trie_update = self.tries.new_trie_update(self.cur_block.state_root);
-        //     get_account(&trie_update, &account_id).expect("Unexpected Storage error")
-        // }
-
     }
 
     #[test]
     fn single_block() {
-        let mut runtime = init_runtime(AccountId::system(), None, None, None);
+        let mut runtime = init_runtime(None, None, None);
         let random_signer = InMemorySigner::from_seed(KeyType::SR25519, &[0]);
 
         let hash = runtime.send_tx(SignedTransaction::create_account(
@@ -369,31 +373,33 @@ mod tests {
     fn process_all() {
         let random_signer = InMemorySigner::from_seed(KeyType::SR25519, &[0]);
 
-        let mut runtime = init_runtime(AccountId::system(), None, None, None);
+        let mut runtime = init_runtime(None, None, None);
         assert_eq!(runtime.view_account(AccountId::test()), None);
         let outcome = runtime.resolve_tx(SignedTransaction::create_account(
             1,
             AccountId::system(),
             AccountId::test(),
-            165437999999999999999000,
+            165437999999000,
             &random_signer,
             CryptoHash::default(),
         ));
-        assert!(matches!(
+
+        println!("{:?}", outcome);
+         assert!(matches!(
             outcome,
             Ok((_, ExecutionOutcome { status: ExecutionStatus::SuccessValue(_), .. }))
         ));
-        assert_eq!(runtime.view_account(AccountId::test()).unwrap().amount(), 165437999999999999999000);
+        assert_eq!(runtime.view_account(AccountId::test()).unwrap().amount(), 165437999999000);
         assert_eq!(runtime.view_account(AccountId::test()).unwrap().code_hash(), CryptoHash::default());
         assert_eq!(runtime.view_account(AccountId::test()).unwrap().locked(), 0);
-        assert_eq!(runtime.view_account(AccountId::test()).unwrap().storage_usage(), 182);
+        assert_eq!(runtime.view_account(AccountId::test()).unwrap().storage_usage(), 100);
     }
 
     #[test]
     fn test_cross_contract_call() {
         let random_signer = InMemorySigner::from_seed(KeyType::SR25519, &[0]);
 
-        let mut runtime = init_runtime(AccountId::system(), None, None, None);
+        let mut runtime = init_runtime(None, None, None);
         assert!(matches!(
             runtime.resolve_tx(SignedTransaction::create_contract(
                 1,
@@ -454,7 +460,7 @@ mod tests {
 
     #[test]
     fn can_produce_many_blocks_without_stack_overflow() {
-        let mut runtime = init_runtime(AccountId::system(), None, None, None);
+        let mut runtime = init_runtime(None, None, None);
         runtime.produce_blocks(20_000).unwrap();
     }
 }

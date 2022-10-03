@@ -62,7 +62,6 @@ pub enum CacheError {
 }
 
 /// A kind of a trap happened during execution of a binary
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
 )]
@@ -87,7 +86,6 @@ pub enum WasmTrap {
     GenericTrap,
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
 )]
@@ -97,7 +95,6 @@ pub enum MethodResolveError {
     MethodInvalidSignature,
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
 )]
@@ -110,7 +107,6 @@ pub enum CompilationError {
     UnsupportedCompiler { msg: String },
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
 )]
@@ -140,7 +136,6 @@ pub enum PrepareError {
     TooManyFunctions,
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
 )]
@@ -227,7 +222,6 @@ pub enum VMLogicError {
     InconsistentStateError(InconsistentStateError),
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ContractCallError {
     MethodResolveError(MethodResolveError),
@@ -235,7 +229,6 @@ pub enum ContractCallError {
     ExecutionError { msg: String },
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub enum FunctionCallErrorSer {
     /// Wasm compilation error
@@ -256,7 +249,6 @@ pub enum FunctionCallErrorSer {
     ExecutionError(String),
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
 )]
@@ -319,7 +311,6 @@ pub enum ActionErrorKind {
 }
 
 /// An error happened during Acton execution
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
 )]
@@ -333,7 +324,6 @@ pub struct ActionError {
 
 
 /// Error returned in the ExecutionOutcome in case of failure
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
 )]
@@ -345,7 +335,6 @@ pub enum TxExecutionError {
 }
 
 /// Describes the error for validating a receipt.
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
 )]
@@ -365,7 +354,6 @@ pub enum ReceiptValidationError {
 }
 
 /// An error happened during TX execution
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
 )]
@@ -409,7 +397,6 @@ pub enum InvalidTxError {
 }
 
 /// Describes the error for validating a list of actions.
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
 )]

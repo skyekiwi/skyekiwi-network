@@ -24,12 +24,12 @@ pub fn validate_transaction(
     config: &RuntimeConfig,
     gas_price: Balance,
     signed_transaction: &SignedTransaction,
-    verify_signature: bool,
+    bypass_singature_verification: bool,
 ) -> Result<TransactionCost, RuntimeError> {
     let transaction = &signed_transaction.transaction;
     let signer_id = &transaction.signer_id;
 
-    if verify_signature
+    if !bypass_singature_verification
         && !signed_transaction
             .signature
             .verify(signed_transaction.get_hash().as_ref(), &transaction.signer_id.as_ref())
@@ -68,14 +68,14 @@ pub fn verify_and_charge_transaction(
     state_update: &mut TrieUpdate,
     gas_price: Balance,
     signed_transaction: &SignedTransaction,
-    verify_signature: bool,
+    bypass_singature_verification: bool,
 ) -> Result<VerificationResult, RuntimeError> {
     let TransactionCost { gas_burnt, gas_remaining, receipt_gas_price, total_cost, burnt_amount } =
         validate_transaction(
             config,
             gas_price,
             signed_transaction,
-            verify_signature,
+            bypass_singature_verification,
         )?;
     let transaction = &signed_transaction.transaction;
     let signer_id = &transaction.signer_id;
@@ -393,7 +393,7 @@ mod tests {
                 &mut state_update,
                 gas_price,
                 &tx,
-                true,
+                false,
             )
             .expect_err("expected an error"),
             RuntimeError::InvalidTxError(InvalidTxError::InvalidSignature),

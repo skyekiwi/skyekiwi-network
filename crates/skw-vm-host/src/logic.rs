@@ -6,7 +6,6 @@ use crate::ValuePtr;
 use byteorder::ByteOrder;
 
 use skw_vm_primitives::borsh::BorshSerialize;
-use skw_vm_primitives::crypto::Secp256K1Signature;
 
 use skw_vm_primitives::config::ExtCosts::*;
 use skw_vm_primitives::config::{ActionCosts, ExtCosts, VMConfig, ViewConfig};
@@ -820,16 +819,20 @@ impl<'a> VMLogic<'a> {
                 }));
             }
 
-            let mut bytes = [0u8; 65];
-            bytes[0..64].copy_from_slice(&vec);
-
-            if v < 4 {
-                bytes[64] = v as u8;
-                Secp256K1Signature::from(bytes)
-            } else {
-                return Err(VMLogicError::HostError(HostError::ECRecoverError {
+            let recid = secp256k1::ecdsa::RecoveryId::from_i32(v as i32);
+            
+            let maybe_sig = match recid {
+                Ok(id) => secp256k1::ecdsa::RecoverableSignature::from_compact(&vec, id),
+                Err(_) => return Err(VMLogicError::HostError(HostError::ECRecoverError {
                     msg: format!("V recovery byte 0 through 3 are valid but was provided {}", v),
-                }));
+                }))
+            };
+
+            match maybe_sig {
+                Ok(sig) => sig,
+                Err(_) => return Err(VMLogicError::HostError(HostError::ECRecoverError {
+                    msg: format!("invalid singature {:?}", vec),
+                }))
             }
         };
 
@@ -844,9 +847,8 @@ impl<'a> VMLogic<'a> {
                 }));
             }
 
-            let mut bytes = [0u8; 32];
-            bytes.copy_from_slice(&vec);
-            bytes
+            // We have checked for length == 32, therefore, this unwrap is safe
+            secp256k1::Message::from_slice(&vec).unwrap()
         };
 
         if malleability_flag != 0 && malleability_flag != 1 {
@@ -858,12 +860,16 @@ impl<'a> VMLogic<'a> {
             }));
         }
 
-        if !signature.check_signature_values(malleability_flag != 0) {
-            return Ok(false as u64);
-        }
+        let secp = secp256k1::Secp256k1::new();
 
-        if let Ok(pk) = signature.recover(hash) {
-            self.internal_write_register(register_id, pk.as_ref().to_vec())?;
+        // if !signature.check_signature_values(malleability_flag != 0) {
+        //     return Ok(false as u64);
+        // }
+
+        if let Ok(pk) = secp.recover_ecdsa(&hash, &signature) {
+            self.internal_write_register(
+                register_id, pk.serialize_uncompressed()[1..65].to_vec()
+            )?;
             return Ok(true as u64);
         };
 

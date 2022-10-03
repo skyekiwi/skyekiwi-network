@@ -19,7 +19,6 @@ pub struct ViewApplyState {
 pub type TrieProofPath = Vec<String>;
 
 /// Item of the state, key and value are serialized in base64 and proof for inclusion of given state item.
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct StateItem {
     pub key: String,
@@ -27,7 +26,6 @@ pub struct StateItem {
     pub proof: TrieProofPath,
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct ViewStateResult {
     pub values: Vec<StateItem>,

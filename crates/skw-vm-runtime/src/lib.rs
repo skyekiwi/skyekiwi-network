@@ -459,11 +459,14 @@ impl Runtime {
             )?
         };
         stats.gas_deficit_amount = safe_add_balance(stats.gas_deficit_amount, gas_deficit_amount)?;
-        
+
         // TODO: whether to check the account balance cover storage?
+
         // Going to check balance covers account's storage.
         if result.result.is_ok() {
             if let Some(ref mut account) = account {
+                // println!("Account {:?}", account);
+
                 set_account(state_update, account_id.clone(), account);
             }
         }
@@ -480,6 +483,7 @@ impl Runtime {
             }
         };
 
+        // let gas_burnt: Gas = result.gas_burnt;
         let gas_burnt: Gas =
             if AccountId::is_system(&receipt.predecessor_id) { 0 } else { result.gas_burnt };
         // `gas_deficit_amount` is strictly less than `gas_price * gas_burnt`.
@@ -1208,8 +1212,7 @@ mod tests {
 
         let mut initial_state = tries.new_trie_update(root);
         let mut initial_account = account_new(initial_balance, hash_bytes(&[]), 0);
-        // For the account and a full access key
-        initial_account.set_storage_usage(182);
+        initial_account.set_storage_usage(100);
         initial_account.set_locked(initial_locked);
         set_account(&mut initial_state, account_id.clone(), &initial_account);
         initial_state.commit(StateChangeCause::InitialState);

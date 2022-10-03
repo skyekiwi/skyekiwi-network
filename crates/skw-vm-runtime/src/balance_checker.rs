@@ -25,6 +25,8 @@ pub(crate) fn check_balance(
     outgoing_receipts: &[Receipt],
     stats: &ApplyStats,
 ) -> Result<(), RuntimeError> {
+
+    // println!("HERE {:?} {:?} {:?}", transactions, incoming_receipts, outgoing_receipts);
     // Delayed receipts
     let initial_delayed_receipt_indices: DelayedReceiptIndices =
         get(initial_state, &TrieKey::DelayedReceiptIndices)?.unwrap_or_default();
@@ -63,6 +65,7 @@ pub(crate) fn check_balance(
         .chain(incoming_receipts.iter().map(|r| r.receiver_id.clone()))
         .chain(processed_delayed_receipts.iter().map(|r| r.receiver_id.clone()))
         .collect();
+    // println!("ALL ACC {:?}", all_accounts_ids);
     let total_accounts_balance = |state| -> Result<Balance, RuntimeError> {
         Ok(all_accounts_ids
             .iter()
@@ -83,6 +86,7 @@ pub(crate) fn check_balance(
         Ok(match &receipt.receipt {
             ReceiptEnum::Action(action_receipt) => {
                 let mut total_cost = total_deposit(&action_receipt.actions)?;
+                // TODO: this is pretty strange ... might gotta look into this
                 if !AccountId::is_system(&receipt.predecessor_id) {
                     let mut total_gas = safe_add_gas(
                         transaction_costs.action_receipt_creation_config.exec_fee(),
@@ -116,6 +120,7 @@ pub(crate) fn check_balance(
     let processed_delayed_receipts_balance = receipts_cost(&processed_delayed_receipts)?;
     let new_delayed_receipts_balance = receipts_cost(&new_delayed_receipts)?;
 
+    println!("{:?} {:?}", incoming_receipts_balance,outgoing_receipts_balance );
     // Postponed actions receipts. The receipts can be postponed and stored with the receiver's
     // account ID when the input data is not received yet.
     // We calculate all potential receipts IDs that might be postponed initially or after the

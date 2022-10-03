@@ -144,7 +144,6 @@ pub mod state {
 
     pub type RawStateChanges = std::collections::BTreeMap<Vec<u8>, RawStateChangesWithTrieKey>;
 
-    #[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
     #[derive(PartialEq, Eq, Clone, Debug, BorshSerialize, BorshDeserialize, serde::Serialize)]
     pub struct StateRootNode {
         /// in Nightshade, data is the serialized TrieNodeWithSize

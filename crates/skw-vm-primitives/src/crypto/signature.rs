@@ -5,16 +5,11 @@ use std::hash::{Hash, Hasher};
 use std::io::{Error, ErrorKind, Write};
 use std::str::FromStr;
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use skw_blockchain_primitives::{BorshDeserialize, BorshSerialize};
 use ed25519_dalek::ed25519::signature::{Signer, Verifier};
-use once_cell::sync::Lazy;
-use primitive_types::U256;
-use rand_core::OsRng;
-use secp256k1::Message;
 use serde::{Deserialize, Serialize};
 
 const SIGNING_CTX_SR25519: &[u8] = b"SkyeKiwi";
-pub static SECP256K1: Lazy<secp256k1::Secp256k1> = Lazy::new(secp256k1::Secp256k1::new);
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum KeyType {
@@ -78,13 +73,6 @@ fn split_key_type_data(value: &str) -> Result<(KeyType, &str), crate::crypto::er
 
 #[derive(Clone)]
 pub struct Secp256K1PublicKey([u8; 64]);
-
-#[cfg(feature = "deepsize_feature")]
-impl deepsize::DeepSizeOf for Secp256K1PublicKey {
-    fn deep_size_of_children(&self, _context: &mut deepsize::Context) -> usize {
-        0
-    }
-}
 
 impl From<[u8; 64]> for Secp256K1PublicKey {
     fn from(data: [u8; 64]) -> Self {
@@ -152,7 +140,6 @@ impl Ord for Secp256K1PublicKey {
     }
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(Clone, derive_more::AsRef)]
 #[as_ref(forward)]
 pub struct ED25519PublicKey(pub [u8; ed25519_dalek::PUBLIC_KEY_LENGTH]);
@@ -200,7 +187,6 @@ impl Ord for ED25519PublicKey {
     }
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(Clone, derive_more::AsRef)]
 #[as_ref(forward)]
 pub struct SR25519PublicKey(pub [u8; schnorrkel::PUBLIC_KEY_LENGTH ]);
@@ -249,7 +235,6 @@ impl Ord for SR25519PublicKey {
 }
 
 /// Public key container supporting different curves.
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(Clone, PartialEq, PartialOrd, Ord, Eq)]
 pub enum PublicKey {
     /// 256 bit elliptic curve based public-key.
@@ -591,12 +576,30 @@ impl std::fmt::Debug for ED25519SecretKey {
 }
 
 impl Eq for ED25519SecretKey {}
+#[derive(Clone, Eq)]
+pub struct Secp256k1SecretKey(pub [u8; 32]);
+
+impl PartialEq for Secp256k1SecretKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.0[..32] == other.0[..32]
+    }
+}
+
+impl std::fmt::Debug for Secp256k1SecretKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(
+            f,
+            "{}",
+            bs58::encode(&self.0[..32].to_vec()).into_string()
+        )
+    }
+}
 
 /// Secret key container supporting different curves.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum SecretKey {
     ED25519(ED25519SecretKey),
-    SECP256K1(secp256k1::key::SecretKey),
+    SECP256K1(Secp256k1SecretKey),
     SR25519(schnorrkel::keys::MiniSecretKey),
 }
 
@@ -609,21 +612,22 @@ impl SecretKey {
         }
     }
 
-    pub fn from_random(key_type: KeyType) -> SecretKey {
-        match key_type {
-            KeyType::ED25519 => {
-                let keypair = ed25519_dalek::Keypair::generate(&mut OsRng);
-                SecretKey::ED25519(ED25519SecretKey(keypair.to_bytes()))
-            }
-            KeyType::SECP256K1 => {
-                SecretKey::SECP256K1(secp256k1::key::SecretKey::new(&SECP256K1, &mut OsRng))
-            },
-            KeyType::SR25519 => {
-                // TODO: should we use OsRng for it?
-                SecretKey::SR25519(schnorrkel::MiniSecretKey::generate())
-            }
-        }
-    }
+    // pub fn from_random(key_type: KeyType) -> SecretKey {
+    //     match key_type {
+    //         KeyType::ED25519 => {
+    //             let keypair = ed25519_dalek::Keypair::generate(&mut OsRng);
+    //             SecretKey::ED25519(ED25519SecretKey(keypair.to_bytes()))
+    //         }
+    //         KeyType::SECP256K1 => {
+    //             unimplemented!()
+    //             // SecretKey::SECP256K1(secp256k1::key::SecretKey::new(&SECP256K1, &mut OsRng))
+    //         },
+    //         KeyType::SR25519 => {
+    //             // TODO: should we use OsRng for it?
+    //             SecretKey::SR25519(schnorrkel::MiniSecretKey::generate())
+    //         }
+    //     }
+    // }
 
     pub fn sign(&self, data: &[u8]) -> Signature {
         match &self {
@@ -632,18 +636,19 @@ impl SecretKey {
                 Signature::ED25519(keypair.sign(data))
             }
 
-            SecretKey::SECP256K1(secret_key) => {
-                let signature = SECP256K1
-                    .sign_recoverable(
-                        &secp256k1::Message::from_slice(data).expect("32 bytes"),
-                        secret_key,
-                    )
-                    .expect("Failed to sign");
-                let (rec_id, data) = signature.serialize_compact(&SECP256K1);
-                let mut buf = [0; 65];
-                buf[0..64].copy_from_slice(&data[0..64]);
-                buf[64] = rec_id.to_i32() as u8;
-                Signature::SECP256K1(Secp256K1Signature(buf))
+            SecretKey::SECP256K1(_) => {
+                unimplemented!()
+                // let signature = SECP256K1
+                //     .sign_recoverable(
+                //         &secp256k1::Message::from_slice(data).expect("32 bytes"),
+                //         secret_key,
+                //     )
+                //     .expect("Failed to sign");
+                // let (rec_id, data) = signature.serialize_compact(&SECP256K1);
+                // let mut buf = [0; 65];
+                // buf[0..64].copy_from_slice(&data[0..64]);
+                // buf[64] = rec_id.to_i32() as u8;
+                // Signature::SECP256K1(Secp256K1Signature(buf))
             }
 
             SecretKey::SR25519(secret_key) => {
@@ -659,13 +664,14 @@ impl SecretKey {
             SecretKey::ED25519(secret_key) => PublicKey::ED25519(ED25519PublicKey(
                 secret_key.0[ed25519_dalek::SECRET_KEY_LENGTH..].try_into().unwrap(),
             )),
-            SecretKey::SECP256K1(secret_key) => {
-                let pk =
-                    secp256k1::key::PublicKey::from_secret_key(&SECP256K1, secret_key).unwrap();
-                let serialized = pk.serialize_vec(&SECP256K1, false);
-                let mut public_key = Secp256K1PublicKey([0; 64]);
-                public_key.0.copy_from_slice(&serialized[1..65]);
-                PublicKey::SECP256K1(public_key)
+            SecretKey::SECP256K1(_) => {
+                unimplemented!()
+                // let pk =
+                //     secp256k1::key::PublicKey::from_secret_key(&SECP256K1, secret_key).unwrap();
+                // let serialized = pk.serialize_vec(&SECP256K1, false);
+                // let mut public_key = Secp256K1PublicKey([0; 64]);
+                // public_key.0.copy_from_slice(&serialized[1..65]);
+                // PublicKey::SECP256K1(public_key)
             },
             SecretKey::SR25519(secret_key) => PublicKey::SR25519(SR25519PublicKey(
                 secret_key.expand_to_public(schnorrkel::ExpansionMode::Ed25519).to_bytes(),
@@ -694,7 +700,7 @@ impl std::fmt::Display for SecretKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let data = match self {
             SecretKey::ED25519(secret_key) => bs58::encode(&secret_key.0[..]).into_string(),
-            SecretKey::SECP256K1(secret_key) => bs58::encode(&secret_key[..]).into_string(),
+            SecretKey::SECP256K1(secret_key) => bs58::encode(&secret_key.0[..]).into_string(),
             SecretKey::SR25519(secret_key) => bs58::encode(&secret_key.to_bytes()).into_string(),
         };
         write!(f, "{}:{}", self.key_type(), data)
@@ -721,20 +727,21 @@ impl FromStr for SecretKey {
                 Ok(Self::ED25519(ED25519SecretKey(array)))
             }
             KeyType::SECP256K1 => {
-                let mut array = [0; secp256k1::constants::SECRET_KEY_SIZE];
-                let length = bs58::decode(key_data)
-                    .into(&mut array[..])
-                    .map_err(|err| Self::Err::InvalidData { error_message: err.to_string() })?;
-                if length != secp256k1::constants::SECRET_KEY_SIZE {
-                    return Err(Self::Err::InvalidLength {
-                        expected_length: secp256k1::constants::SECRET_KEY_SIZE,
-                        received_length: length,
-                    });
-                }
-                Ok(Self::SECP256K1(
-                    secp256k1::key::SecretKey::from_slice(&SECP256K1, &array)
-                        .map_err(|err| Self::Err::InvalidData { error_message: err.to_string() })?,
-                ))
+                unimplemented!()
+                // let mut array = [0; secp256k1::constants::SECRET_KEY_SIZE];
+                // let length = bs58::decode(key_data)
+                //     .into(&mut array[..])
+                //     .map_err(|err| Self::Err::InvalidData { error_message: err.to_string() })?;
+                // if length != secp256k1::constants::SECRET_KEY_SIZE {
+                //     return Err(Self::Err::InvalidLength {
+                //         expected_length: secp256k1::constants::SECRET_KEY_SIZE,
+                //         received_length: length,
+                //     });
+                // }
+                // Ok(Self::SECP256K1(
+                //     secp256k1::key::SecretKey::from_slice(&SECP256K1, &array)
+                //         .map_err(|err| Self::Err::InvalidData { error_message: err.to_string() })?,
+                // ))
             }
             KeyType::SR25519 => {
                 let mut array = [0; schnorrkel::MINI_SECRET_KEY_LENGTH];
@@ -766,7 +773,7 @@ impl serde::Serialize for SecretKey {
     {
         let data = match self {
             SecretKey::ED25519(secret_key) => bs58::encode(&secret_key.0[..]).into_string(),
-            SecretKey::SECP256K1(secret_key) => bs58::encode(&secret_key[..]).into_string(),
+            SecretKey::SECP256K1(secret_key) => bs58::encode(&secret_key.0[..]).into_string(),
             SecretKey::SR25519(secret_key) => bs58::encode(&secret_key.to_bytes()).into_string(),
         };
         serializer.serialize_str(&format!("{}:{}", self.key_type(), data))
@@ -783,65 +790,56 @@ impl<'de> serde::Deserialize<'de> for SecretKey {
     }
 }
 
-const SECP256K1_N: U256 =
-    U256([0xbfd25e8cd0364141, 0xbaaedce6af48a03b, 0xfffffffffffffffe, 0xffffffffffffffff]);
-
-// Half of SECP256K1_N + 1.
-const SECP256K1_N_HALF_ONE: U256 =
-    U256([0xdfe92f46681b20a1, 0x5d576e7357a4501d, 0xffffffffffffffff, 0x7fffffffffffffff]);
-
-const SECP256K1_SIGNATURE_LENGTH: usize = 65;
-
 #[derive(Clone, Hash)]
-pub struct Secp256K1Signature([u8; SECP256K1_SIGNATURE_LENGTH]);
+pub struct Secp256K1Signature([u8; 65]);
 
-impl Secp256K1Signature {
-    pub fn check_signature_values(&self, reject_upper: bool) -> bool {
-        let mut r_bytes = [0u8; 32];
-        r_bytes.copy_from_slice(&self.0[0..32]);
-        let r = U256::from(r_bytes);
+// impl Secp256K1Signature {
+//     pub fn check_signature_values(&self, reject_upper: bool) -> bool {
+//         let mut r_bytes = [0u8; 32];
+//         r_bytes.copy_from_slice(&self.0[0..32]);
+//         let r = U256::from(r_bytes);
 
-        let mut s_bytes = [0u8; 32];
-        s_bytes.copy_from_slice(&self.0[32..64]);
-        let s = U256::from(s_bytes);
+//         let mut s_bytes = [0u8; 32];
+//         s_bytes.copy_from_slice(&self.0[32..64]);
+//         let s = U256::from(s_bytes);
 
-        let s_check = if reject_upper {
-            // Reject upper range of s values (ECDSA malleability)
-            SECP256K1_N_HALF_ONE
-        } else {
-            SECP256K1_N
-        };
+//         let s_check = if reject_upper {
+//             // Reject upper range of s values (ECDSA malleability)
+//             SECP256K1_N_HALF_ONE
+//         } else {
+//             SECP256K1_N
+//         };
 
-        r < SECP256K1_N && s < s_check
-    }
+//         r < SECP256K1_N && s < s_check
+//     }
 
-    pub fn recover(
-        &self,
-        msg: [u8; 32],
-    ) -> Result<Secp256K1PublicKey, crate::crypto::errors::ParseSignatureError> {
-        let recoverable_sig = secp256k1::RecoverableSignature::from_compact(
-            &SECP256K1,
-            &self.0[0..64],
-            secp256k1::RecoveryId::from_i32(i32::from(self.0[64])).unwrap(),
-        )
-        .map_err(|err| crate::crypto::errors::ParseSignatureError::InvalidData {
-            error_message: err.to_string(),
-        })?;
-        let msg = Message::from(msg);
+//     pub fn recover(
+//         &self,
+//         msg: [u8; 32],
+//     ) -> Result<Secp256K1PublicKey, crate::crypto::errors::ParseSignatureError> {
+//         let recoverable_sig = secp256k1::RecoverableSignature::from_compact(
+//             &SECP256K1,
+//             &self.0[0..64],
+//             secp256k1::RecoveryId::from_i32(i32::from(self.0[64])).unwrap(),
+//         )
+//         .map_err(|err| crate::crypto::errors::ParseSignatureError::InvalidData {
+//             error_message: err.to_string(),
+//         })?;
+//         let msg = Message::from(msg);
 
-        let res = SECP256K1
-            .recover(&msg, &recoverable_sig)
-            .map_err(|err| crate::crypto::errors::ParseSignatureError::InvalidData {
-                error_message: err.to_string(),
-            })?
-            .serialize_vec(&SECP256K1, false);
+//         let res = SECP256K1
+//             .recover(&msg, &recoverable_sig)
+//             .map_err(|err| crate::crypto::errors::ParseSignatureError::InvalidData {
+//                 error_message: err.to_string(),
+//             })?
+//             .serialize_vec(&SECP256K1, false);
 
-        // Can not fail
-        let pk = Secp256K1PublicKey::try_from(&res[1..65]).unwrap();
+//         // Can not fail
+//         let pk = Secp256K1PublicKey::try_from(&res[1..65]).unwrap();
 
-        Ok(pk)
-    }
-}
+//         Ok(pk)
+//     }
+// }
 
 impl From<[u8; 65]> for Secp256K1Signature {
     fn from(data: [u8; 65]) -> Self {
@@ -899,17 +897,6 @@ pub enum Signature {
     SR25519(schnorrkel::Signature),
 }
 
-#[cfg(feature = "deepsize_feature")]
-impl deepsize::DeepSizeOf for Signature {
-    fn deep_size_of_children(&self, _context: &mut deepsize::Context) -> usize {
-        match self {
-            Signature::ED25519(_) => ed25519_dalek::SIGNATURE_LENGTH,
-            Signature::SECP256K1(_) => SECP256K1_SIGNATURE_LENGTH,
-            Signature::SR25519(_) => schnorrkel::sign::SIGNATURE_LENGTH,
-        }
-    }
-}
-
 impl Hash for Signature {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
@@ -961,27 +948,28 @@ impl Signature {
                     Ok(public_key) => public_key.verify(data, signature).is_ok(),
                 }
             }
-            (Signature::SECP256K1(signature), PublicKey::SECP256K1(public_key)) => {
-                let rsig = secp256k1::RecoverableSignature::from_compact(
-                    &SECP256K1,
-                    &signature.0[0..64],
-                    secp256k1::RecoveryId::from_i32(i32::from(signature.0[64])).unwrap(),
-                )
-                .unwrap();
-                let sig = rsig.to_standard(&SECP256K1);
-                let pdata: [u8; 65] = {
-                    // code borrowed from https://github.com/openethereum/openethereum/blob/98b7c07171cd320f32877dfa5aa528f585dc9a72/ethkey/src/signature.rs#L210
-                    let mut temp = [4u8; 65];
-                    temp[1..65].copy_from_slice(&public_key.0);
-                    temp
-                };
-                SECP256K1
-                    .verify(
-                        &secp256k1::Message::from_slice(data).expect("32 bytes"),
-                        &sig,
-                        &secp256k1::key::PublicKey::from_slice(&SECP256K1, &pdata).unwrap(),
-                    )
-                    .is_ok()
+            (Signature::SECP256K1(_), PublicKey::SECP256K1(_)) => {
+                unimplemented!()
+                // let rsig = secp256k1::RecoverableSignature::from_compact(
+                //     &SECP256K1,
+                //     &signature.0[0..64],
+                //     secp256k1::RecoveryId::from_i32(i32::from(signature.0[64])).unwrap(),
+                // )
+                // .unwrap();
+                // let sig = rsig.to_standard(&SECP256K1);
+                // let pdata: [u8; 65] = {
+                //     // code borrowed from https://github.com/openethereum/openethereum/blob/98b7c07171cd320f32877dfa5aa528f585dc9a72/ethkey/src/signature.rs#L210
+                //     let mut temp = [4u8; 65];
+                //     temp[1..65].copy_from_slice(&public_key.0);
+                //     temp
+                // };
+                // SECP256K1
+                //     .verify(
+                //         &secp256k1::Message::from_slice(data).expect("32 bytes"),
+                //         &sig,
+                //         &secp256k1::key::PublicKey::from_slice(&SECP256K1, &pdata).unwrap(),
+                //     )
+                //     .is_ok()
             }
             (Signature::SR25519(signature), PublicKey::SR25519(public_key)) => {
                 match schnorrkel::PublicKey::from_bytes(&public_key.0) {
@@ -1163,8 +1151,8 @@ mod tests {
 
     #[test]
     fn test_sign_verify() {
-        for key_type in vec![KeyType::ED25519, KeyType::SECP256K1, KeyType::SR25519] {
-            let secret_key = SecretKey::from_random(key_type);
+        for key_type in vec![KeyType::ED25519, KeyType::SR25519] {
+            let secret_key = SecretKey::from_seed(key_type, &[0]);
             let public_key = secret_key.public_key();
             use sha2::Digest;
             let data = sha2::Sha256::digest(b"123").to_vec();
@@ -1255,7 +1243,7 @@ mod tests {
         use sha2::Digest;
         let data = sha2::Sha256::digest(b"123").to_vec();
  
-        for key_type in vec![KeyType::ED25519, KeyType::SECP256K1, KeyType::SR25519] {
+        for key_type in vec![KeyType::ED25519, KeyType::SR25519] {
             let sk = SecretKey::from_seed(key_type, b"test");
             let pk = sk.public_key();
 
@@ -1274,7 +1262,7 @@ mod tests {
 
     #[test]
     fn test_invalid_data() {
-        let invalid = "\"secp256k1:2xVqteU8PWhadHTv99TGh3bSf\"";
+        let invalid = "\"sr25519:2xVqteU8PWhadHTv99TGh3bSf\"";
         assert!(serde_json::from_str::<PublicKey>(invalid).is_err());
         assert!(serde_json::from_str::<SecretKey>(invalid).is_err());
         assert!(serde_json::from_str::<Signature>(invalid).is_err());
