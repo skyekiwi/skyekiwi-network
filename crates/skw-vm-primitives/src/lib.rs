@@ -31,12 +31,14 @@ pub mod contract_runtime {
     pub type StateRoot = CryptoHash;
     pub type ProtocolVersion = u32;
     pub type BlockNumber = u64;
-    pub type EpochHeight = u64;
+    // pub type EpochHeight = u64;
     pub type Balance = u128;
     pub type StorageUsage = u64;
     pub type Gas = u64;
     pub type Nonce = u64;
-    pub type Duration = u64;
+    // pub type Duration = u64;
+    pub type PromiseId = Vec<usize>;
+
     pub struct ContractCode {
         pub code: Vec<u8>,
         pub hash: CryptoHash,

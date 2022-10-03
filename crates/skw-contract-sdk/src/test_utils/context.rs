@@ -1,19 +1,8 @@
 use crate::mock::MockedBlockchain;
-use crate::test_utils::test_env::*;
-use crate::AccountId;
-use crate::{
-    Balance, BlockNumber, Gas, PromiseResult, PublicKey, StorageUsage, VMContext,
-};
-use skw_vm_primitives::fees::RuntimeFeesConfig;
-use skw_vm_host::{VMConfig, ViewConfig};
-use std::convert::TryInto;
+use crate::{Balance, BlockNumber, Gas, StorageUsage, AccountId, RuntimeFeesConfig};
 
-/// Returns a pre-defined account_id from a list of 6.
-pub fn accounts(id: usize) -> AccountId {
-    AccountId::new_unchecked(
-        ["alice", "bob", "charlie", "danny", "eugene", "fargo"][id].to_string(),
-    )
-}
+use skw_vm_host::{VMConfig, ViewConfig, VMContext, types::PromiseResult};
+use std::convert::TryInto;
 
 /// Simple VMContext builder that allows to quickly create custom context in tests.
 #[derive(Clone)]
@@ -32,10 +21,9 @@ impl VMContextBuilder {
     pub fn new() -> Self {
         Self {
             context: VMContext {
-                current_account_id: alice().try_into().unwrap(),
-                signer_account_id: bob().try_into().unwrap(),
-                signer_account_pk: vec![0u8; 32],
-                predecessor_account_id: bob().try_into().unwrap(),
+                current_account_id: AccountId::test(),
+                signer_account_id: AccountId::testn(2),
+                predecessor_account_id: AccountId::testn(2),
                 input: vec![],
                 block_number: 0,
                 block_timestamp: 0,
@@ -57,11 +45,6 @@ impl VMContextBuilder {
 
     pub fn signer_account_id(&mut self, account_id: AccountId) -> &mut Self {
         self.context.signer_account_id = account_id.try_into().unwrap();
-        self
-    }
-
-    pub fn signer_account_pk(&mut self, pk: PublicKey) -> &mut Self {
-        self.context.signer_account_pk = pk.into();
         self
     }
 
@@ -96,7 +79,7 @@ impl VMContextBuilder {
     }
 
     pub fn prepaid_gas(&mut self, gas: Gas) -> &mut Self {
-        self.context.prepaid_gas = gas.0;
+        self.context.prepaid_gas = gas;
         self
     }
 

@@ -4,7 +4,11 @@ use std::collections::HashMap;
 use std::io::{Error, Write};
 use std::rc::Rc;
 
-use crate::{AccountId, Balance, Gas, PromiseIndex};
+use skw_vm_primitives::{
+    account_id::AccountId,
+    contract_runtime::{Balance, Gas},
+};
+use skw_vm_host::types::PromiseIndex;
 
 enum PromiseAction {
     CreateAccount,

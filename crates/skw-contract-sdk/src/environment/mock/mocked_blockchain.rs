@@ -1,7 +1,6 @@
 use super::{Receipt, SdkExternal};
 use crate::test_utils::VMContextBuilder;
-use crate::types::{Balance, PromiseResult};
-use crate::RuntimeFeesConfig;
+use crate::{Balance, PromiseResult, RuntimeFeesConfig};
 
 use skw_vm_host::mocks::mock_memory::MockedMemory;
 use skw_vm_host::types::PromiseResult as VmPromiseResult;
@@ -125,10 +124,6 @@ mod mock_chain {
     #[no_mangle]
     extern "C" fn signer_account_id(register_id: u64) {
         with_mock_interface(|b| b.signer_account_id(register_id))
-    }
-    #[no_mangle]
-    extern "C" fn signer_account_pk(register_id: u64) {
-        with_mock_interface(|b| b.signer_account_pk(register_id))
     }
     #[no_mangle]
     extern "C" fn predecessor_account_id(register_id: u64) {
@@ -327,58 +322,6 @@ mod mock_chain {
     #[no_mangle]
     extern "C" fn promise_batch_action_transfer(promise_index: u64, amount_ptr: u64) {
         with_mock_interface(|b| b.promise_batch_action_transfer(promise_index, amount_ptr))
-    }
-    #[no_mangle]
-    extern "C" fn promise_batch_action_add_key_with_full_access(
-        promise_index: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-        nonce: u64,
-    ) {
-        with_mock_interface(|b| {
-            b.promise_batch_action_add_key_with_full_access(
-                promise_index,
-                public_key_len,
-                public_key_ptr,
-                nonce,
-            )
-        })
-    }
-    #[no_mangle]
-    extern "C" fn promise_batch_action_add_key_with_function_call(
-        promise_index: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-        nonce: u64,
-        allowance_ptr: u64,
-        receiver_id_len: u64,
-        receiver_id_ptr: u64,
-        function_names_len: u64,
-        function_names_ptr: u64,
-    ) {
-        with_mock_interface(|b| {
-            b.promise_batch_action_add_key_with_function_call(
-                promise_index,
-                public_key_len,
-                public_key_ptr,
-                nonce,
-                allowance_ptr,
-                receiver_id_len,
-                receiver_id_ptr,
-                function_names_len,
-                function_names_ptr,
-            )
-        })
-    }
-    #[no_mangle]
-    extern "C" fn promise_batch_action_delete_key(
-        promise_index: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-    ) {
-        with_mock_interface(|b| {
-            b.promise_batch_action_delete_key(promise_index, public_key_len, public_key_ptr)
-        })
     }
     #[no_mangle]
     extern "C" fn promise_batch_action_delete_account(

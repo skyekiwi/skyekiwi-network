@@ -1,7 +1,6 @@
 use super::{Receipt, VmAction};
-use crate::types::{Balance, Gas, PublicKey};
+use crate::{Balance, AccountId};
 
-use skw_vm_host::types::AccountId as VmAccountId;
 use skw_vm_host::{RuntimeExternal as External, HostError, ValuePtr};
 use std::{ collections::HashMap };
 
@@ -66,7 +65,7 @@ impl External for SdkExternal {
     fn create_receipt(
         &mut self,
         receipt_indices: Vec<u64>,
-        receiver_id: VmAccountId,
+        receiver_id: AccountId,
     ) -> Result<u64> {
         if let Some(index) = receipt_indices.iter().find(|&&el| el >= self.receipts.len() as u64) {
             return Err(HostError::InvalidReceiptIndex { receipt_index: *index }.into());
@@ -113,58 +112,9 @@ impl External for SdkExternal {
                     .expect("method name must be utf8 bytes"),
                 args: arguments,
                 deposit: attached_deposit,
-                gas: Gas(prepaid_gas),
+                gas: prepaid_gas,
             },
         );
-        Ok(())
-    }
-
-    fn append_action_add_key_with_full_access(
-        &mut self,
-        receipt_index: u64,
-        public_key: Vec<u8>,
-        nonce: u64,
-    ) -> Result<()> {
-        let public_key = PublicKey::try_from(public_key).unwrap();
-        self.receipts
-            .get_mut(receipt_index as usize)
-            .unwrap()
-            .actions
-            .push(VmAction::AddKeyWithFullAccess { public_key, nonce });
-        Ok(())
-    }
-
-    fn append_action_add_key_with_function_call(
-        &mut self,
-        receipt_index: u64,
-        public_key: Vec<u8>,
-        nonce: u64,
-        allowance: Option<u128>,
-        receiver_id: VmAccountId,
-        function_names: Vec<Vec<u8>>,
-    ) -> Result<()> {
-        let public_key = PublicKey::try_from(public_key).unwrap();
-        let function_names =
-            function_names.into_iter().map(|s| String::from_utf8(s).unwrap()).collect();
-        self.receipts.get_mut(receipt_index as usize).unwrap().actions.push(
-            VmAction::AddKeyWithFunctionCall {
-                public_key,
-                nonce,
-                allowance,
-                receiver_id: receiver_id.into(),
-                function_names,
-            },
-        );
-        Ok(())
-    }
-
-    fn append_action_delete_key(&mut self, receipt_index: u64, public_key: Vec<u8>) -> Result<()> {
-        let public_key = PublicKey::try_from(public_key).unwrap();
-        self.receipts
-            .get_mut(receipt_index as usize)
-            .unwrap()
-            .actions
-            .push(VmAction::DeleteKey { public_key });
         Ok(())
     }
 
@@ -180,7 +130,7 @@ impl External for SdkExternal {
     fn append_action_delete_account(
         &mut self,
         receipt_index: u64,
-        beneficiary_id: VmAccountId,
+        beneficiary_id: AccountId,
     ) -> Result<()> {
         self.receipts
             .get_mut(receipt_index as usize)

@@ -1,4 +1,4 @@
-use crate::CryptoHash;
+use skw_vm_primitives::contract_runtime::CryptoHash;
 use borsh::{BorshDeserialize, BorshSerialize};
 use bs58::decode::Error as B58Error;
 use serde::{de, ser, Deserialize};

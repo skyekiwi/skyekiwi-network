@@ -31,8 +31,12 @@ pub use metadata::{Metadata, MethodMetadata};
 
 pub mod json_types;
 
-mod types;
-pub use crate::types::*;
+pub use skw_vm_primitives::{
+    contract_runtime::{Balance, Gas, StorageUsage, BlockNumber},
+    account_id::AccountId,
+    fees::RuntimeFeesConfig,
+};
+pub use skw_vm_host::types::{PromiseIndex, PromiseResult};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use environment::mock;

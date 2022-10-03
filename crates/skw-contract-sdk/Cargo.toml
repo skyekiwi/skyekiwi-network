@@ -31,8 +31,6 @@ once_cell = { version = "1.8", optional = true, default-features = false }
 
 skw-contract-macros = { path = "../skw-contract-macros" }
 skw-contract-sys = { path = "../skw-contract-sys", version = "0.1" }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 skw-vm-host = { path = "../skw-vm-host" }
 skw-vm-primitives = { path = "../skw-vm-primitives" }
 
