@@ -4,6 +4,7 @@ use crate::gas_counter::{FastGasCounter, GasCounter};
 use crate::types::{PromiseIndex, PromiseResult, ReceiptIndex, ReturnData};
 use crate::ValuePtr;
 use byteorder::ByteOrder;
+use primitive_types::U256;
 
 use skw_vm_primitives::borsh::BorshSerialize;
 
@@ -808,33 +809,66 @@ impl<'a> VMLogic<'a> {
     ) -> Result<u64> {
         self.gas_counter.pay_base(ecrecover_base)?;
 
+        if malleability_flag != 0 && malleability_flag != 1 {
+            return Err(VMLogicError::HostError(HostError::ECRecoverError {
+                msg: format!(
+                    "Malleability flag needs to be 0 or 1, but is instead {}",
+                    malleability_flag
+                ),
+            }));
+        }
+
+        let recid = {
+            let recid = libsecp256k1::RecoveryId::parse(v as u8);
+            match recid {
+                Ok(id) => id,
+                Err(_) => {
+                    return Err(VMLogicError::HostError(HostError::ECRecoverError {
+                        msg: format!("V recovery byte 0 through 3 are valid but was provided {}", v),
+                    }));
+                }
+            }
+        };
+
         let signature = {
             let vec = self.get_vec_from_memory_or_register(sig_ptr, sig_len)?;
             if vec.len() != 64 {
                 return Err(VMLogicError::HostError(HostError::ECRecoverError {
                     msg: format!(
-                        "The length of the signature: {}, exceeds the limit of 64 bytes",
+                        "The length of the hash: {}, exceeds the limit of 32 bytes",
                         vec.len()
                     ),
                 }));
             }
 
-            let recid = secp256k1::ecdsa::RecoveryId::from_i32(v as i32);
-            
-            let maybe_sig = match recid {
-                Ok(id) => secp256k1::ecdsa::RecoverableSignature::from_compact(&vec, id),
-                Err(_) => return Err(VMLogicError::HostError(HostError::ECRecoverError {
-                    msg: format!("V recovery byte 0 through 3 are valid but was provided {}", v),
-                }))
-            };
+            // Never fails
+            let maybe_sig = libsecp256k1::Signature::parse_standard(&vec.clone().try_into().unwrap());
 
             match maybe_sig {
                 Ok(sig) => sig,
-                Err(_) => return Err(VMLogicError::HostError(HostError::ECRecoverError {
-                    msg: format!("invalid singature {:?}", vec),
-                }))
+                Err(_) => {
+                    return Ok(false as u64);
+                }
             }
         };
+
+        /* BEGIN malleability_flag checks */
+        let r = U256::from( signature.r.b32() );
+        let s = U256::from( signature.s.b32() );
+
+        const SECP256K1_N: U256 = U256([0xbfd25e8cd0364141, 0xbaaedce6af48a03b, 0xfffffffffffffffe, 0xffffffffffffffff]);
+        const SECP256K1_N_HALF_ONE: U256 = U256([0xdfe92f46681b20a1, 0x5d576e7357a4501d, 0xffffffffffffffff, 0x7fffffffffffffff]);
+
+        let s_check = if malleability_flag != 0 {
+            SECP256K1_N_HALF_ONE
+        } else {
+            SECP256K1_N
+        };
+
+        if !(r < SECP256K1_N && s < s_check) {
+            return Ok(false as u64);
+        }
+        /* END malleability_flag checks */
 
         let hash = {
             let vec = self.get_vec_from_memory_or_register(hash_ptr, hash_len)?;
@@ -847,31 +881,16 @@ impl<'a> VMLogic<'a> {
                 }));
             }
 
-            // We have checked for length == 32, therefore, this unwrap is safe
-            secp256k1::Message::from_slice(&vec).unwrap()
+            // Never fails
+            libsecp256k1::Message::parse(&vec.try_into().unwrap())
         };
 
-        if malleability_flag != 0 && malleability_flag != 1 {
-            return Err(VMLogicError::HostError(HostError::ECRecoverError {
-                msg: format!(
-                    "Malleability flag needs to be 0 or 1, but is instead {}",
-                    malleability_flag
-                ),
-            }));
-        }
-
-        let secp = secp256k1::Secp256k1::new();
-
-        // if !signature.check_signature_values(malleability_flag != 0) {
-        //     return Ok(false as u64);
-        // }
-
-        if let Ok(pk) = secp.recover_ecdsa(&hash, &signature) {
+        if let Ok(pk) = libsecp256k1::recover(&hash, &signature, &recid) {
             self.internal_write_register(
-                register_id, pk.serialize_uncompressed()[1..65].to_vec()
+                register_id, pk.serialize()[1..65].to_vec()
             )?;
             return Ok(true as u64);
-        };
+        }
 
         Ok(false as u64)
     }
