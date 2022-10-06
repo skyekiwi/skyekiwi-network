@@ -4,6 +4,7 @@ use crate::config::{
     safe_add_balance, safe_add_gas, safe_gas_to_balance, total_deposit, total_prepaid_exec_fees, total_prepaid_gas,
 };
 use crate::{ApplyStats, DelayedReceiptIndices};
+use skw_vm_primitives::account::Account;
 use skw_vm_primitives::errors::{
     BalanceMismatchError, IntegerOverflowError, RuntimeError, StorageError,
 };
@@ -25,8 +26,6 @@ pub(crate) fn check_balance(
     outgoing_receipts: &[Receipt],
     stats: &ApplyStats,
 ) -> Result<(), RuntimeError> {
-
-    // println!("HERE {:?} {:?} {:?}", transactions, incoming_receipts, outgoing_receipts);
     // Delayed receipts
     let initial_delayed_receipt_indices: DelayedReceiptIndices =
         get(initial_state, &TrieKey::DelayedReceiptIndices)?.unwrap_or_default();
@@ -65,7 +64,7 @@ pub(crate) fn check_balance(
         .chain(incoming_receipts.iter().map(|r| r.receiver_id.clone()))
         .chain(processed_delayed_receipts.iter().map(|r| r.receiver_id.clone()))
         .collect();
-    // println!("ALL ACC {:?}", all_accounts_ids);
+
     let total_accounts_balance = |state| -> Result<Balance, RuntimeError> {
         Ok(all_accounts_ids
             .iter()
@@ -86,7 +85,6 @@ pub(crate) fn check_balance(
         Ok(match &receipt.receipt {
             ReceiptEnum::Action(action_receipt) => {
                 let mut total_cost = total_deposit(&action_receipt.actions)?;
-                // TODO: this is pretty strange ... might gotta look into this
                 if !AccountId::is_system(&receipt.predecessor_id) {
                     let mut total_gas = safe_add_gas(
                         transaction_costs.action_receipt_creation_config.exec_fee(),
@@ -120,7 +118,6 @@ pub(crate) fn check_balance(
     let processed_delayed_receipts_balance = receipts_cost(&processed_delayed_receipts)?;
     let new_delayed_receipts_balance = receipts_cost(&new_delayed_receipts)?;
 
-    println!("{:?} {:?}", incoming_receipts_balance,outgoing_receipts_balance );
     // Postponed actions receipts. The receipts can be postponed and stored with the receiver's
     // account ID when the input data is not received yet.
     // We calculate all potential receipts IDs that might be postponed initially or after the
@@ -224,7 +221,7 @@ mod tests {
     use skw_vm_store::test_utils::create_tries;
 
     pub fn alice_account() -> AccountId {
-        AccountId::test()
+        AccountId::system()
     }
     pub fn bob_account() -> AccountId {
         AccountId::test2()
@@ -308,7 +305,6 @@ mod tests {
         ).unwrap();
     }
 
-    // TODO: check on this
     #[test]
     fn test_check_balance_tx_to_receipt() {
         let tries = create_tries();
@@ -332,7 +328,7 @@ mod tests {
 
         let mut final_state = tries.new_trie_update(root);
         let final_account = account_new(
-            initial_balance - (exec_gas + send_gas) as Balance * gas_price - deposit,
+            initial_balance - (exec_gas /* + send_gas send_gas is free because root */ ) as Balance * gas_price - deposit,
             hash_bytes(&[]),
             0
         );
@@ -385,10 +381,10 @@ mod tests {
         let root = MerkleHash::default();
         
         let signer1 =
-            InMemorySigner::from_seed(KeyType::ED25519, &[0; 32][..]);
+            InMemorySigner::from_seed(KeyType::SR25519, &[0; 32][..]);
 
         let signer2 =
-            InMemorySigner::from_seed(KeyType::ED25519, &[1; 32][..]);
+            InMemorySigner::from_seed(KeyType::SR25519, &[1; 32][..]);
 
         let alice_id = signer1.account_id();
         let bob_id = signer2.account_id() ;

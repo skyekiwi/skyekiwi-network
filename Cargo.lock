@@ -7137,7 +7137,6 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "clap",
- "getrandom 0.2.7",
  "hex",
  "lazy-static-include",
  "skw-blockchain-primitives",

@@ -1,5 +1,5 @@
 use std::{
-    convert::{TryInto, TryFrom},
+    convert::TryInto,
     path::PathBuf,
     fs,
     sync::Arc,
@@ -99,7 +99,7 @@ impl Caller {
         Transaction::new(
             self.account_id.clone(),
             receiver_id,
-            account.nonce,
+            account.nonce + 1,
             CryptoHash::default(),
         )
     }
@@ -177,7 +177,7 @@ impl Caller {
     pub fn view_account(&self, account_id: AccountId) -> Option<Account> {
         (*self.runtime)
             .borrow()
-            .view_account(self.account_id.clone())
+            .view_account(account_id.clone())
     }
 
     pub fn call_enclave(
@@ -342,4 +342,72 @@ impl Caller {
         all_outcomes.clone()
     }
     
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::Caller;
+    use skw_vm_store::create_store;
+    
+    fn to_yocto(value: &str) -> u128 {
+        let vals: Vec<_> = value.split('.').collect();
+        let part1 = vals[0].parse::<u128>().unwrap() * 10u128.pow(24);
+        if vals.len() > 1 {
+            let power = vals[1].len() as u32;
+            let part2 = vals[1].parse::<u128>().unwrap() * 10u128.pow(24 - power);
+            part1 + part2
+        } else {
+            part1
+        }
+    }
+
+    use super::*;
+    #[test]
+    fn test_dump_state_from_file() {
+        let state_root = {
+            let store = create_store();
+
+            let caller = Caller::new(
+                store.clone(), [0u8; 32], AccountId::root(), "dummy".to_string() );
+
+            let _ = caller
+                .deploy(
+                    [0u8; 300]
+                        .as_ref()
+                        .into(),
+                    AccountId::testn(1),
+                    to_yocto("1"),
+                );
+        
+
+            let _ = caller.create_user(
+                AccountId::testn(2),
+                to_yocto("200")
+            );
+
+            let contract_account = caller.view_account(AccountId::testn(1));
+            let normal_account = caller.view_account(AccountId::testn(2));
+
+            assert!(contract_account.is_some());
+            assert!(normal_account.is_some());
+            caller.write_to_file("./mock/new1");
+            caller.state_root()
+        };
+
+        {
+            let store = create_store();
+            store.load_state_from_file("./mock/new1").unwrap();
+
+            let caller = Caller::new(
+                store.clone(), state_root, AccountId::system(), 
+            "../../skw-contract-sdk/examples/status-message-collections/res/".to_string() );
+
+            let contract_account = caller.view_account(AccountId::testn(1));
+            let normal_account = caller.view_account(AccountId::testn(2));
+            
+            assert!(contract_account.is_some());
+            assert!(normal_account.is_some());
+        };
+    }
 }

@@ -71,6 +71,10 @@ impl AccountId {
 		AccountId(Box::new(PublicKey::system()))
     }
 
+	pub fn root() -> Self {
+		AccountId(Box::new(PublicKey::root()))
+	}
+
 	pub fn test() -> Self {
 		AccountId(Box::new(PublicKey::test()))
     }
@@ -87,7 +91,6 @@ impl AccountId {
 		Ok(())
 	}
 
-	// Todo: this is a test func
 	pub fn from_bytes(bytes: [u8; 33]) -> Result<Self, crate::crypto::ParseKeyError> {
 		let pk = PublicKey::from_bytes(&bytes[..])?;
 		Ok(AccountId(Box::new(pk)))

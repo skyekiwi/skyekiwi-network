@@ -7,7 +7,7 @@ use skw_vm_pool::{types::PoolIterator, TransactionPool};
 use skw_vm_primitives::{
     account_id::AccountId,
     account::Account,
-    crypto::{InMemorySigner, KeyType, PublicKey, Signer},
+    crypto::{KeyType, PublicKey, Signer},
     errors::RuntimeError,
     contract_runtime::{
         CryptoHash, Balance, BlockNumber, Gas, Duration
@@ -37,12 +37,13 @@ pub fn init_runtime(
     let mut config = cfg.unwrap_or_default();
 
     config.runtime_config.wasm_config.limit_config.max_total_prepaid_gas = config.gas_limit;
-
-    // TODO: look deeper into this u128 overflow
-    let pallet_root_account = account_new(10u128.pow(30), CryptoHash::default(), 0);
+    config.state_records.push(StateRecord::Account {
+        account_id: AccountId::root(),
+        account: account_new(10u128.pow(31), CryptoHash::default(), 0),
+    });
     config.state_records.push(StateRecord::Account {
         account_id: AccountId::system(),
-        account: pallet_root_account,
+        account: account_new(10u128.pow(31), CryptoHash::default(), 0),
     });
 
     let state_root = match state_root {
@@ -233,7 +234,7 @@ impl RuntimeStandalone {
             config: Arc::new(self.runtime_config.clone()),
         };
 
-        let apply_result = self.runtime.apply(
+        let apply_result  = self.runtime.apply(
             self.tries.get_trie(),
             self.cur_block.state_root,
             &apply_state,
@@ -312,6 +313,7 @@ impl RuntimeStandalone {
 mod tests {
     use std::convert::TryFrom;
 
+    use skw_vm_primitives::crypto::InMemorySigner;
     use skw_vm_primitives::account::Account;
     use skw_vm_store::get_account;
 
@@ -356,7 +358,7 @@ mod tests {
 
         let hash = runtime.send_tx(SignedTransaction::create_account(
             1,
-            AccountId::system(),
+            AccountId::root(),
             AccountId::test(),
             100,
             &random_signer,
@@ -377,14 +379,13 @@ mod tests {
         assert_eq!(runtime.view_account(AccountId::test()), None);
         let outcome = runtime.resolve_tx(SignedTransaction::create_account(
             1,
-            AccountId::system(),
+            AccountId::root(),
             AccountId::test(),
             165437999999000,
             &random_signer,
             CryptoHash::default(),
         ));
 
-        println!("{:?}", outcome);
          assert!(matches!(
             outcome,
             Ok((_, ExecutionOutcome { status: ExecutionStatus::SuccessValue(_), .. }))
@@ -403,7 +404,7 @@ mod tests {
         assert!(matches!(
             runtime.resolve_tx(SignedTransaction::create_contract(
                 1,
-                AccountId::system(),
+                AccountId::root(),
                 AccountId::testn(2),
                 include_bytes!("../../skw-contract-sdk/examples/status-message/res/status_message.wasm")
                     .as_ref()
@@ -416,7 +417,7 @@ mod tests {
         ));
         let res = runtime.resolve_tx(SignedTransaction::create_contract(
             2,
-            AccountId::system(),
+            AccountId::root(),
             AccountId::testn(3),
             include_bytes!(
                 "../../skw-contract-sdk/examples/cross-contract-high-level/res/cross_contract_high_level.wasm"
@@ -433,7 +434,7 @@ mod tests {
         ));
         let res = runtime.resolve_tx(SignedTransaction::call(
             3,
-            AccountId::system(),
+            AccountId::root(),
             AccountId::testn(3),
             &random_signer,
             0,
@@ -451,8 +452,6 @@ mod tests {
         let res = runtime.view_method_call(AccountId::testn(2), "get_status", b"{\"account_id\": \"modlscontrac\"}");
 
         let parsed_res = res.result();
-
-        println!("{:?}", res);
 
         let caller_status = String::from_utf8(parsed_res.0.unwrap()).unwrap();
         assert_eq!("\"caller status is ok!\"", caller_status);

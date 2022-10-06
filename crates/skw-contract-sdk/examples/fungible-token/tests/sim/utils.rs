@@ -6,7 +6,9 @@ use fungible_token::ContractContract as FtContract;
 use skw_contract_sdk::AccountId;
 use skw_contract_sdk::json_types::U128;
 use skw_contract_sdk::serde_json::json;
-use skw_contract_sim::{deploy, init_simulator, to_yocto, ContractAccount, UserAccount, DEFAULT_GAS};
+
+use skw_vm_interface::{DEFAULT_GAS};
+// use skw_contract_sim::{deploy, init_simulator, to_yocto, ContractAccount, UserAccount, DEFAULT_GAS};
 
 // Load in contract bytes at runtime
 skw_contract_sim::lazy_static_include::lazy_static_include_bytes! {
@@ -27,7 +29,7 @@ pub fn register_user(user: &skw_contract_sim::UserAccount) {
         })
         .to_string()
         .into_bytes(),
-        skw_contract_sim::DEFAULT_GAS / 2,
+        DEFAULT_GAS / 2,
         skw_contract_sdk::env::storage_byte_cost() * 125, // attached deposit
     )
     .assert_success();

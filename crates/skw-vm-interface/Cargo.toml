@@ -12,17 +12,17 @@ NEAR Simulator & cross-contract testing library
 """
 
 [dependencies]
+
 skw-blockchain-primitives = { path = "../skw-blockchain-pallets/primitives", default-features = false}
 skw-vm-host = { path = "../skw-vm-host", default-features = false}
 skw-vm-store = { path = "../skw-vm-store", default-features = false}
 skw-vm-primitives = { path = "../skw-vm-primitives", default-features = false}
 skw-vm-runtime = { path = "../skw-vm-runtime", default-features = false}
 skw-vm-pool = { path = "../skw-vm-pool", default-features = false}
+
 hex = { version = "0.4", default-features = false }
 
 lazy-static-include = "3"
-getrandom = { version = "0.2", features = ["js"] }
-
 bs58 = { version = "0.4.0", default-features = false} 
 
 clap = { version = "3.1.16", features = ["derive"] }
