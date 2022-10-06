@@ -1,6 +1,7 @@
 use super::{Receipt, VmAction};
-use crate::{Balance, AccountId};
+use crate::{Balance};
 
+use skw_vm_host::types::AccountId as VmAccountId;
 use skw_vm_host::{RuntimeExternal as External, HostError, ValuePtr};
 use std::{ collections::HashMap };
 
@@ -65,7 +66,7 @@ impl External for SdkExternal {
     fn create_receipt(
         &mut self,
         receipt_indices: Vec<u64>,
-        receiver_id: AccountId,
+        receiver_id: VmAccountId,
     ) -> Result<u64> {
         if let Some(index) = receipt_indices.iter().find(|&&el| el >= self.receipts.len() as u64) {
             return Err(HostError::InvalidReceiptIndex { receipt_index: *index }.into());
@@ -130,7 +131,7 @@ impl External for SdkExternal {
     fn append_action_delete_account(
         &mut self,
         receipt_index: u64,
-        beneficiary_id: AccountId,
+        beneficiary_id: VmAccountId,
     ) -> Result<()> {
         self.receipts
             .get_mut(receipt_index as usize)

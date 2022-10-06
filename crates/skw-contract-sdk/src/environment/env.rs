@@ -10,7 +10,7 @@ use std::{mem::MaybeUninit};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::mock::MockedBlockchain;
 use crate::{Balance, BlockNumber, Gas, StorageUsage, AccountId};
-use skw_vm_host::types::{PromiseIndex, PromiseResult};
+use crate::{PromiseIndex, PromiseResult};
 
 use skw_contract_sys as sys;
 
@@ -146,12 +146,7 @@ pub fn predecessor_account_id() -> AccountId {
 
 /// Helper function to convert and check the account ID from bytes from the runtime.
 fn assert_valid_account_id(bytes: Vec<u8>) -> AccountId {
-    let b: [u8; 33] = bytes
-        .try_into()
-        .unwrap_or_else(|_| abort());
-
-    AccountId::from_bytes(b)
-        .unwrap_or_else(|_| abort())
+    AccountId::from_bytes(&bytes[..]).unwrap_or_else(|_| abort())
 }
 
 /// The input to the contract call serialized as bytes. If input is not provided returns `None`.

@@ -1,18 +1,18 @@
 use crate::test_utils::VMContextBuilder;
 
-use skw_vm_primitives::account_id::AccountId;
+use crate::AccountId;
 use skw_vm_primitives::config::VMConfig;
 
 pub fn alice() -> AccountId {
-    AccountId::testn(0)
+    AccountId::test(0)
 }
 
 pub fn bob() -> AccountId {
-    AccountId::testn(1)
+    AccountId::test(1)
 }
 
 pub fn carol() -> AccountId {
-    AccountId::testn(2)
+    AccountId::test(2)
 }
 
 /// free == effectively unlimited gas

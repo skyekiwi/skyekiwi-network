@@ -1,7 +1,7 @@
 use crate::mock::MockedBlockchain;
-use crate::{Balance, BlockNumber, Gas, StorageUsage, AccountId, RuntimeFeesConfig};
+use crate::{Balance, BlockNumber, Gas, StorageUsage, AccountId, PromiseResult, RuntimeFeesConfig};
 
-use skw_vm_host::{VMConfig, ViewConfig, VMContext, types::PromiseResult};
+use skw_vm_host::{VMConfig, ViewConfig, VMContext};
 use std::convert::TryInto;
 
 /// Simple VMContext builder that allows to quickly create custom context in tests.
@@ -21,9 +21,9 @@ impl VMContextBuilder {
     pub fn new() -> Self {
         Self {
             context: VMContext {
-                current_account_id: AccountId::test(),
-                signer_account_id: AccountId::testn(2),
-                predecessor_account_id: AccountId::testn(2),
+                current_account_id: AccountId::test(0).into(),
+                signer_account_id: AccountId::test(2).into(),
+                predecessor_account_id: AccountId::test(2).into(),
                 input: vec![],
                 block_number: 0,
                 block_timestamp: 0,
