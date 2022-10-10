@@ -4,7 +4,6 @@ use crate::config::{
     safe_add_balance, safe_add_gas, safe_gas_to_balance, total_deposit, total_prepaid_exec_fees, total_prepaid_gas,
 };
 use crate::{ApplyStats, DelayedReceiptIndices};
-use skw_vm_primitives::account::Account;
 use skw_vm_primitives::errors::{
     BalanceMismatchError, IntegerOverflowError, RuntimeError, StorageError,
 };

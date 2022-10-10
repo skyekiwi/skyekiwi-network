@@ -430,7 +430,7 @@ mod tests {
 
         assert_eq!(
             to_base(&new_signed_tx.get_hash()),
-            "E1q4wSCTzqL4MAv2Eyf2BhkzfdLve2cXY8JPECgaWFYh",
+            "7j7iLRfYqFHdY2LgGtPA3Z5YLgJAyDY86UBdqtJ4ny49",
         );
     }
 

@@ -25,8 +25,8 @@ use skw_vm_primitives::{
 };
 
 use skw_blockchain_primitives::{
-    types::{Calls, Outcome, Outcomes, StatePatch, Call},
-    util::{decode_hex, unpad_size, pad_size, public_key_to_offchain_id},
+    types::{Calls, Outcome, Outcomes},
+    util::{unpad_size, pad_size},
     BorshDeserialize, BorshSerialize,
 };
 

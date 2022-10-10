@@ -7,7 +7,6 @@ use skw_vm_pool::{types::PoolIterator, TransactionPool};
 use skw_vm_primitives::{
     account_id::AccountId,
     account::Account,
-    crypto::{KeyType, PublicKey, Signer},
     errors::RuntimeError,
     contract_runtime::{
         CryptoHash, Balance, BlockNumber, Gas, Duration
@@ -311,11 +310,7 @@ impl RuntimeStandalone {
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryFrom;
-
-    use skw_vm_primitives::crypto::InMemorySigner;
-    use skw_vm_primitives::account::Account;
-    use skw_vm_store::get_account;
+    use skw_vm_primitives::crypto::{InMemorySigner, KeyType};
 
     fn to_yocto(value: &str) -> u128 {
         let vals: Vec<_> = value.split('.').collect();
