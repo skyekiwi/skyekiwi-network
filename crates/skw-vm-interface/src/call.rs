@@ -200,7 +200,7 @@ impl Caller {
     ) -> Result<ExecutionResult, RuntimeError> {
         self.call(
             small_account_id_to_account_id(pending_tx.receiver_id.clone()), 
-            &pending_tx.method, &pending_tx.args, 300000000000000, deposit
+            &pending_tx.method, &pending_tx.args, DEFAULT_GAS, deposit
         )
     }
 

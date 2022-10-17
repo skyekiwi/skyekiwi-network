@@ -130,8 +130,8 @@ fn test_sim_transfer() {
     let v: Vec<u8> = vec![7, 1,  8, 10];
     // let v: Vec<u8> = vec![11, 10];
 
-    let s = caller.function_call( contract.fab(2u8), 0 ).unwrap();
-    println!("{:?}", s);
+    let s = caller.function_call( contract.merge_sort(v), 0 ).unwrap();
+    println!("{:?}", s.unwrap_borsh::<Vec<u8>>());
 
     assert!(1 == 0);
     // call!(master_account, contract.merge_sort(v1)).assert_success();
