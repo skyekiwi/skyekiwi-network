@@ -73,16 +73,13 @@ impl Into<skw_vm_host::types::AccountId> for AccountId {
 
 }
 
-impl<'de> Deserialize<'de> for AccountId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, <D as de::Deserializer<'de>>::Error>
+impl<'de> de::Deserialize<'de> for AccountId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: de::Deserializer<'de>,
     {
-        let pk = PublicKey::from_bytes(
-            &<Vec<u8> as Deserialize>::deserialize(deserializer)?
-        ).map_err(|e| Error::custom(e.to_string()))?;
-        
-        Ok(AccountId(Box::new(pk)))
+        let account_id = <PublicKey as Deserialize>::deserialize(deserializer)?;
+        Ok(AccountId(Box::new(account_id)))
     }
 }
 

@@ -14,7 +14,7 @@ use crate::{
     runtime::{init_runtime, RuntimeStandalone},
 };
 
-use skw_vm_store::Store;
+use skw_vm_store::{Store, create_store};
 use skw_vm_primitives::{
     contract_runtime::{CryptoHash, Balance, Gas},
     transaction::{Transaction, ExecutionStatus},
@@ -30,13 +30,23 @@ use skw_blockchain_primitives::{
     BorshDeserialize, BorshSerialize,
 };
 
+use skw_contract_sdk::PendingContractTx;
+use skw_contract_sdk::types::AccountId as SmallAccountId;
+
 pub const DEFAULT_GAS: u64 = 300_000_000_000_000;
+pub const STORAGE_AMOUNT: u128 = 50_000_000_000_000_000_000_000_000;
 
 fn vec_to_str(buf: &Vec<u8>) -> String {
     match std::str::from_utf8(buf) {
         Ok(v) => v.to_string(),
         Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
     }
+}
+
+fn small_account_id_to_account_id(account_id: SmallAccountId) -> AccountId {
+    AccountId::from_bytes(
+        account_id.as_bytes().try_into().unwrap()
+    ).unwrap()
 }
 
 pub struct Caller {
@@ -50,6 +60,22 @@ pub struct Caller {
 }
 
 impl Caller {
+
+    pub fn new_test_env(
+        account_id: AccountId,
+        wasm_files_base: String
+    ) -> Self {
+        let c = Self::new(
+            create_store(),
+            CryptoHash::default(),
+            AccountId::root(),
+            wasm_files_base
+        );
+
+        c.create_user(account_id, 1_000_000_000);
+
+        c
+    }
 
     pub fn new(
         store: Arc<Store>,
@@ -79,14 +105,25 @@ impl Caller {
         (*self.runtime).borrow().state_root()
     }
 
-    fn update_account(&mut self, signer: AccountId) {
+    pub fn clone_and_set(&self, signer: AccountId) -> Self {
         let runtime = init_runtime(
             None,
             Some(self.store.clone()),
             Some(self.state_root),
         );
 
-        self.runtime = Rc::new(RefCell::new(runtime));
+        Self {
+            account_id: signer.clone(),
+            runtime: Rc::new(RefCell::new(runtime)),
+
+            store: self.store.clone(),
+            state_root: self.state_root.clone(),
+
+            wasm_files_base: self.wasm_files_base.clone()
+        }
+    }
+
+    pub fn set_account(&mut self, signer: AccountId) {
         self.account_id = signer.clone();
     }
 
@@ -109,6 +146,14 @@ impl Caller {
         let res = (*self.runtime).borrow_mut().resolve_tx(transaction.sign(&random_signer))?;
         (*self.runtime).borrow_mut().process_all()?;
         Ok(outcome_into_result(res.1))
+    }
+
+    pub fn account_id(&self) -> AccountId {
+        self.account_id.clone()
+    }
+
+    pub fn account(&self) -> Option<Account> {
+        self.view_account(self.account_id.clone())
     }
 
     pub fn view(&self, receiver_id: AccountId, method: &str, args: &[u8]) -> ViewResult {
@@ -146,6 +191,28 @@ impl Caller {
         ))
     }
 
+     /// Make a contract call.  `pending_tx` includes the receiver, the method to call as well as its arguments.
+    /// Note: You will most likely not be using this method directly but rather the [`call!`](./macro.call.html) macro.
+    pub fn function_call(
+        &self,
+        pending_tx: PendingContractTx,
+        deposit: Balance,
+    ) -> Result<ExecutionResult, RuntimeError> {
+        self.call(
+            small_account_id_to_account_id(pending_tx.receiver_id.clone()), 
+            &pending_tx.method, &pending_tx.args, 300000000000000, deposit
+        )
+    }
+
+    /// Call a view method on a contract.
+    /// Note: You will most likely not be using this method directly but rather the [`view!`](./macros.view.html) macro.
+    pub fn view_method_call(&self, pending_tx: PendingContractTx) -> ViewResult {
+        self.view(
+            small_account_id_to_account_id(pending_tx.receiver_id.clone()), 
+            &pending_tx.method, &pending_tx.args
+        )
+    }
+
     pub fn deploy(
         &self,
         wasm_bytes: &[u8],
@@ -160,6 +227,7 @@ impl Caller {
         )
     }
 
+    // Misc Functions
     fn key_to_account_id(key: &[u8; 32]) -> AccountId {
         AccountId::from_bytes({
             let mut whole: [u8; 33] = [0; 33];
@@ -180,7 +248,8 @@ impl Caller {
             .view_account(account_id.clone())
     }
 
-    pub fn call_enclave(
+    // High level call wrapper
+    pub fn call_payload(
         &mut self, payload: &[u8]
     ) -> Vec<u8> {    
         let mut all_outcomes: Vec<u8> = Vec::new();
@@ -200,7 +269,7 @@ impl Caller {
                 let origin_account_id = Caller::key_to_account_id(&origin_id);
                 let receipt_account_id = Caller::key_to_account_id(&receipt_id);
     
-                self.update_account(origin_account_id);
+                self.set_account(origin_account_id);
                 
                 let mut raw_outcome: Option<Result<ExecutionResult, RuntimeError>> = None; 
                 let mut view_outcome: Option<ViewResult> = None; 
@@ -344,6 +413,82 @@ impl Caller {
     
 }
 
+// pub struct ContractCaller<T> {
+//     pub base_caller: Caller,
+//     pub contract: T
+// }
+
+// impl<T> ContractCaller<T> {
+//     pub fn new(
+//         contract: T,
+//         contract_id: AccountId,
+//         wasm_bytes: &[u8],
+//         caller: Caller,
+//     ) -> Self {
+//         caller.deploy(wasm_bytes, account_id, super::STORAGE_AMOUNT);
+//         let contract_caller = caller.clone_and_set(contract_id);
+//         Self {
+//             base_caller: contract_caller,
+//             contract: contract {
+//                 account_id: skw_contract_sdk::types::AccountId::new(contract_id.as_bytes()[..].to_vec().try_into().unwrap())
+//             }
+//         }
+//     }
+// }
+
+// #[macro_export]
+// macro_rules! deploy {
+//     ($contract: ident, $account_id:expr, $wasm_bytes: expr, $user:expr $(,)?) => {
+//         deploy!($contract, $account_id, $wasm_bytes, $user, skw_vm_interface::STORAGE_AMOUNT)
+//     };
+//     ($contract: ident, $account_id:expr, $wasm_bytes: expr, $user:expr, $deposit: expr $(,)?) => {
+//         skw_vm_interface::ContractCaller::new(
+//             $contract, $account_id, $wasm_bytes, $user
+//         )
+//     };
+//     (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr $(,)?) => {
+//       deploy!($contract, $account_id, $wasm_bytes, $user)
+//     };
+//     (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, deposit: $deposit: expr $(,)?) => {
+//         deploy!($contract, $account_id, $wasm_bytes, $user, $deposit)
+//     };
+
+//     (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, gas: $gas:expr, init_method: $method: ident($($arg:expr),*) $(,)?) => {
+//        deploy!($contract, $account_id, $wasm_bytes, $user, skw_vm_interface::STORAGE_AMOUNT, $gas, $method, $($arg),*)
+//     };
+//     (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, deposit: $deposit: expr, init_method: $method: ident($($arg:expr),*) $(,)?) => {
+//        deploy!($contract, $account_id, $wasm_bytes, $user, $deposit, skw_vm_interface::DEFAULT_GAS, $method, $($arg),*)
+//     };
+//     (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, init_method: $method: ident($($arg:expr),*) $(,)?) => {
+//        deploy!($contract, $account_id, $wasm_bytes, $user, skw_vm_interface::STORAGE_AMOUNT, skw_vm_interface::DEFAULT_GAS, $method, $($arg),*)
+//     };
+// }
+
+// #[macro_export]
+// macro_rules! call {
+//     ($signer:expr, $deposit: expr, $gas: expr, $contract: ident, $method:ident, $($arg:expr),*) => {
+//         $signer.function_call((&$contract).contract.$method($($arg),*), $gas, $deposit)
+//     };
+//     ($signer:expr, $contract: ident.$method:ident($($arg:expr),*), $deposit: expr, $gas: expr) => {
+//         call!($signer, $deposit, $gas, $contract, $method, $($arg),*)
+//     };
+//     ($signer:expr, $contract: ident.$method:ident($($arg:expr),*)) => {
+//         call!($signer, 0, skw_vm_interface::DEFAULT_GAS,  $contract, $method, $($arg),*)
+//     };
+//     ($signer:expr, $contract: ident.$method:ident($($arg:expr),*), gas=$gas_or_deposit: expr) => {
+//         call!($signer, 0, $gas_or_deposit, $contract, $method, $($arg),*)
+//     };
+//     ($signer:expr, $contract: ident.$method:ident($($arg:expr),*), deposit=$gas_or_deposit: expr) => {
+//         call!($signer, $gas_or_deposit, skw_vm_interface::DEFAULT_GAS, $contract, $method, $($arg),*)
+//     };
+// }
+
+// #[macro_export]
+// macro_rules! view {
+//     ($contract: ident.$method:ident($($arg:expr),*)) => {
+//         (&$contract).base_caller.view_method_call((&$contract).contract.$method($($arg),*))
+//     };
+// }
 
 #[cfg(test)]
 mod test {

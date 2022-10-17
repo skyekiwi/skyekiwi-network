@@ -149,11 +149,30 @@ impl TryFrom<Vec<u8>> for PublicKey {
 }
 
 impl serde::Serialize for PublicKey {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&String::from(self))
+        let s = hex::encode(self.as_bytes().to_vec()); 
+        serializer.serialize_str(&s)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for PublicKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as serde::Deserializer<'de>>::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = <String as serde::Deserialize>::deserialize(deserializer)?;
+        let bytes: Vec<u8> = (0..s.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+            .collect();
+        let res = PublicKey::from_bytes(&bytes).map_err(|err | serde::de::Error::custom(err.to_string()))?;
+        Ok(res)
     }
 }
 
@@ -162,16 +181,6 @@ impl BorshDeserialize for PublicKey {
         <Vec<u8> as BorshDeserialize>::deserialize(buf).and_then(|s| {
             Self::try_from(s).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
         })
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for PublicKey {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s: String = serde::Deserialize::deserialize(deserializer)?;
-        s.parse::<PublicKey>().map_err(serde::de::Error::custom)
     }
 }
 

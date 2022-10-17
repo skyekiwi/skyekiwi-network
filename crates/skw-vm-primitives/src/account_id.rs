@@ -51,6 +51,41 @@ mod serde {
 			Ok(AccountId(account_id))
 		}
 	}
+
+	#[cfg(test)]
+	mod tests {
+		use super::AccountId;
+		use serde_json::json;
+
+		#[test]
+		fn json_test() {
+			let x = json!({
+				"a": AccountId::test()
+			});
+
+			println!("{:?}", x);
+		}
+
+		#[test]
+		fn test_is_valid_account_id() {
+
+			let ids = vec![AccountId::testn(1), AccountId::testn(2)];
+
+			for account_id in ids.iter().cloned() {
+				let serialized_account_id = serde_json::to_value(&account_id)
+					.unwrap_or_else(|err| {
+						panic!("failed to serialize account ID {:?}: {}", account_id, err)
+					});
+				// assert_eq!(serialized_account_id, "020101010101010101010101010101010101010101010101010101010101010101");
+ 
+				let deserialized_account_id: AccountId = serde_json::from_value(json!(serialized_account_id))
+					.unwrap_or_else(|err| {
+						panic!("failed to deserialize account ID {:?}: {}", account_id, err)
+					});
+				assert_eq!(deserialized_account_id, account_id);
+			}
+		}
+	}
 }
 
 impl AccountId {

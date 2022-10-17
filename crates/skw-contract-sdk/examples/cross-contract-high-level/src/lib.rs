@@ -27,6 +27,12 @@ pub trait ExtCrossContract {
         #[serializer(borsh)]
         data1: Vec<u8>,
     ) -> Vec<u8>;
+    fn fab(&self, n: u8) -> PromiseOrValue<u64>;
+    fn add(&self, 
+        #[callback_unwrap]
+        a: u64, 
+        #[callback_unwrap]
+        b: u64) -> u64;
 }
 
 // If the name is not provided, the namespace for generated methods in derived by applying snake
@@ -43,15 +49,38 @@ impl CrossContract {
         Promise::new(account_id)
             .create_account()
             .transfer(amount.0)
-            // .add_full_access_key(env::signer_account_pk())
             .deploy_contract(
                 include_bytes!("../../status-message/res/status_message.wasm").to_vec(),
             );
     }
 
+    pub fn fab(&self, num: u8) -> PromiseOrValue<u64> {
+        if num <= 1 {
+            return PromiseOrValue::Value(num as u64);
+        }
+
+        let prepaid_gas = env::prepaid_gas();
+        let account_id = env::current_account_id();
+
+        ext::fab(num - 1, account_id.clone(), 0, prepaid_gas / 4)
+        .and(ext::fab(num - 2, account_id.clone(), 0, prepaid_gas / 4))
+        .then(ext::add(account_id, 0, prepaid_gas / 4))
+        .into()
+    }
+
+    pub fn add(&self, 
+        #[callback_unwrap]
+        a: u64, 
+        #[callback_unwrap]
+        b: u64
+    ) -> u64 {
+        a + b
+    }
+    
+
     #[result_serializer(borsh)]
     pub fn merge_sort(&self, arr: Vec<u8>) -> PromiseOrValue<Vec<u8>> {
-        if arr.len() <= 1 {
+        if arr.len() <= 2 {
             return PromiseOrValue::Value(arr);
         }
         let pivot = arr.len() / 2;
@@ -116,16 +145,17 @@ impl CrossContract {
     //        self.internal_merge(arrs.pop().unwrap(), arrs.pop().unwrap())
     //    }
 
-    pub fn simple_call(&mut self, account_id: AccountId, message: String) {
-        ext_status_message::set_status(message, account_id, 0, env::prepaid_gas() / 2);
+    pub fn simple_call(&mut self, contract_id: AccountId, message: String) {
+        ext_status_message::set_status(message, contract_id, 0, env::prepaid_gas() / 2);
     }
+
     pub fn complex_call(&mut self, account_id: AccountId, message: String) -> Promise {
         // 1) call status_message to record a message from the signer.
         // 2) call status_message to retrieve the message of the signer.
         // 3) return that message as its own result.
         // Note, for a contract to simply call another contract (1) is sufficient.
         let prepaid_gas = env::prepaid_gas();
-        log!("complex_call");
+        log!("{}", env::signer_account_id());
         ext_status_message::set_status(message, account_id.clone(), 0, prepaid_gas / 3).then(
             ext_status_message::get_status(
                 env::signer_account_id(),

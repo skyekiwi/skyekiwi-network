@@ -7,7 +7,7 @@ use skw_vm_primitives::{
     transaction::{ExecutionOutcome, ExecutionStatus},
 };
 use skw_vm_runtime::state_viewer::errors::CallFunctionError;
-use skw_blockchain_primitives::types::Bytes;
+use skw_blockchain_primitives::{types::Bytes, BorshDeserialize};
 
 use std::fmt::Debug;
 use std::fmt::Formatter;
@@ -39,6 +39,31 @@ impl ExecutionResult {
     ) -> Self {
         Self { outcome }
     }
+
+    /// Interpret the SuccessValue as a JSON value
+    pub fn unwrap_json_value(&self) -> skw_contract_sdk::serde_json::Value {
+        use skw_vm_primitives::transaction::ExecutionStatus::*;
+        match &(self.outcome).status {
+            SuccessValue(s) => skw_contract_sdk::serde_json::from_slice(s).unwrap(),
+            err => panic!("Expected Success value but got: {:#?}", err),
+        }
+    }
+    
+    /// Deserialize SuccessValue from JSON
+    pub fn unwrap_json<T: skw_contract_sdk::serde::de::DeserializeOwned>(&self) -> T {
+        skw_contract_sdk::serde_json::from_value(self.unwrap_json_value()).unwrap()
+    }
+    
+
+    /// Deserialize SuccessValue from Borsh
+    pub fn unwrap_borsh<T: BorshDeserialize>(&self) -> T {
+        use skw_vm_primitives::transaction::ExecutionStatus::*;
+        match &(self.outcome).status {
+            SuccessValue(s) => BorshDeserialize::try_from_slice(s).unwrap(),
+            _ => panic!("Cannot get value of failed transaction"),
+        }
+    }
+    
 
     /// Execution status. Contains the result in case of successful execution.
     /// NOTE: Should be the latest field since it contains unparsable by light client

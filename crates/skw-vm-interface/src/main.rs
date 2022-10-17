@@ -76,7 +76,7 @@ fn main() {
         store.clone(), state_root, AccountId::test(), wasm_files_base
     );
 
-    let all_outcomes = caller.call_enclave(&decoded_call);
+    let all_outcomes = caller.call_payload(&decoded_call);
     caller.write_to_file(state_path);
     println!("{:?}", bs58::encode(all_outcomes).into_string());
 }

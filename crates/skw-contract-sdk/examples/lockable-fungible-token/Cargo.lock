@@ -662,6 +662,7 @@ dependencies = [
  "base64 0.13.0",
  "borsh",
  "bs58",
+ "hex",
  "serde",
  "serde_json",
  "skw-contract-macros",
