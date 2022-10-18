@@ -1,19 +1,14 @@
 use std::{
-    convert::{TryInto, TryFrom},
+    convert::{TryInto},
     path::PathBuf,
-    fs
 };
 use clap::Parser;
-
-mod outcome;
-use outcome::{ ExecutionResult, ViewResult};
 
 use skw_vm_store::{create_store};
 use skw_vm_interface::call::Caller;
 use skw_vm_primitives::{
     contract_runtime::CryptoHash,
-    transaction::ExecutionStatus,
-    account_id::AccountId, errors::RuntimeError
+    account_id::AccountId,
 };
 
 use skw_blockchain_primitives::{
@@ -73,7 +68,7 @@ fn main() {
     let decoded_call = bs58::decode(&cli_args.params.unwrap_or_default()).into_vec().unwrap();
     
     let mut caller = Caller::new(
-        store.clone(), state_root, AccountId::test(), wasm_files_base
+        store.clone(), state_root, AccountId::test(), wasm_files_base, None
     );
 
     let all_outcomes = caller.call_payload(&decoded_call);

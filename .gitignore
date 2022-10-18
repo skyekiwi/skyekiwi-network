@@ -44,4 +44,6 @@ mock-enclave/output
 mock-enclave/wasm/status_message_collections.wasm
 tmp
 
+crates/skw-contract-sdk/examples/**/**.wasm
+
 TODO

@@ -64,6 +64,15 @@ impl ExecutionResult {
         }
     }
     
+    /// Asserts that the outcome is successful
+    pub fn assert_success(&self) {
+        use skw_vm_primitives::transaction::ExecutionStatus::*;
+        if let SuccessValue(_) = &(self.outcome).status {
+            assert!(1 == 1);
+        } else {
+            assert!(1 == 0);
+        }
+    }
 
     /// Execution status. Contains the result in case of successful execution.
     /// NOTE: Should be the latest field since it contains unparsable by light client
@@ -154,5 +163,21 @@ impl ViewResult {
         }
 
         res
+    }
+
+    pub fn unwrap_json_value(&self) -> skw_contract_sdk::serde_json::Value {
+        skw_contract_sdk::serde_json::from_slice(self.result.as_ref().expect("ViewResult is an error"))
+            .unwrap()
+    }
+
+    /// Deserialize the value with Borsh
+    pub fn unwrap_borsh<T: BorshDeserialize>(&self) -> T {
+        BorshDeserialize::try_from_slice(self.result.as_ref().expect("ViewResult is an error"))
+            .unwrap()
+    }
+
+    /// Deserialize the value with JSON
+    pub fn unwrap_json<T: skw_contract_sdk::serde::de::DeserializeOwned>(&self) -> T {
+        skw_contract_sdk::serde_json::from_value(self.unwrap_json_value()).unwrap()
     }
 }

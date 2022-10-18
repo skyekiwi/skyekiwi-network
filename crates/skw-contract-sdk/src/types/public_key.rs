@@ -258,7 +258,7 @@ mod tests {
     #[test]
     fn test_public_key_deser() {
         let key: PublicKey =
-            serde_json::from_str("\"sr25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp\"")
+            serde_json::from_str("\"024da7e0f4096aaf2ce55e371657cd3089ba1e9f59f4d6e27bd02e472a16a61dc1\"")
                 .unwrap();
         assert_eq!(key, expected_key());
     }
@@ -267,7 +267,7 @@ mod tests {
     fn test_public_key_ser() {
         let key: PublicKey = expected_key();
         let actual: String = serde_json::to_string(&key).unwrap();
-        assert_eq!(actual, "\"sr25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp\"");
+        assert_eq!(actual, "\"024da7e0f4096aaf2ce55e371657cd3089ba1e9f59f4d6e27bd02e472a16a61dc1\"");
     }
 
     #[test]

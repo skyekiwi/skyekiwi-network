@@ -32,10 +32,11 @@ pub use metadata::{Metadata, MethodMetadata};
 pub mod json_types;
 
 pub mod types;
-pub use crate::types::{
-    Balance, Gas, StorageUsage, BlockNumber, AccountId,
-    PromiseIndex, PromiseResult, CryptoHash,
-};
+pub use crate::types::*;
+// pub use crate::types::{
+//     Balance, Gas, StorageUsage, BlockNumber, AccountId,
+//     PromiseIndex, PromiseResult, CryptoHash,
+// };
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use skw_vm_primitives::fees::RuntimeFeesConfig;

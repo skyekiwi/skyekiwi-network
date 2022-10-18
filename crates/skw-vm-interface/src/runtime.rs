@@ -311,18 +311,6 @@ impl RuntimeStandalone {
 #[cfg(test)]
 mod tests {
     use skw_vm_primitives::crypto::{InMemorySigner, KeyType};
-
-    fn to_yocto(value: &str) -> u128 {
-        let vals: Vec<_> = value.split('.').collect();
-        let part1 = vals[0].parse::<u128>().unwrap() * 10u128.pow(24);
-        if vals.len() > 1 {
-            let power = vals[1].len() as u32;
-            let part2 = vals[1].parse::<u128>().unwrap() * 10u128.pow(24 - power);
-            part1 + part2
-        } else {
-            part1
-        }
-    }
     use super::*;
 
     impl RuntimeStandalone {
@@ -389,67 +377,6 @@ mod tests {
         assert_eq!(runtime.view_account(AccountId::test()).unwrap().code_hash(), CryptoHash::default());
         assert_eq!(runtime.view_account(AccountId::test()).unwrap().locked(), 0);
         assert_eq!(runtime.view_account(AccountId::test()).unwrap().storage_usage(), 100);
-    }
-
-    #[test]
-    fn test_cross_contract_call() {
-        let random_signer = InMemorySigner::from_seed(KeyType::SR25519, &[0]);
-
-        let mut runtime = init_runtime(None, None, None);
-        assert!(matches!(
-            runtime.resolve_tx(SignedTransaction::create_contract(
-                1,
-                AccountId::root(),
-                AccountId::testn(2),
-                include_bytes!("../../skw-contract-sdk/examples/status-message/res/status_message.wasm")
-                    .as_ref()
-                    .into(),
-                to_yocto("35"),
-                &random_signer,
-                CryptoHash::default(),
-            )),
-            Ok((_, ExecutionOutcome { status: ExecutionStatus::SuccessValue(_), .. }))
-        ));
-        let res = runtime.resolve_tx(SignedTransaction::create_contract(
-            2,
-            AccountId::root(),
-            AccountId::testn(3),
-            include_bytes!(
-                "../../skw-contract-sdk/examples/cross-contract-high-level/res/cross_contract_high_level.wasm"
-            )
-            .as_ref()
-            .into(),
-            to_yocto("35"),
-            &random_signer,
-            CryptoHash::default(),
-        ));
-        assert!(matches!(
-            res,
-            Ok((_, ExecutionOutcome { status: ExecutionStatus::SuccessValue(_), .. }))
-        ));
-        let res = runtime.resolve_tx(SignedTransaction::call(
-            3,
-            AccountId::root(),
-            AccountId::testn(3),
-            &random_signer,
-            0,
-            "simple_call".into(),
-            "{\"account_id\": \"status\", \"message\": \"caller status is ok!\"}"
-                .as_bytes()
-                .to_vec(),
-            300_000_000_000_000,
-            CryptoHash::default(),
-        ));
-        let (_, res) = res.unwrap();
-        runtime.process_all().unwrap();
-
-        assert!(matches!(res, ExecutionOutcome { status: ExecutionStatus::SuccessValue(_), .. }));
-        let res = runtime.view_method_call(AccountId::testn(2), "get_status", b"{\"account_id\": \"modlscontrac\"}");
-
-        let parsed_res = res.result();
-
-        let caller_status = String::from_utf8(parsed_res.0.unwrap()).unwrap();
-        assert_eq!("\"caller status is ok!\"", caller_status);
     }
 
     #[test]

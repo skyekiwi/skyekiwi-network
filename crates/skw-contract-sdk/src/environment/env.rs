@@ -613,7 +613,6 @@ pub fn storage_byte_cost() -> Balance {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[cfg(not(target_arch = "wasm32"))]
     #[test]

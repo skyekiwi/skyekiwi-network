@@ -1,5 +1,5 @@
 use borsh::{maybestd::io, BorshDeserialize, BorshSchema, BorshSerialize};
-use serde::{de::{self, Error}, Deserialize, Serialize};
+use serde::{de::{self}, Deserialize, Serialize};
 use std::{fmt};
 
 use super::public_key::{PublicKey, ParsePublicKeyError};

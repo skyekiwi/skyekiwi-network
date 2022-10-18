@@ -9,6 +9,7 @@ use std::{
     rc::Rc,
 };
 
+use crate::runtime::GenesisConfig;
 use crate::{
     outcome::{outcome_into_result, ExecutionResult, ViewResult},
     runtime::{init_runtime, RuntimeStandalone},
@@ -62,19 +63,25 @@ pub struct Caller {
 impl Caller {
 
     pub fn new_test_env(
-        account_id: AccountId,
-        wasm_files_base: String
+        count_gas: bool, charge_gas: bool,
     ) -> Self {
-        let c = Self::new(
+        let mut config = GenesisConfig::default();
+        config.gas_limit = match count_gas {
+            false => u64::MAX,
+            true => config.gas_limit
+        };
+        config.gas_price = match charge_gas {
+            false => 0,
+            true => config.gas_price
+        };
+
+        Self::new(
             create_store(),
             CryptoHash::default(),
             AccountId::root(),
-            wasm_files_base
-        );
-
-        c.create_user(account_id, 1_000_000_000);
-
-        c
+            "".to_string(),
+            Some(config),
+        )
     }
 
     pub fn new(
@@ -82,9 +89,10 @@ impl Caller {
         state_root: CryptoHash,
         account_id: AccountId,
         wasm_files_base: String,
+        custome_genesis_config: Option<GenesisConfig>,
     ) -> Self {
         let runtime = init_runtime(
-            None,
+            custome_genesis_config,
             Some(store.clone()),
             Some(state_root),
         );
@@ -103,24 +111,6 @@ impl Caller {
      /// Look up the latest state_root
     pub fn state_root(&self) -> CryptoHash {
         (*self.runtime).borrow().state_root()
-    }
-
-    pub fn clone_and_set(&self, signer: AccountId) -> Self {
-        let runtime = init_runtime(
-            None,
-            Some(self.store.clone()),
-            Some(self.state_root),
-        );
-
-        Self {
-            account_id: signer.clone(),
-            runtime: Rc::new(RefCell::new(runtime)),
-
-            store: self.store.clone(),
-            state_root: self.state_root.clone(),
-
-            wasm_files_base: self.wasm_files_base.clone()
-        }
     }
 
     pub fn set_account(&mut self, signer: AccountId) {
@@ -197,15 +187,15 @@ impl Caller {
         &self,
         pending_tx: PendingContractTx,
         deposit: Balance,
+        gas_multiplier: u64,
     ) -> Result<ExecutionResult, RuntimeError> {
         self.call(
             small_account_id_to_account_id(pending_tx.receiver_id.clone()), 
-            &pending_tx.method, &pending_tx.args, DEFAULT_GAS, deposit
+            &pending_tx.method, &pending_tx.args, DEFAULT_GAS * gas_multiplier, deposit
         )
     }
 
     /// Call a view method on a contract.
-    /// Note: You will most likely not be using this method directly but rather the [`view!`](./macros.view.html) macro.
     pub fn view_method_call(&self, pending_tx: PendingContractTx) -> ViewResult {
         self.view(
             small_account_id_to_account_id(pending_tx.receiver_id.clone()), 
@@ -413,83 +403,6 @@ impl Caller {
     
 }
 
-// pub struct ContractCaller<T> {
-//     pub base_caller: Caller,
-//     pub contract: T
-// }
-
-// impl<T> ContractCaller<T> {
-//     pub fn new(
-//         contract: T,
-//         contract_id: AccountId,
-//         wasm_bytes: &[u8],
-//         caller: Caller,
-//     ) -> Self {
-//         caller.deploy(wasm_bytes, account_id, super::STORAGE_AMOUNT);
-//         let contract_caller = caller.clone_and_set(contract_id);
-//         Self {
-//             base_caller: contract_caller,
-//             contract: contract {
-//                 account_id: skw_contract_sdk::types::AccountId::new(contract_id.as_bytes()[..].to_vec().try_into().unwrap())
-//             }
-//         }
-//     }
-// }
-
-// #[macro_export]
-// macro_rules! deploy {
-//     ($contract: ident, $account_id:expr, $wasm_bytes: expr, $user:expr $(,)?) => {
-//         deploy!($contract, $account_id, $wasm_bytes, $user, skw_vm_interface::STORAGE_AMOUNT)
-//     };
-//     ($contract: ident, $account_id:expr, $wasm_bytes: expr, $user:expr, $deposit: expr $(,)?) => {
-//         skw_vm_interface::ContractCaller::new(
-//             $contract, $account_id, $wasm_bytes, $user
-//         )
-//     };
-//     (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr $(,)?) => {
-//       deploy!($contract, $account_id, $wasm_bytes, $user)
-//     };
-//     (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, deposit: $deposit: expr $(,)?) => {
-//         deploy!($contract, $account_id, $wasm_bytes, $user, $deposit)
-//     };
-
-//     (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, gas: $gas:expr, init_method: $method: ident($($arg:expr),*) $(,)?) => {
-//        deploy!($contract, $account_id, $wasm_bytes, $user, skw_vm_interface::STORAGE_AMOUNT, $gas, $method, $($arg),*)
-//     };
-//     (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, deposit: $deposit: expr, init_method: $method: ident($($arg:expr),*) $(,)?) => {
-//        deploy!($contract, $account_id, $wasm_bytes, $user, $deposit, skw_vm_interface::DEFAULT_GAS, $method, $($arg),*)
-//     };
-//     (contract: $contract: ident, contract_id: $account_id:expr, bytes: $wasm_bytes: expr, signer_account: $user:expr, init_method: $method: ident($($arg:expr),*) $(,)?) => {
-//        deploy!($contract, $account_id, $wasm_bytes, $user, skw_vm_interface::STORAGE_AMOUNT, skw_vm_interface::DEFAULT_GAS, $method, $($arg),*)
-//     };
-// }
-
-// #[macro_export]
-// macro_rules! call {
-//     ($signer:expr, $deposit: expr, $gas: expr, $contract: ident, $method:ident, $($arg:expr),*) => {
-//         $signer.function_call((&$contract).contract.$method($($arg),*), $gas, $deposit)
-//     };
-//     ($signer:expr, $contract: ident.$method:ident($($arg:expr),*), $deposit: expr, $gas: expr) => {
-//         call!($signer, $deposit, $gas, $contract, $method, $($arg),*)
-//     };
-//     ($signer:expr, $contract: ident.$method:ident($($arg:expr),*)) => {
-//         call!($signer, 0, skw_vm_interface::DEFAULT_GAS,  $contract, $method, $($arg),*)
-//     };
-//     ($signer:expr, $contract: ident.$method:ident($($arg:expr),*), gas=$gas_or_deposit: expr) => {
-//         call!($signer, 0, $gas_or_deposit, $contract, $method, $($arg),*)
-//     };
-//     ($signer:expr, $contract: ident.$method:ident($($arg:expr),*), deposit=$gas_or_deposit: expr) => {
-//         call!($signer, $gas_or_deposit, skw_vm_interface::DEFAULT_GAS, $contract, $method, $($arg),*)
-//     };
-// }
-
-// #[macro_export]
-// macro_rules! view {
-//     ($contract: ident.$method:ident($($arg:expr),*)) => {
-//         (&$contract).base_caller.view_method_call((&$contract).contract.$method($($arg),*))
-//     };
-// }
-
 #[cfg(test)]
 mod test {
     use super::Caller;
@@ -514,7 +427,7 @@ mod test {
             let store = create_store();
 
             let caller = Caller::new(
-                store.clone(), [0u8; 32], AccountId::root(), "dummy".to_string() );
+                store.clone(), [0u8; 32], AccountId::root(), "dummy".to_string(), None);
 
             let _ = caller
                 .deploy(
@@ -546,7 +459,7 @@ mod test {
 
             let caller = Caller::new(
                 store.clone(), state_root, AccountId::system(), 
-            "../../skw-contract-sdk/examples/status-message-collections/res/".to_string() );
+            "../../skw-contract-sdk/examples/status-message-collections/res/".to_string(), None );
 
             let contract_account = caller.view_account(AccountId::testn(1));
             let normal_account = caller.view_account(AccountId::testn(2));

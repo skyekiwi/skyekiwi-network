@@ -35,7 +35,6 @@ pub fn create_module_instance(contract_code: &ContractCode, config: &VMConfig, m
                 CompilationError::WasmCompileError
             })?;
 
-            // TODO: this is a major issue - need to redo a shit lots of config on fees
             // module.deny_floating_point()
             //     .map_err(|_| CompilationError::FloatingPointError)?;
 
