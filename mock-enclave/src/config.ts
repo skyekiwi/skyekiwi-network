@@ -11,6 +11,10 @@ export default {
   genesisStateFile: path.join(__dirname, "../../vm-state-dump/empty__state_dump__ColState"),
   currentStateFile: path.join(__dirname, "../../vm-state-dump/interface__state_dump__ColState"),
   localWASMStorage: path.join(__dirname, "../wasm"),
+
+  surrealDBPort: 8081,
+  surrealDBEndpoint: "http://127.0.0.1:8081/rpc",
+  enclaveRunnerEndpoint: "http://127.0.0.1:8000",
 };
 
 

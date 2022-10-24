@@ -11,11 +11,12 @@ import { Keyring } from '@polkadot/keyring'
 
 import { AsymmetricEncryption } from '@skyekiwi/crypto';
 import { ShardMetadata, buildOutcomes } from '@skyekiwi/s-contract/borsh';
-import { getLogger, sendTx, u8aToHex } from '@skyekiwi/util';
+import { sendTx, u8aToHex } from '@skyekiwi/util';
 
 import {Storage} from './storage'
 import { SubmittableExtrinsic } from '@polkadot/api/promise/types';
 import { QueuedTransaction } from './types';
+import {getLogger} from '../util'
 
 export class ShardManager {
   #keyring: KeyringPair

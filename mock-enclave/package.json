@@ -19,20 +19,23 @@
     "typescript": "^4.5.3"
   },
   "dependencies": {
-    "@polkadot/api": "^8.7.1",
-    "@polkadot/keyring": "^9.4.1 ",
-    "@polkadot/util": "^9.4.1 ",
-    "@polkadot/util-crypto": "^9.4.1 ",
-    "@polkadot/wasm-crypto": "^6.1.1",
-    
-    "@skyekiwi/crypto": "0.7.7-4",
-    "@skyekiwi/file": "0.7.7-4",
-    "@skyekiwi/s-contract": "0.7.7-4",
-    "@skyekiwi/util": "0.7.7-4",
-    "@skyekiwi/ipfs": "0.7.7-4",
-
+    "@polkadot/api": "^9.5.1",
+    "@polkadot/keyring": "^10.1.10",
+    "@polkadot/util": "^10.1.10",
+    "@polkadot/util-crypto": "^10.1.10",
+    "@skyekiwi/crypto": "1.0.2-3",
+    "@skyekiwi/file": "1.0.2-3",
+    "@skyekiwi/ipfs": "1.0.2-3",
+    "@skyekiwi/s-contract": "1.0.2-3",
+    "@skyekiwi/util": "1.0.2-3",
     "dotenv": "^16.0.0",
     "level": "^7.0.1",
-    "tweetnacl": "^1.0.3"
+    "pino": "^8.6.1",
+    "pino-pretty": "^9.1.1",
+    "pm2": "^5.2.2",
+    "superagent": "^8.0.2",
+    "surrealdb.js": "^0.5.0",
+    "tweetnacl": "^1.0.3",
+    "zx": "^7.1.1"
   }
 }

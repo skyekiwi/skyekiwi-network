@@ -1,9 +1,10 @@
 import { ApiPromise } from '@polkadot/api';
 import Level, { LevelDB } from 'level'
 import { LocalMetadata, ExecutionSummary, buildCalls, buildOutcomes, baseEncode  } from '@skyekiwi/s-contract/borsh';
-import { getLogger, hexToU8a, u8aToString} from '@skyekiwi/util';
+import { hexToU8a, u8aToString} from '@skyekiwi/util';
 import { Storage } from './host/storage'
 import { CallRecord } from './host/types';
+import { getLogger } from './util';
 
 const overwriteLocalMetadata = async (db: Level.LevelDB, localMetadata: LocalMetadata) => {
   await Storage.writeAll(db, [
