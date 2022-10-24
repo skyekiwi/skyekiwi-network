@@ -642,6 +642,7 @@ name = "skw-blockchain-primitives"
 version = "3.0.0"
 dependencies = [
  "borsh",
+ "ed25519-dalek",
  "sp-std",
 ]
 

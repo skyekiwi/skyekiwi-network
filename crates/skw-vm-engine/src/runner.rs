@@ -154,14 +154,14 @@ impl WasmiVM {
             &mut memory
         );
 
-        // if logic.add_contract_compile_fee(code.code.len() as u64).is_err() {
-        //     return (
-        //         Some(logic.outcome()),
-        //         Some(VMError::FunctionCallError(FunctionCallError::HostError(
-        //             HostError::GasExceeded
-        //         )))
-        //     )
-        // }
+        if logic.add_contract_compile_fee(code.code.len() as u64).is_err() {
+            return (
+                Some(logic.outcome()),
+                Some(VMError::FunctionCallError(FunctionCallError::HostError(
+                    HostError::GasExceeded
+                )))
+            )
+        }
         
         let module = cache::create_module_instance(&code, wasm_config, memory_copy);
 

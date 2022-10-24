@@ -30,10 +30,7 @@ use skw_blockchain_primitives::{
     sig::{sign_ed25519},
 };
 
-#[feature("contract-sim")]
 use skw_contract_sdk::PendingContractTx;
-
-#[feature("contract-sim")]
 use skw_contract_sdk::types::AccountId as SmallAccountId;
 
 pub const DEFAULT_GAS: u64 = 300_000_000_000_000;
@@ -255,8 +252,8 @@ impl Caller {
             
             let raw_params = &payload[offset + 8..offset + 8 + size];
             
-            // DO something with this .. 
-            let chain_origin_pub_key: &[u8; 32] = &payload[offset + 8 + size..offset + 8 + size + 32].try_into().unwrap();
+            // TODO: more validation for encrypted calls
+            let _chain_origin_pub_key: &[u8; 32] = &payload[offset + 8 + size..offset + 8 + size + 32].try_into().unwrap();
             
             let param_hash = skw_vm_primitives::contract_runtime::hash_bytes(raw_params);
             // let param_hash = blake
@@ -441,7 +438,7 @@ mod test {
             let store = create_store();
 
             let caller = Caller::new(
-                store.clone(), [0u8; 32], AccountId::root(), "dummy".to_string(), None);
+                store.clone(), [0u8; 32], AccountId::root(), None);
 
             let _ = caller
                 .deploy(
@@ -472,8 +469,7 @@ mod test {
             store.load_state_from_file("./mock/new1").unwrap();
 
             let caller = Caller::new(
-                store.clone(), state_root, AccountId::system(), 
-            "../../skw-contract-sdk/examples/status-message-collections/res/".to_string(), None );
+                store.clone(), state_root, AccountId::system(), None );
 
             let contract_account = caller.view_account(AccountId::testn(1));
             let normal_account = caller.view_account(AccountId::testn(2));

@@ -4,7 +4,6 @@ use skw_vm_store::create_store;
 use skw_vm_primitives::contract_runtime::{CryptoHash, AccountId};
 use std::convert::TryInto;
 use rocket::form::Form;
-use rocket::data::{Limits, ToByteUnit};
 
 static mut CALLER: Option<Caller> = None;
 
