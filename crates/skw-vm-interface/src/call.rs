@@ -1,7 +1,5 @@
 use std::{
     convert::TryInto,
-    path::PathBuf,
-    fs,
     sync::Arc,
 };
 use std::{
@@ -29,13 +27,21 @@ use skw_blockchain_primitives::{
     types::{Calls, Outcome, Outcomes},
     util::{unpad_size, pad_size},
     BorshDeserialize, BorshSerialize,
+    sig::{sign_ed25519},
 };
 
+#[feature("contract-sim")]
 use skw_contract_sdk::PendingContractTx;
+
+#[feature("contract-sim")]
 use skw_contract_sdk::types::AccountId as SmallAccountId;
 
 pub const DEFAULT_GAS: u64 = 300_000_000_000_000;
 pub const STORAGE_AMOUNT: u128 = 50_000_000_000_000_000_000_000_000;
+
+// THESE ARE FAKE KEYS
+pub const SEALING_KEY: [u8; 32] = [0u8; 32];
+pub const IDENTITY_PRIVATE_KEY: [u8; 32] = [1u8; 32];
 
 fn vec_to_str(buf: &Vec<u8>) -> String {
     match std::str::from_utf8(buf) {
@@ -56,9 +62,10 @@ pub struct Caller {
 
     store: Arc<Store>,
     state_root: CryptoHash,
-
-    wasm_files_base: String,
 }
+
+unsafe impl core::marker::Send for Caller {}
+unsafe impl core::marker::Sync for Caller {}
 
 impl Caller {
 
@@ -79,7 +86,6 @@ impl Caller {
             create_store(),
             CryptoHash::default(),
             AccountId::root(),
-            "".to_string(),
             Some(config),
         )
     }
@@ -88,7 +94,6 @@ impl Caller {
         store: Arc<Store>,
         state_root: CryptoHash,
         account_id: AccountId,
-        wasm_files_base: String,
         custome_genesis_config: Option<GenesisConfig>,
     ) -> Self {
         let runtime = init_runtime(
@@ -103,8 +108,6 @@ impl Caller {
 
             store: store,
             state_root: CryptoHash::default(),
-
-            wasm_files_base: wasm_files_base.clone(),
         }
     }
 
@@ -240,7 +243,7 @@ impl Caller {
 
     // High level call wrapper
     pub fn call_payload(
-        &mut self, payload: &[u8]
+        &mut self, payload: &[u8],
     ) -> Vec<u8> {    
         let mut all_outcomes: Vec<u8> = Vec::new();
         let payload_len = payload.len();
@@ -249,8 +252,15 @@ impl Caller {
         while offset < payload_len {
             let size = unpad_size(&payload[offset..offset + 4].try_into().unwrap());
             let call_index = unpad_size(&payload[offset + 4..offset + 8].try_into().unwrap());
-    
-            let params: Calls = BorshDeserialize::try_from_slice(&payload[offset + 8..offset + 4 + size]).expect("input parsing failed");
+            
+            let raw_params = &payload[offset + 8..offset + 8 + size];
+            
+            // DO something with this .. 
+            let chain_origin_pub_key: &[u8; 32] = &payload[offset + 8 + size..offset + 8 + size + 32].try_into().unwrap();
+            
+            let param_hash = skw_vm_primitives::contract_runtime::hash_bytes(raw_params);
+            // let param_hash = blake
+            let params: Calls = BorshDeserialize::try_from_slice(raw_params).expect("input parsing failed");
             let mut outcome_of_call = Outcomes::default();
             
             for input in params.ops.iter() {
@@ -341,13 +351,14 @@ impl Caller {
                             input.amount.is_some(),
                             "amount must be provided when transaction_action is set"
                         );
-        
-                        let wasm_file_name = format!("{}/{}.wasm", self.wasm_files_base.clone(), receipt_account_id.to_string());
-                        let wasm_path = PathBuf::from(wasm_file_name);
-                        let code = fs::read(&wasm_path).unwrap();
+
+                        assert!(
+                            input.wasm_code.is_some(),
+                            "amount must be provided when transaction_action is set"
+                        );
         
                         raw_outcome = Some(self.deploy(
-                            &code,
+                            &input.wasm_code.as_ref().unwrap(),
                             receipt_account_id,
                             u128::from(input.amount.unwrap()) * 10u128.pow(24),
                         ));
@@ -361,7 +372,6 @@ impl Caller {
                 match &raw_outcome {
                     Some(Ok(outcome)) => {
                         execution_result.outcome_logs = outcome.logs();
-                        execution_result.outcome_receipt_ids = outcome.receipt_ids().clone();
                         execution_result.outcome_tokens_burnt = outcome.tokens_burnt();
                         execution_result.outcome_status = match outcome.status() {
                             ExecutionStatus::SuccessValue(x) => Some(x),
@@ -388,14 +398,16 @@ impl Caller {
             }
             
             outcome_of_call.state_root = self.state_root;
+            outcome_of_call.call_id = call_index as u32;
+            outcome_of_call.signature = sign_ed25519(&SEALING_KEY, &param_hash[..]).to_vec();
+
             let mut buffer: Vec<u8> = Vec::new();
             outcome_of_call.serialize(&mut buffer).unwrap();
     
-            all_outcomes.extend_from_slice(&pad_size(buffer.len() + 4)[..]);
-            all_outcomes.extend_from_slice(&pad_size(call_index)[..]);
+            all_outcomes.extend_from_slice(&pad_size(buffer.len())[..]);
             all_outcomes.extend_from_slice(&buffer[..]);
     
-            offset += 4 + size;
+            offset += 8 + size + 32;
         }
     
         all_outcomes.clone()

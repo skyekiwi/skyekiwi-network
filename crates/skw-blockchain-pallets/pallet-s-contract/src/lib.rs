@@ -78,7 +78,7 @@ pub mod pallet {
 
 	/// the callIndex that will be assigned to the next calls
 	#[pallet::type_value]
-	pub(super) fn DefaultId<T: Config>() -> CallIndex { 0u64 }
+	pub(super) fn DefaultId<T: Config>() -> CallIndex { 0u32 }
 	#[pallet::storage]
 	#[pallet::getter(fn current_call_index_of)]
 	pub(super) type CurrentCallIndex<T: Config> = StorageValue<_, CallIndex, ValueQuery, DefaultId<T>>;
@@ -306,11 +306,11 @@ pub mod pallet {
 			let high_call_index = Self::current_call_index_of();
 
 			<CallHistory::<T>>::remove_prefix(0, None);
-			for call_index in 0u64..high_call_index {
+			for call_index in 0u32..high_call_index {
 				<CallRecord::<T>>::remove(call_index);
 			}
 
-			<CurrentCallIndex::<T>>::put(0u64);
+			<CurrentCallIndex::<T>>::put(0u32);
 			Ok(())
 		}
 	}
@@ -348,6 +348,7 @@ pub mod pallet {
 						contract_name: Some(contract_name),
 						method: None,
 						args: None,
+						wasm_code: None, // we attach the code on client side to reduce complexity of the call 
 					}]);
 					
 					Ok(skw_blockchain_primitives::BorshSerialize::try_to_vec(&calls).unwrap())

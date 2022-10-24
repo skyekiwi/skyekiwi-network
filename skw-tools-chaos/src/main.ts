@@ -23,19 +23,19 @@ const main = async () => {
   // 2. genesis config & deploy one contract
   if (process.argv[2] === 'genesis') await genesis()
 
-  try {
-    // remove all previous log files
-    execSync(`rm ${logBasePath}/*.log`)
-  } catch(e) {
-    // pass
-  }
+  // try {
+  //   // remove all previous log files
+  //   execSync(`rm ${logBasePath}/*.log`)
+  // } catch(e) {
+  //   // pass
+  // }
 
-  // each account will make 10 random push calls
-  const callCounts = 100;
+  // // each account will make 10 random push calls
+  // const callCounts = 100;
 
-  for (let i = 1; i <= 20; i++) {
-    execSync(`${pm2Path} start "${tsnodePath} ${indexPath} ${i} ${callCounts}" --log ${logBasePath}/${i}.log`);
-  }
+  // for (let i = 1; i <= 20; i++) {
+  //   execSync(`${pm2Path} start "${tsnodePath} ${indexPath} ${i} ${callCounts}" --log ${logBasePath}/${i}.log`);
+  // }
 }
 
 main();

@@ -53,7 +53,7 @@ pub mod pallet {
 
 	/// the secret ID of the next registered secret
 	#[pallet::type_value]
-	pub(super) fn DefaultId<T: Config>() -> SecretId { 0u64 }
+	pub(super) fn DefaultId<T: Config>() -> SecretId { 0u32 }
 	#[pallet::storage]
 	#[pallet::getter(fn current_secret_id)]
 	pub(super) type CurrentSecretId<T: Config> = StorageValue<_, SecretId, ValueQuery, DefaultId<T>>;

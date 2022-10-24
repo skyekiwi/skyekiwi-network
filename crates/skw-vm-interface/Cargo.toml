@@ -12,7 +12,6 @@ NEAR Simulator & cross-contract testing library
 """
 
 [dependencies]
-
 skw-blockchain-primitives = { path = "../skw-blockchain-pallets/primitives", default-features = false}
 skw-contract-sdk = { path = "../skw-contract-sdk", default-features = false}
 skw-vm-host = { path = "../skw-vm-host", default-features = false}
@@ -25,15 +24,20 @@ hex = { version = "0.4", default-features = false }
 
 lazy-static-include = "3"
 bs58 = { version = "0.4.0", default-features = false} 
-
 clap = { version = "3.1.16", features = ["derive"] }
 tracing-span-tree = "0.1"
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rocket = "0.5.0-rc.2"
+lazy_static = "1.4.0"
+
 [dev-dependencies]
 # fungible-token = { path="../skw-contract-sdk/examples/fungible-token/ft" }
 
 [features]
 default = []
+contract-sim = []
+web-interface = []

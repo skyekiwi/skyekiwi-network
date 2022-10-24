@@ -137,7 +137,8 @@ pub mod pallet {
 				amount: Some(T::DefaultFaucet::get()),
 				contract_name: None,
 				method: None,
-				args: None, 
+				args: None,
+				wasm_code: None,
 			};
 
 			let mut batched = Vec::new();

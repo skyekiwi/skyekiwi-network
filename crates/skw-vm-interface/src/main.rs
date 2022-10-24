@@ -1,77 +1,56 @@
-use std::{
-    convert::{TryInto},
-    path::PathBuf,
-};
-use clap::Parser;
-
-use skw_vm_store::{create_store};
 use skw_vm_interface::call::Caller;
-use skw_vm_primitives::{
-    contract_runtime::CryptoHash,
-    account_id::AccountId,
-};
 
-use skw_blockchain_primitives::{
-    types::{StatePatch},
-    util::{decode_hex},
-};
+use skw_vm_store::create_store;
+use skw_vm_primitives::contract_runtime::{CryptoHash, AccountId};
+use std::convert::TryInto;
+use rocket::form::Form;
 
-#[derive(clap::Parser, Debug)]
-struct CliArgs {
-    #[clap(long)]
-    state_file: PathBuf,
-    
-    #[clap(long)]
-    state_root: String,
+static mut CALLER: Option<Caller> = None;
 
-    #[clap(long)]
-    state_patch: Option<String>,
-
-    #[clap(long)]
-    params: Option<String>,
-    
-    #[clap(long)]
-    wasm_files_base: String,
- 
-    #[clap(long)]
-    dump_state: bool,
-
-    #[clap(long)]
-    timings: bool,
+#[derive(rocket::FromForm)]
+struct Init<'v> {
+    state_file_path: &'v str,
+    state_root: &'v str,
 }
 
-fn main() {
-    let cli_args = CliArgs::parse();
+#[derive(rocket::FromForm)]
+struct Payload<'v> {
+    payload: &'v str,
+}
 
-    if cli_args.timings {
-        tracing_span_tree::span_tree().enable();
-    }
 
-    let wasm_files_base = cli_args.wasm_files_base.clone();
-    let state_patch: StatePatch = bs58::decode(&cli_args.state_patch.unwrap_or_default()).into_vec().unwrap();
-    let state_root: CryptoHash = decode_hex(&cli_args.state_root.as_str())
-        .try_into()
-        .expect("state root invalid");
-
-    let state_path = cli_args.state_file.to_str().expect("state path invalid");
-
-    let store = create_store();
-    match state_patch.len() {
-        0 => {
-            store.load_state_from_file(state_path).unwrap();
-        }, 
-        _ => {
-            store.read_from_patch(state_path, &state_patch[..]).unwrap();
+#[rocket::post("/init", data = "<init>")]
+fn init<'v>(init: Form<Init<'_>>) {
+    unsafe {
+        if CALLER.is_some() {
+            return
         }
     }
 
-    let decoded_call = bs58::decode(&cli_args.params.unwrap_or_default()).into_vec().unwrap();
-    
-    let mut caller = Caller::new(
-        store.clone(), state_root, AccountId::test(), wasm_files_base, None
-    );
+    let store = create_store();
+    store.load_state_from_file(init.state_file_path).unwrap();
+    let state_root: CryptoHash = hex::decode(init.state_root).unwrap().try_into().expect("state_root should have length 32");
 
-    let all_outcomes = caller.call_payload(&decoded_call);
-    caller.write_to_file(state_path);
-    println!("{:?}", bs58::encode(all_outcomes).into_string());
+    unsafe {
+        CALLER = Some(Caller::new(store.clone(), state_root, AccountId::test(), None));
+    }
+}
+
+#[rocket::post("/call", data = "<payload>")]
+fn call<'r>(
+    payload: Form<Payload<'_>>
+) -> String {
+    let pld = hex::decode(payload.payload).expect("invalid payload");
+    unsafe {
+        match &mut CALLER {
+            Some(c) => hex::encode( c.call_payload(&pld[..]) ),
+            None => "init first".to_string()
+        }
+    }
+}
+
+
+#[rocket::launch]
+fn rocket() -> _ {
+    rocket::build().mount("/", rocket::routes![init, call])
 }
