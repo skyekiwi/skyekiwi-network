@@ -2,11 +2,11 @@ use crate::context::VMContext;
 use crate::dependencies::{RuntimeExternal, MemoryLike};
 use crate::gas_counter::{FastGasCounter, GasCounter};
 use crate::types::{PromiseIndex, PromiseResult, ReceiptIndex, ReturnData};
-use crate::utils::split_method_names;
 use crate::ValuePtr;
 use byteorder::ByteOrder;
+use primitive_types::U256;
 
-use skw_vm_primitives::crypto::Secp256K1Signature;
+use skw_vm_primitives::borsh::BorshSerialize;
 
 use skw_vm_primitives::config::ExtCosts::*;
 use skw_vm_primitives::config::{ActionCosts, ExtCosts, VMConfig, ViewConfig};
@@ -484,7 +484,7 @@ impl<'a> VMLogic<'a> {
 
         self.internal_write_register(
             register_id,
-            self.context.current_account_id.as_ref().as_bytes().to_vec(),
+            self.context.current_account_id.as_ref().try_to_vec().unwrap(),
         )
     }
 
@@ -512,32 +512,8 @@ impl<'a> VMLogic<'a> {
         }
         self.internal_write_register(
             register_id,
-            self.context.signer_account_id.as_ref().as_bytes().to_vec(),
+            self.context.signer_account_id.as_ref().try_to_vec().unwrap(),
         )
-    }
-
-    /// Saves the public key fo the access key that was used by the signer into the register. In
-    /// rare situations smart contract might want to know the exact access key that was used to send
-    /// the original transaction, e.g. to increase the allowance or manipulate with the public key.
-    ///
-    /// # Errors
-    ///
-    /// * If the registers exceed the memory limit returns `MemoryAccessViolation`.
-    /// * If called as view function returns `ProhibitedInView`.
-    ///
-    /// # Cost
-    ///
-    /// `base + write_register_base + write_register_byte * num_bytes`
-    pub fn signer_account_pk(&mut self, register_id: u64) -> Result<()> {
-        self.gas_counter.pay_base(base)?;
-
-        if self.context.is_view() {
-            return Err(HostError::ProhibitedInView {
-                method_name: "signer_account_pk".to_string(),
-            }
-            .into());
-        }
-        self.internal_write_register(register_id, self.context.signer_account_pk.clone())
     }
 
     /// All contract calls are a result of a receipt, this receipt might be created by a transaction
@@ -563,7 +539,7 @@ impl<'a> VMLogic<'a> {
         }
         self.internal_write_register(
             register_id,
-            self.context.predecessor_account_id.as_ref().as_bytes().to_vec(),
+            self.context.predecessor_account_id.as_ref().try_to_vec().unwrap(),
         )
     }
 
@@ -833,29 +809,66 @@ impl<'a> VMLogic<'a> {
     ) -> Result<u64> {
         self.gas_counter.pay_base(ecrecover_base)?;
 
+        if malleability_flag != 0 && malleability_flag != 1 {
+            return Err(VMLogicError::HostError(HostError::ECRecoverError {
+                msg: format!(
+                    "Malleability flag needs to be 0 or 1, but is instead {}",
+                    malleability_flag
+                ),
+            }));
+        }
+
+        let recid = {
+            let recid = libsecp256k1::RecoveryId::parse(v as u8);
+            match recid {
+                Ok(id) => id,
+                Err(_) => {
+                    return Err(VMLogicError::HostError(HostError::ECRecoverError {
+                        msg: format!("V recovery byte 0 through 3 are valid but was provided {}", v),
+                    }));
+                }
+            }
+        };
+
         let signature = {
             let vec = self.get_vec_from_memory_or_register(sig_ptr, sig_len)?;
             if vec.len() != 64 {
                 return Err(VMLogicError::HostError(HostError::ECRecoverError {
                     msg: format!(
-                        "The length of the signature: {}, exceeds the limit of 64 bytes",
+                        "The length of the hash: {}, exceeds the limit of 32 bytes",
                         vec.len()
                     ),
                 }));
             }
 
-            let mut bytes = [0u8; 65];
-            bytes[0..64].copy_from_slice(&vec);
+            // Never fails
+            let maybe_sig = libsecp256k1::Signature::parse_standard(&vec.clone().try_into().unwrap());
 
-            if v < 4 {
-                bytes[64] = v as u8;
-                Secp256K1Signature::from(bytes)
-            } else {
-                return Err(VMLogicError::HostError(HostError::ECRecoverError {
-                    msg: format!("V recovery byte 0 through 3 are valid but was provided {}", v),
-                }));
+            match maybe_sig {
+                Ok(sig) => sig,
+                Err(_) => {
+                    return Ok(false as u64);
+                }
             }
         };
+
+        /* BEGIN malleability_flag checks */
+        let r = U256::from( signature.r.b32() );
+        let s = U256::from( signature.s.b32() );
+
+        const SECP256K1_N: U256 = U256([0xbfd25e8cd0364141, 0xbaaedce6af48a03b, 0xfffffffffffffffe, 0xffffffffffffffff]);
+        const SECP256K1_N_HALF_ONE: U256 = U256([0xdfe92f46681b20a1, 0x5d576e7357a4501d, 0xffffffffffffffff, 0x7fffffffffffffff]);
+
+        let s_check = if malleability_flag != 0 {
+            SECP256K1_N_HALF_ONE
+        } else {
+            SECP256K1_N
+        };
+
+        if !(r < SECP256K1_N && s < s_check) {
+            return Ok(false as u64);
+        }
+        /* END malleability_flag checks */
 
         let hash = {
             let vec = self.get_vec_from_memory_or_register(hash_ptr, hash_len)?;
@@ -868,28 +881,16 @@ impl<'a> VMLogic<'a> {
                 }));
             }
 
-            let mut bytes = [0u8; 32];
-            bytes.copy_from_slice(&vec);
-            bytes
+            // Never fails
+            libsecp256k1::Message::parse(&vec.try_into().unwrap())
         };
 
-        if malleability_flag != 0 && malleability_flag != 1 {
-            return Err(VMLogicError::HostError(HostError::ECRecoverError {
-                msg: format!(
-                    "Malleability flag needs to be 0 or 1, but is instead {}",
-                    malleability_flag
-                ),
-            }));
-        }
-
-        if !signature.check_signature_values(malleability_flag != 0) {
-            return Ok(false as u64);
-        }
-
-        if let Ok(pk) = signature.recover(hash) {
-            self.internal_write_register(register_id, pk.as_ref().to_vec())?;
+        if let Ok(pk) = libsecp256k1::recover(&hash, &signature, &recid) {
+            self.internal_write_register(
+                register_id, pk.serialize()[1..65].to_vec()
+            )?;
             return Ok(true as u64);
-        };
+        }
 
         Ok(false as u64)
     }
@@ -1440,168 +1441,6 @@ impl<'a> VMLogic<'a> {
         Ok(())
     }
 
-     /// Appends `AddKey` action to the batch of actions for the given promise pointed by
-    /// `promise_idx`. The access key will have `FullAccess` permission.
-    ///
-    /// # Errors
-    ///
-    /// * If `promise_idx` does not correspond to an existing promise returns `InvalidPromiseIndex`.
-    /// * If the promise pointed by the `promise_idx` is an ephemeral promise created by
-    /// `promise_and` returns `CannotAppendActionToJointPromise`.
-    /// * If the given public key is not a valid (e.g. wrong length) returns `InvalidPublicKey`.
-    /// * If `public_key_len + public_key_ptr` points outside the memory of the guest or host
-    /// returns `MemoryAccessViolation`.
-    /// * If called as view function returns `ProhibitedInView`.
-    ///
-    /// # Cost
-    ///
-    /// `burnt_gas := base + dispatch action base fee + dispatch action per byte fee * num bytes + cost of reading public key from memory `
-    /// `used_gas := burnt_gas + exec action base fee + exec action per byte fee * num bytes`
-    pub fn promise_batch_action_add_key_with_full_access(
-        &mut self,
-        promise_idx: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-        nonce: u64,
-    ) -> Result<()> {
-        self.gas_counter.pay_base(base)?;
-        if self.context.is_view() {
-            return Err(HostError::ProhibitedInView {
-                method_name: "promise_batch_action_add_key_with_full_access".to_string(),
-            }
-            .into());
-        }
-        let public_key = self.get_vec_from_memory_or_register(public_key_ptr, public_key_len)?;
-
-        let (receipt_idx, sir) = self.promise_idx_to_receipt_idx_with_sir(promise_idx)?;
-
-        self.gas_counter.pay_action_base(
-            &self.fees_config.action_creation_config.add_key_cost.full_access_cost,
-            sir,
-            ActionCosts::add_key,
-        )?;
-
-        self.ext.append_action_add_key_with_full_access(receipt_idx, public_key, nonce)?;
-        Ok(())
-    }
-
-    /// Appends `AddKey` action to the batch of actions for the given promise pointed by
-    /// `promise_idx`. The access key will have `FunctionCall` permission.
-    ///
-    /// # Errors
-    ///
-    /// * If `promise_idx` does not correspond to an existing promise returns `InvalidPromiseIndex`.
-    /// * If the promise pointed by the `promise_idx` is an ephemeral promise created by
-    /// `promise_and` returns `CannotAppendActionToJointPromise`.
-    /// * If the given public key is not a valid (e.g. wrong length) returns `InvalidPublicKey`.
-    /// * If `public_key_len + public_key_ptr`, `allowance_ptr + 16`,
-    /// `receiver_id_len + receiver_id_ptr` or `method_names_len + method_names_ptr` points outside
-    /// the memory of the guest or host returns `MemoryAccessViolation`.
-    /// * If called as view function returns `ProhibitedInView`.
-    ///
-    /// # Cost
-    ///
-    /// `burnt_gas := base + dispatch action base fee + dispatch action per byte fee * num bytes + cost of reading vector from memory
-    ///  + cost of reading u128, method_names and public key from the memory + cost of reading and parsing account name`
-    /// `used_gas := burnt_gas + exec action base fee + exec action per byte fee * num bytes`
-    pub fn promise_batch_action_add_key_with_function_call(
-        &mut self,
-        promise_idx: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-        nonce: u64,
-        allowance_ptr: u64,
-        receiver_id_len: u64,
-        receiver_id_ptr: u64,
-        method_names_len: u64,
-        method_names_ptr: u64,
-    ) -> Result<()> {
-        self.gas_counter.pay_base(base)?;
-        if self.context.is_view() {
-            return Err(HostError::ProhibitedInView {
-                method_name: "promise_batch_action_add_key_with_function_call".to_string(),
-            }
-            .into());
-        }
-        let public_key = self.get_vec_from_memory_or_register(public_key_ptr, public_key_len)?;
-        let allowance = self.memory_get_u128(allowance_ptr)?;
-        let allowance = if allowance > 0 { Some(allowance) } else { None };
-        let receiver_id = self.read_and_parse_account_id(receiver_id_ptr, receiver_id_len)?;
-        let raw_method_names =
-            self.get_vec_from_memory_or_register(method_names_ptr, method_names_len)?;
-        let method_names = split_method_names(&raw_method_names)?;
-
-        let (receipt_idx, sir) = self.promise_idx_to_receipt_idx_with_sir(promise_idx)?;
-
-        // +1 is to account for null-terminating characters.
-        let num_bytes = method_names.iter().map(|v| v.len() as u64 + 1).sum::<u64>();
-        self.gas_counter.pay_action_base(
-            &self.fees_config.action_creation_config.add_key_cost.function_call_cost,
-            sir,
-            ActionCosts::function_call,
-        )?;
-        self.gas_counter.pay_action_per_byte(
-            &self.fees_config.action_creation_config.add_key_cost.function_call_cost_per_byte,
-            num_bytes,
-            sir,
-            ActionCosts::function_call,
-        )?;
-
-        self.ext.append_action_add_key_with_function_call(
-            receipt_idx,
-            public_key,
-            nonce,
-            allowance,
-            receiver_id,
-            method_names,
-        )?;
-        Ok(())
-    }
-
-    /// Appends `DeleteKey` action to the batch of actions for the given promise pointed by
-    /// `promise_idx`.
-    ///
-    /// # Errors
-    ///
-    /// * If `promise_idx` does not correspond to an existing promise returns `InvalidPromiseIndex`.
-    /// * If the promise pointed by the `promise_idx` is an ephemeral promise created by
-    /// `promise_and` returns `CannotAppendActionToJointPromise`.
-    /// * If the given public key is not a valid (e.g. wrong length) returns `InvalidPublicKey`.
-    /// * If `public_key_len + public_key_ptr` points outside the memory of the guest or host
-    /// returns `MemoryAccessViolation`.
-    /// * If called as view function returns `ProhibitedInView`.
-    ///
-    /// # Cost
-    ///
-    /// `burnt_gas := base + dispatch action base fee + dispatch action per byte fee * num bytes + cost of reading public key from memory `
-    /// `used_gas := burnt_gas + exec action base fee + exec action per byte fee * num bytes`
-    pub fn promise_batch_action_delete_key(
-        &mut self,
-        promise_idx: u64,
-        public_key_len: u64,
-        public_key_ptr: u64,
-    ) -> Result<()> {
-        self.gas_counter.pay_base(base)?;
-        if self.context.is_view() {
-            return Err(HostError::ProhibitedInView {
-                method_name: "promise_batch_action_delete_key".to_string(),
-            }
-            .into());
-        }
-        let public_key = self.get_vec_from_memory_or_register(public_key_ptr, public_key_len)?;
-
-        let (receipt_idx, sir) = self.promise_idx_to_receipt_idx_with_sir(promise_idx)?;
-
-        self.gas_counter.pay_action_base(
-            &self.fees_config.action_creation_config.delete_key_cost,
-            sir,
-            ActionCosts::delete_key,
-        )?;
-
-        self.ext.append_action_delete_key(receipt_idx, public_key)?;
-        Ok(())
-    }
-
     /// Appends `DeleteAccount` action to the batch of actions for the given promise pointed by
     /// `promise_idx`.
     ///
@@ -1929,19 +1768,22 @@ impl<'a> VMLogic<'a> {
     /// `utf8_decoding_base + utf8_decoding_byte * num_bytes`.
     fn read_and_parse_account_id(&mut self, ptr: u64, len: u64) -> Result<AccountId> {
         let buf = self.get_vec_from_memory_or_register(ptr, len)?;
+        
+        // TODO: this gas counter is wrong
         self.gas_counter.pay_base(utf8_decoding_base)?;
         self.gas_counter.pay_per(utf8_decoding_byte, buf.len() as u64)?;
 
-        // We return an illegally constructed AccountId here for the sake of ensuring
-        // backwards compatibility. For paths previously involving validation, like receipts
-        // we retain validation further down the line in node-runtime/verifier.rs#fn(validate_receipt)
-        // mimicing previous behaviour.
-        let account_id = String::from_utf8(buf)
-            .map(
-                #[allow(deprecated)]
-                AccountId::new_unvalidated,
-            )
-            .map_err(|_| HostError::BadUTF8)?;
+
+        // TODO: this error message is wrong
+        let key_with_type: [u8; 33] = buf.try_into().map_err(|_| HostError::InvalidAccountId)?;
+
+        // TODO: we want only sr25519 for now
+        if key_with_type[0] != 2 {
+            return Err(HostError::InvalidAccountId.into());
+        }
+
+        let account_id = AccountId::from_bytes(key_with_type)
+            .map_err(|_| HostError::InvalidAccountId)?;
         Ok(account_id)
     }
 

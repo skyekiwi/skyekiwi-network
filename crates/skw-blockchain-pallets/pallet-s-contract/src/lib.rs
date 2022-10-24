@@ -18,7 +18,7 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*, ensure, PalletId,
-		sp_runtime::traits::AccountIdConversion, StorageHasher
+		sp_runtime::traits::AccountIdConversion, StorageHasher, dispatch::DispatchResult
 	};
 	use frame_system::pallet_prelude::*;
 	use super::WeightInfo;
@@ -53,7 +53,6 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type SContractRoot: Get<PalletId>;
-
 	}
 
 	#[pallet::pallet]
@@ -62,9 +61,9 @@ pub mod pallet {
 
 	/// wasm_blob of a deployed contracts
 	#[pallet::storage]
-	#[pallet::getter(fn wasm_blob_cid_of)]
-	pub(super) type WasmBlobCID<T: Config> = StorageDoubleMap<_, Twox64Concat,
-		ShardId, Blake2_128Concat, BoundedVec<u8, T::MaxContractNameLength>, BoundedVec<u8, T::IPFSCIDLength> >;
+	#[pallet::getter(fn wasm_blob_of)]
+	pub(super) type WasmBlob<T: Config> = StorageDoubleMap<_, Twox64Concat,
+		ShardId, Blake2_128Concat, BoundedVec<u8, T::MaxContractNameLength>, T::Hash>;
 
 	/// call history of a block (ShardId, BlockNumber) -> Vec<CallIndex>
 	#[pallet::storage]
@@ -79,7 +78,7 @@ pub mod pallet {
 
 	/// the callIndex that will be assigned to the next calls
 	#[pallet::type_value]
-	pub(super) fn DefaultId<T: Config>() -> CallIndex { 0u64 }
+	pub(super) fn DefaultId<T: Config>() -> CallIndex { 0u32 }
 	#[pallet::storage]
 	#[pallet::getter(fn current_call_index_of)]
 	pub(super) type CurrentCallIndex<T: Config> = StorageValue<_, CallIndex, ValueQuery, DefaultId<T>>;
@@ -121,13 +120,13 @@ pub mod pallet {
 	pub enum Error<T> {
 		InvalidContractName,
 		InvalidEncodedCall,
-		InvalidContractIndex,
+		InvalidCallIndex,
 		InvalidCallOutput,
 		InvalidShardIndex,
 		ShardNotInitialized,
 		ShardHasBeenInitialized,
 		TooManyCallsInCurrentBlock,
-		InvalidWasmBlobCID,	
+		InvalidWasmBlob,	
 		Unauthorized, 
 		Unexpected,
 	}
@@ -140,7 +139,7 @@ pub mod pallet {
 		pub fn register_contract(
 			origin: OriginFor<T>, 
 			contract_name: Vec<u8>,
-			wasm_blob_cid: Vec<u8>,
+			wasm_blob: Bytes,
 			deployment_call: EncodedCall,
 			shard_id: ShardId,
 		) -> DispatchResult {
@@ -149,9 +148,8 @@ pub mod pallet {
 			// Deployment Call Layout: [("action_deploy"), init_call1, init_call2 ...]
 			// ("action_deploy") will be automatically appended by the offchain bridge
 
-			let bounded_wasm_blob_cid = BoundedVec::<u8, T::IPFSCIDLength>::try_from(wasm_blob_cid)
-			.map_err(|_| Error::<T>::InvalidWasmBlobCID)?;
-	
+
+			let hash = pallet_secrets::Pallet::<T>::maybe_note_bytes(wasm_blob)?;
 			let bounded_contract_name = BoundedVec::<u8, T::MaxContractNameLength>::try_from(contract_name.clone())
 				.map_err(|_| Error::<T>::InvalidContractName)?;
 
@@ -169,7 +167,7 @@ pub mod pallet {
 			)?;
 
 			// No error below this line 
-			<WasmBlobCID<T>>::insert(&shard_id, &bounded_contract_name, bounded_wasm_blob_cid);
+			<WasmBlob<T>>::insert(&shard_id, &bounded_contract_name, hash);
 			Self::deposit_event(Event::<T>::SecretContractRegistered(shard_id, contract_name, call_index));
 			Ok(())
 		}
@@ -275,13 +273,53 @@ pub mod pallet {
 				},
 			}
 		}
+
+		/// (ROOT ONLY/TEST ONLY) WILL BE REMOVED Force Update call_record
+		#[pallet::weight(0)]
+		pub fn force_update_call_record(
+			origin: OriginFor<T>,
+			call_index: CallIndex,
+			call: EncodedCall,
+		) -> DispatchResult {
+			ensure_root(origin.clone())?;
+
+			let bounded_encoded_call = 
+				BoundedVec::<u8, T::MaxCallLength>::try_from(call)
+				.map_err(|_| Error::<T>::InvalidEncodedCall)?;	
+
+			// Note: unsafe unwrap here. Root origin so whatever
+			let o = Self::call_record_of(&call_index);
+			ensure!(o.is_some(), Error::<T>::InvalidCallIndex);
+ 
+			<CallRecord::<T>>::mutate(&call_index, |r| {
+				* r = Some((bounded_encoded_call, o.unwrap().1)); 
+			});
+
+			Ok(())
+		}
+
+		/// (ROOT ONLY/TEST ONLY) WILL BE REMOVED force remove all call_records
+		#[pallet::weight(0)]
+		pub fn reset_call_record(origin: OriginFor<T>) -> DispatchResult {
+			ensure_root(origin.clone())?;
+
+			let high_call_index = Self::current_call_index_of();
+
+			<CallHistory::<T>>::remove_prefix(0, None);
+			for call_index in 0u32..high_call_index {
+				<CallRecord::<T>>::remove(call_index);
+			}
+
+			<CurrentCallIndex::<T>>::put(0u32);
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
 		pub fn validate_name(shard_id: ShardId, name: &BoundedVec::<u8, T::MaxContractNameLength>) -> bool {
 			name.len() >= T::MinContractNameLength::get() as usize
 				&& 
-			Self::wasm_blob_cid_of(shard_id, name).is_none() // as name is not taken
+			Self::wasm_blob_of(shard_id, name).is_none() // as name is not taken
 		}
 
 		pub fn is_shard_running(shard_id: ShardId) -> bool {
@@ -300,7 +338,7 @@ pub mod pallet {
 
  			match res {
 				Ok(mut calls) => {
-					calls.ops.push(skw_blockchain_primitives::types::Call {
+					calls.ops.splice(0..0, [skw_blockchain_primitives::types::Call {
 						origin_public_key: T::AccountId::encode(&T::SContractRoot::get().into_account()).try_into().unwrap(),
 						receipt_public_key: Blake2_256::hash(&contract_name[..]),
 						encrypted_egress: false,
@@ -310,7 +348,8 @@ pub mod pallet {
 						contract_name: Some(contract_name),
 						method: None,
 						args: None,
-					});
+						wasm_code: None, // we attach the code on client side to reduce complexity of the call 
+					}]);
 					
 					Ok(skw_blockchain_primitives::BorshSerialize::try_to_vec(&calls).unwrap())
 				},

@@ -47,7 +47,7 @@ mod tests {
 
     fn get_context(is_view: bool) -> VMContext {
         VMContextBuilder::new()
-            .signer_account_id("bob_near".parse().unwrap())
+            .signer_account_id(AccountId::test(0))
             .is_view(is_view)
             .build()
     }
@@ -60,7 +60,7 @@ mod tests {
         contract.set_status("hello".to_string());
         assert_eq!(
             "hello".to_string(),
-            contract.get_status("bob_near".parse().unwrap()).unwrap()
+            contract.get_status(AccountId::test(0)).unwrap()
         );
     }
 
@@ -86,6 +86,6 @@ mod tests {
         let context = get_context(true);
         testing_env!(context);
         let contract = StatusMessage::default();
-        assert_eq!(None, contract.get_status("francis.near".parse().unwrap()));
+        assert_eq!(None, contract.get_status(AccountId::test(1)));
     }
 }

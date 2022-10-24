@@ -10,7 +10,6 @@ edition = "2021"
 
 [dependencies]
 borsh = "0.9"
-once_cell = "1.5.2"
 rand = "0.7"
 
 skw-vm-primitives = { path = "../skw-vm-primitives" }

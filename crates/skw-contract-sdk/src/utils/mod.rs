@@ -9,7 +9,8 @@ mod cache_entry;
 #[cfg(feature = "unstable")]
 pub(crate) use cache_entry::{CacheEntry, EntryState};
 
-use crate::{env, AccountId, PromiseResult};
+use crate::{env};
+use crate::{AccountId, PromiseResult};
 
 /// Helper macro to log a message through [`env::log_str`].
 /// This macro can be used similar to the [`std::format`] macro in most cases.

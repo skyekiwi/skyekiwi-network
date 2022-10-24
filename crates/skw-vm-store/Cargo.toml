@@ -8,21 +8,21 @@ edition = "2021"
 
 [dependencies]
 byteorder = "1.2"
-bytesize = "1.1"
+
 derive_more = "0.99.3"
 elastic-array = "0.11"
 serde_json = "1"
-num_cpus = "1.11"
 rand = "0.7"
 strum = { version = "0.20", features = ["derive"] }
-fs2 = "0.4"
 tracing = "0.1"
 borsh = "0.9"
 thiserror = "1"
 lru = "0.6.5"
-hashbrown = "0.12.0"
+hashbrown = "0.12.1"
 skw-vm-primitives = { path = "../skw-vm-primitives" }
 skw-myers-diff = { path = "../skw-myers-diff" }
+
+
 [dev-dependencies]
 tempfile = "3"
 bencher = "0.1.5"

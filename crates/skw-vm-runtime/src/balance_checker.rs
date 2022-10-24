@@ -1,8 +1,7 @@
 use crate::safe_add_balance_apply;
 
 use crate::config::{
-    safe_add_balance, safe_add_gas, safe_gas_to_balance, total_deposit, total_prepaid_exec_fees,
-    total_prepaid_gas,
+    safe_add_balance, safe_add_gas, safe_gas_to_balance, total_deposit, total_prepaid_exec_fees, total_prepaid_gas,
 };
 use crate::{ApplyStats, DelayedReceiptIndices};
 use skw_vm_primitives::errors::{
@@ -64,6 +63,7 @@ pub(crate) fn check_balance(
         .chain(incoming_receipts.iter().map(|r| r.receiver_id.clone()))
         .chain(processed_delayed_receipts.iter().map(|r| r.receiver_id.clone()))
         .collect();
+
     let total_accounts_balance = |state| -> Result<Balance, RuntimeError> {
         Ok(all_accounts_ids
             .iter()
@@ -207,8 +207,10 @@ mod tests {
     use skw_vm_primitives::crypto::{InMemorySigner, KeyType};
 
     use skw_vm_primitives::contract_runtime::{
-        hash_bytes, CryptoHash, MerkleHash, StateChangeCause
+        hash_bytes, CryptoHash, MerkleHash
     };
+    use skw_vm_primitives::state::{StateChangeCause};
+
     use skw_vm_primitives::receipt::ActionReceipt;
     use skw_vm_primitives::fees::RuntimeFeesConfig;
     use skw_vm_primitives::test_utils::account_new;
@@ -218,10 +220,10 @@ mod tests {
     use skw_vm_store::test_utils::create_tries;
 
     pub fn alice_account() -> AccountId {
-        "alice.near".parse().unwrap()
+        AccountId::system()
     }
     pub fn bob_account() -> AccountId {
-        "bob.near".parse().unwrap()
+        AccountId::test2()
     }
 
     use assert_matches::assert_matches;
@@ -262,7 +264,7 @@ mod tests {
             &transaction_costs,
             &initial_state,
             &final_state,
-            &[Receipt::new_balance_refund(&alice_account(), 1000)],
+            &[Receipt::new_force_transfer(&alice_account(), 1000)],
             &[],
             &[],
             &ApplyStats::default(),
@@ -272,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn test_check_balance_refund() {
+    fn test_check_force_transfer() {
         let tries = create_tries();
         let root = MerkleHash::default();
         let account_id = alice_account();
@@ -281,12 +283,12 @@ mod tests {
         let refund_balance = 1000;
 
         let mut initial_state = tries.new_trie_update(root);
-        let initial_account = account_new(initial_balance, hash_bytes(&[]));
+        let initial_account = account_new(initial_balance, hash_bytes(&[]), 0);
         set_account(&mut initial_state, account_id.clone(), &initial_account);
         initial_state.commit(StateChangeCause::NotWritableToDisk);
 
         let mut final_state = tries.new_trie_update(root);
-        let final_account = account_new(initial_balance + refund_balance, hash_bytes(&[]));
+        let final_account = account_new(initial_balance + refund_balance, hash_bytes(&[]), 0);
         set_account(&mut final_state, account_id.clone(), &final_account);
         final_state.commit(StateChangeCause::NotWritableToDisk);
 
@@ -295,7 +297,7 @@ mod tests {
             &transaction_costs,
             &initial_state,
             &final_state,
-            &[Receipt::new_balance_refund(&account_id, refund_balance)],
+            &[Receipt::new_force_transfer(&account_id, refund_balance)],
             &[],
             &[],
             &ApplyStats::default(),
@@ -316,25 +318,24 @@ mod tests {
             + cfg.action_creation_config.transfer_cost.exec_fee();
         let send_gas = cfg.action_receipt_creation_config.send_fee(false)
             + cfg.action_creation_config.transfer_cost.send_fee(false);
-        let contract_reward = send_gas as u128 * *cfg.burnt_gas_reward.numer() as u128 * gas_price
-            / (*cfg.burnt_gas_reward.denom() as u128);
-        let total_validator_reward = send_gas as Balance * gas_price - contract_reward;
+
+        let total_validator_reward = send_gas as Balance * gas_price;
         let mut initial_state = tries.new_trie_update(root);
-        let initial_account = account_new(initial_balance, hash_bytes(&[]));
+        let initial_account = account_new(initial_balance, hash_bytes(&[]), 0);
         set_account(&mut initial_state, account_id.clone(), &initial_account);
         initial_state.commit(StateChangeCause::NotWritableToDisk);
 
         let mut final_state = tries.new_trie_update(root);
         let final_account = account_new(
-            initial_balance - (exec_gas + send_gas) as Balance * gas_price - deposit
-                + contract_reward,
+            initial_balance - (exec_gas /* + send_gas send_gas is free because root */ ) as Balance * gas_price - deposit,
             hash_bytes(&[]),
+            0
         );
         set_account(&mut final_state, account_id.clone(), &final_account);
         final_state.commit(StateChangeCause::NotWritableToDisk);
 
         let signer =
-            InMemorySigner::from_seed(account_id.clone(), KeyType::ED25519, account_id.as_ref());
+            InMemorySigner::from_seed(KeyType::ED25519, &[0; 32][..]);
         let tx = SignedTransaction::send_money(
             1,
             account_id,
@@ -349,7 +350,6 @@ mod tests {
             receipt_id: Default::default(),
             receipt: ReceiptEnum::Action(ActionReceipt {
                 signer_id: tx.transaction.signer_id.clone(),
-                signer_public_key: tx.transaction.public_key.clone(),
                 gas_price,
                 output_data_receivers: vec![],
                 input_data_ids: vec![],
@@ -366,9 +366,9 @@ mod tests {
             &[receipt],
             &ApplyStats {
                 tx_burnt_amount: total_validator_reward,
-                gas_deficit_amount: 0,
                 other_burnt_amount: 0,
                 slashed_burnt_amount: 0,
+                gas_deficit_amount: 0,
             },
         )
         .unwrap();
@@ -378,24 +378,36 @@ mod tests {
     fn test_total_balance_overflow_returns_unexpected_overflow() {
         let tries = create_tries();
         let root = MerkleHash::default();
-        let alice_id = alice_account();
-        let bob_id = bob_account();
+        
+        let signer1 =
+            InMemorySigner::from_seed(KeyType::SR25519, &[0; 32][..]);
+
+        let signer2 =
+            InMemorySigner::from_seed(KeyType::SR25519, &[1; 32][..]);
+
+        let alice_id = signer1.account_id();
+        let bob_id = signer2.account_id() ;
+        
         let gas_price = 100;
         let deposit = 1000;
 
         let mut initial_state = tries.new_trie_update(root);
-        let alice = account_new(u128::MAX, hash_bytes(&[]));
-        let bob = account_new(1u128, hash_bytes(&[]));
+        let alice = account_new(u128::MAX, hash_bytes(&[]), 0);
+        let bob = account_new(1u128, hash_bytes(&[]), 0);
 
         set_account(&mut initial_state, alice_id.clone(), &alice);
         set_account(&mut initial_state, bob_id.clone(), &bob);
         initial_state.commit(StateChangeCause::NotWritableToDisk);
 
-        let signer =
-            InMemorySigner::from_seed(alice_id.clone(), KeyType::ED25519, alice_id.as_ref());
-
         let tx =
-            SignedTransaction::send_money(0, alice_id, bob_id, &signer, 1, CryptoHash::default());
+            SignedTransaction::send_money(
+                0, 
+                alice_id, 
+                bob_id, 
+                &signer1, 
+                1, 
+                CryptoHash::default()
+            );
 
         let receipt = Receipt {
             predecessor_id: tx.transaction.signer_id.clone(),
@@ -403,7 +415,6 @@ mod tests {
             receipt_id: Default::default(),
             receipt: ReceiptEnum::Action(ActionReceipt {
                 signer_id: tx.transaction.signer_id.clone(),
-                signer_public_key: tx.transaction.public_key.clone(),
                 gas_price,
                 output_data_receivers: vec![],
                 input_data_ids: vec![],

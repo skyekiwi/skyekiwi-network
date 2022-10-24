@@ -10,20 +10,15 @@ use crate::crypto::{PublicKey, Signature};
 use crate::contract_runtime::{CryptoHash, hash_bytes, AccountId, Balance, Gas, Nonce};
 use crate::serialize::{base64_format, u128_dec_format_compatible};
 use crate::profile::ProfileData;
-use crate::account::AccessKey;
 
 use crate::errors::TxExecutionError;
 
 pub type LogEntry = String;
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Transaction {
     /// An account on which behalf transaction is signed
     pub signer_id: AccountId,
-    /// A public key of the access key which was used to sign an account.
-    /// Access key holds permissions for calling certain kinds of actions.
-    pub public_key: PublicKey,
     /// Nonce is used to determine order of transaction in the pool.
     /// It increments for a combination of `signer_id` and `public_key`
     pub nonce: Nonce,
@@ -43,15 +38,12 @@ impl Transaction {
     }
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub enum Action {
     /// Sets a Wasm code to a receiver_id
     CreateAccount(CreateAccountAction),
     Transfer(TransferAction),
     DeployContract(DeployContractAction),
-    AddKey(AddKeyAction),
-    DeleteKey(DeleteKeyAction),
     FunctionCall(FunctionCallAction),
     DeleteAccount(DeleteAccountAction),
 }
@@ -72,7 +64,6 @@ impl Action {
     }
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct CreateAccountAction {}
 
@@ -82,19 +73,6 @@ impl From<CreateAccountAction> for Action {
     }
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-pub struct DeleteAccountAction {
-    pub beneficiary_id: AccountId,
-}
-
-impl From<DeleteAccountAction> for Action {
-    fn from(delete_account_action: DeleteAccountAction) -> Self {
-        Self::DeleteAccount(delete_account_action)
-    }
-}
-
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct TransferAction {
     #[serde(with = "u128_dec_format_compatible")]
@@ -108,7 +86,6 @@ impl From<TransferAction> for Action {
 }
 
 /// Deploy contract action
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct DeployContractAction {
     /// WebAssembly binary
@@ -130,7 +107,6 @@ impl fmt::Debug for DeployContractAction {
     }
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct FunctionCallAction {
     pub method_name: String,
@@ -141,34 +117,17 @@ pub struct FunctionCallAction {
     pub deposit: Balance,
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-pub struct AddKeyAction {
-    /// A public key which will be associated with an access_key
-    pub public_key: PublicKey,
-    /// An access key with the permission
-    pub access_key: AccessKey,
+pub struct DeleteAccountAction {
+    pub beneficiary_id: AccountId,
 }
 
-impl From<AddKeyAction> for Action {
-    fn from(add_key_action: AddKeyAction) -> Self {
-        Self::AddKey(add_key_action)
+impl From<DeleteAccountAction> for Action {
+    fn from(delete_account_action: DeleteAccountAction) -> Self {
+        Self::DeleteAccount(delete_account_action)
     }
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-pub struct DeleteKeyAction {
-    /// A public key associated with the access_key to be deleted.
-    pub public_key: PublicKey,
-}
-
-impl From<DeleteKeyAction> for Action {
-    fn from(delete_key_action: DeleteKeyAction) -> Self {
-        Self::DeleteKey(delete_key_action)
-    }
-}
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(BorshSerialize, BorshDeserialize, Eq, Debug, Clone)]
 #[borsh_init(init)]
 pub struct SignedTransaction {
@@ -330,7 +289,7 @@ pub struct ExecutionOutcome {
     pub tokens_burnt: Balance,
     /// The id of the account on which the execution happens. For transaction this is signer_id,
     /// for receipt this is receiver_id.
-    #[default("test".parse().unwrap())]
+    #[default(AccountId::test())]
     pub executor_id: AccountId,
     /// Execution status. Contains the result in case of successful execution.
     /// NOTE: Should be the latest field since it contains unparsable by light client
@@ -422,12 +381,11 @@ mod tests {
 
     #[test]
     fn test_verify_transaction() {
-        let signer = InMemorySigner::from_random("test".parse().unwrap(), KeyType::ED25519);
+        let signer = InMemorySigner::from_seed(KeyType::SR25519, &[0u8; 32]);
         let tx = Transaction {
-            signer_id: "test".parse().unwrap(),
-            public_key: signer.public_key(),
+            signer_id: AccountId::testn(1), 
             nonce: 0,
-            receiver_id: "test".parse().unwrap(),
+            receiver_id: AccountId::testn(2), 
             block_hash: Default::default(),
             actions: vec![],
         };
@@ -435,7 +393,7 @@ mod tests {
 
         let transaction = SignedTransaction::new(signature, tx);
 
-        let wrong_public_key = PublicKey::from_seed(KeyType::ED25519, "wrong");
+        let wrong_public_key = PublicKey::from_seed(KeyType::SR25519, &[1u8; 32]);
         let valid_keys = vec![signer.public_key(), wrong_public_key.clone()];
         assert!(verify_transaction_signature(&transaction, &valid_keys));
 
@@ -451,12 +409,10 @@ mod tests {
     /// If it does - you MUST update all of the dependencies: like nearlib and other clients.
     #[test]
     fn test_serialize_transaction() {
-        let public_key: PublicKey = "22skMptHjFWNyuEWY22ftn2AbLPSYpmYwGJRGwpNHbTV".parse().unwrap();
         let transaction = Transaction {
-            signer_id: "test.near".parse().unwrap(),
-            public_key: public_key.clone(),
+            signer_id: AccountId::test(),
             nonce: 1,
-            receiver_id: "123".parse().unwrap(),
+            receiver_id: AccountId::test(),
             block_hash: Default::default(),
             actions: vec![
                 Action::DeployContract(DeployContractAction { code: vec![1, 2, 3] }),
@@ -468,13 +424,13 @@ mod tests {
                 }),
             ],
         };
-        let signed_tx = SignedTransaction::new(Signature::empty(KeyType::ED25519), transaction);
+        let signed_tx = SignedTransaction::new(Signature::empty(KeyType::SR25519), transaction);
         let new_signed_tx =
             SignedTransaction::try_from_slice(&signed_tx.try_to_vec().unwrap()).unwrap();
 
         assert_eq!(
             to_base(&new_signed_tx.get_hash()),
-            "Lg7phGrzH1upCaX5wYtAKV2ZStrNc1TppoivbMwZWZB"
+            "7j7iLRfYqFHdY2LgGtPA3Z5YLgJAyDY86UBdqtJ4ny49",
         );
     }
 
@@ -486,7 +442,7 @@ mod tests {
             receipt_ids: vec![],
             gas_burnt: 123,
             tokens_burnt: 1234000,
-            executor_id: "alice".parse().unwrap(),
+            executor_id: AccountId::system(),
             profile_data: None,
         };
         let hashes = outcome.to_hashes();

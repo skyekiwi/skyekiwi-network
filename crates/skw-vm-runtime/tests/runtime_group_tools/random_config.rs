@@ -2,7 +2,7 @@ use skw_vm_primitives::num_rational::Rational;
 use skw_vm_primitives::config::RuntimeConfig;
 use skw_vm_primitives::fees::{
     ActionCreationConfig, DataReceiptCreationConfig, Fee,
-    RuntimeFeesConfig, StorageUsageConfig, AccessKeyCreationConfig,
+    RuntimeFeesConfig, StorageUsageConfig,
 };
 use rand::{thread_rng, RngCore};
 
@@ -27,19 +27,12 @@ pub fn random_config() -> RuntimeConfig {
                 function_call_cost: random_fee(),
                 function_call_cost_per_byte: random_fee(),
                 transfer_cost: random_fee(),
-                add_key_cost: AccessKeyCreationConfig {
-                    full_access_cost: random_fee(),
-                    function_call_cost: random_fee(),
-                    function_call_cost_per_byte: random_fee(),
-                },
-                delete_key_cost: random_fee(),
                 delete_account_cost: random_fee(),
             },
             storage_usage_config: StorageUsageConfig {
                 num_bytes_account: rng.next_u64() % 10000,
                 num_extra_bytes_record: rng.next_u64() % 10000,
             },
-            burnt_gas_reward: Rational::new((rng.next_u32() % 100).try_into().unwrap(), 100),
             pessimistic_gas_price_inflation_ratio: Rational::new(
                 (101 + rng.next_u32() % 10).try_into().unwrap(),
                 100,

@@ -35,7 +35,7 @@ mod tests {
 
     fn get_context(is_view: bool) -> VMContext {
         VMContextBuilder::new()
-            .signer_account_id("bob_near".parse().unwrap())
+            .signer_account_id(AccountId::test(1))
             .is_view(is_view)
             .build()
     }
@@ -45,12 +45,14 @@ mod tests {
         let context = get_context(false);
         testing_env!(context);
         let mut contract = StatusMessage::default();
+        
         contract.set_status("hello".to_string());
-        assert_eq!(get_logs(), vec!["bob_near set_status with message hello"]);
+        assert_eq!(get_logs(), vec!["sr25519:4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi set_status with message hello"]);
+        
         let context = get_context(true);
         testing_env!(context);
-        assert_eq!("hello".to_string(), contract.get_status("bob_near".parse().unwrap()).unwrap());
-        assert_eq!(get_logs(), vec!["get_status for account_id bob_near"])
+        assert_eq!("hello".to_string(), contract.get_status(AccountId::test(1)).unwrap());
+        assert_eq!(get_logs(), vec!["get_status for account_id sr25519:4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi"])
     }
 
     #[test]
@@ -58,7 +60,7 @@ mod tests {
         let context = get_context(true);
         testing_env!(context);
         let contract = StatusMessage::default();
-        assert_eq!(None, contract.get_status("francis.near".parse().unwrap()));
-        assert_eq!(get_logs(), vec!["get_status for account_id francis.near"])
+        assert_eq!(None, contract.get_status(AccountId::test(2)));
+        assert_eq!(get_logs(), vec!["get_status for account_id sr25519:8qbHbw2BbbTHBW1sbeqakYXVKRQM8Ne7pLK7m6CVfeR"])
     }
 }

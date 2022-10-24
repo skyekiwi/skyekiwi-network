@@ -12,33 +12,32 @@ NEAR Simulator & cross-contract testing library
 """
 
 [dependencies]
-skw-contract-sdk = { path = "../skw-contract-sdk" }
-skw-blockchain-primitives = { path = "../skw-blockchain-pallets/primitives" }
-skw-vm-host = { path = "../skw-vm-host" }
-skw-vm-store = { path = "../skw-vm-store" }
-skw-vm-primitives = { path = "../skw-vm-primitives" }
-skw-vm-runtime = { path = "../skw-vm-runtime" }
-skw-vm-pool = { path = "../skw-vm-pool" }
+skw-blockchain-primitives = { path = "../skw-blockchain-pallets/primitives", default-features = false}
+skw-contract-sdk = { path = "../skw-contract-sdk", default-features = false}
+skw-vm-host = { path = "../skw-vm-host", default-features = false}
+skw-vm-store = { path = "../skw-vm-store", default-features = false}
+skw-vm-primitives = { path = "../skw-vm-primitives", default-features = false}
+skw-vm-runtime = { path = "../skw-vm-runtime", default-features = false}
+skw-vm-pool = { path = "../skw-vm-pool", default-features = false}
+
 hex = { version = "0.4", default-features = false }
 
 lazy-static-include = "3"
-# Temporary workaround see https://github.com/bitvecto-rs/bitvec/issues/105
-funty = "=1.1.0"
-
-bs58 = "0.4.0"
-borsh = { version = "0.9", features = ["rc"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-
+bs58 = { version = "0.4.0", default-features = false} 
 clap = { version = "3.1.16", features = ["derive"] }
 tracing-span-tree = "0.1"
 
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rocket = "0.5.0-rc.2"
+lazy_static = "1.4.0"
+
 [dev-dependencies]
-quickcheck = "0.9"
-quickcheck_macros = "0.9"
 # fungible-token = { path="../skw-contract-sdk/examples/fungible-token/ft" }
 
 [features]
 default = []
-no_sim = []
-no_contract_cache = []
+contract-sim = []
+web-interface = []

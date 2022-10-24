@@ -3,10 +3,10 @@ use pallet_secrets;
 use crate as pallet_s_contract;
 
 use frame_support::{
-	traits::{ConstU16, ConstU32, ConstU64},
+	traits::{Nothing, ConstU32, ConstU64},
 	PalletId,
 };
-use frame_system as system;
+use frame_system::{EnsureRoot};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -24,22 +24,23 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		Balances: pallet_balances::{Pallet, Call, Event<T>, Storage},
+		Preimage: pallet_preimage::{Pallet, Call, Event<T>, Storage},
 		Secrets: pallet_secrets::{Pallet, Call, Storage, Event<T>},
 		SContract: pallet_s_contract::{Pallet, Call, Storage, Event<T>},
 	}
 );
 pub type AccountId = <<sp_runtime::MultiSignature as sp_runtime::traits::Verify>::Signer as sp_runtime::traits::IdentifyAccount>::AccountId;
-
-impl system::Config for Test {
-	type BaseCallFilter = frame_support::traits::Everything;
+impl frame_system::Config for Test {
+	type BaseCallFilter = Nothing;
 	type BlockWeights = ();
 	type BlockLength = ();
 	type DbWeight = ();
 	type Origin = Origin;
-	type Call = Call;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
+	type Call = Call;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
@@ -48,21 +49,42 @@ impl system::Config for Test {
 	type BlockHashCount = ConstU64<250>;
 	type Version = ();
 	type PalletInfo = PalletInfo;
-	type AccountData = ();
+	type AccountData = pallet_balances::AccountData<u64>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
-	type SS58Prefix = ConstU16<42>;
+	type SS58Prefix = ();
 	type OnSetCode = ();
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MaxConsumers = ConstU32<16>;
+}
+
+impl pallet_balances::Config for Test {
+	type MaxLocks = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = [u8; 8];
+	type Balance = u64;
+	type Event = Event;
+	type DustRemoval = ();
+	type ExistentialDeposit = ConstU64<1>;
+	type AccountStore = System;
+	type WeightInfo = ();
+}
+
+impl pallet_preimage::Config for Test {
+	type Event = Event;
+	type Currency = Balances;
+	type ManagerOrigin = EnsureRoot<Self::AccountId>;
+	type MaxSize = ConstU32<{ 4096 * 1024 }>; // PreimageMaxSize Taken from Polkadot as reference.
+	type BaseDeposit = ConstU64<1>;
+	type ByteDeposit = ConstU64<1>;
+	type WeightInfo = ();
 }
 
 impl pallet_secrets::Config for Test {
 	type WeightInfo = ();
 	type Event = Event;
-	type IPFSCIDLength = ConstU32<46>;
+	type Preimage = Preimage;
 }
-
 
 frame_support::parameter_types! {
 	pub const SContractPalletId: PalletId = PalletId(*b"scontrac");
@@ -79,5 +101,5 @@ impl pallet_s_contract::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+	frame_system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
 }

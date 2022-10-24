@@ -11,7 +11,8 @@ crate-type = ["cdylib", "rlib"]
 skw-contract-sdk = { path = "../../" }
 
 [dev-dependencies]
-skw-contract-sim = { path = "../../../skw-contract-sim" }
+skw-vm-interface = { path = "../../../skw-vm-interface" }
+skw-vm-primitives = { path = "../../../skw-vm-primitives" }
 
 [profile.release]
 codegen-units = 1

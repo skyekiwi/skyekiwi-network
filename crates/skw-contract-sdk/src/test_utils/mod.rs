@@ -4,7 +4,7 @@ pub mod test_env;
 mod context;
 use crate::mock::Receipt;
 #[allow(deprecated)]
-pub use context::{accounts, testing_env_with_promise_results, VMContextBuilder};
+pub use context::{testing_env_with_promise_results, VMContextBuilder};
 
 /// Initializes a testing environment to mock interactions which would otherwise go through a
 /// validator node. This macro will initialize or overwrite the [`MockedBlockchain`]
@@ -25,31 +25,6 @@ pub use context::{accounts, testing_env_with_promise_results, VMContextBuilder};
 ///
 /// Any argument not included will use the default implementation of each.
 ///
-/// # Example use
-///
-/// ```
-/// use skw_contract_sdk::testing_env;
-/// use skw_contract_sdk::test_utils::{accounts, VMContextBuilder};
-/// use skw_contract_sdk::{VMConfig, RuntimeFeesConfig};
-/// use std::collections::HashMap;
-///
-/// # fn main() {
-/// // Initializing some context is required
-/// let context = VMContextBuilder::new().signer_account_id(accounts(0)).build();
-///
-/// // Build with just the base context
-/// testing_env!(context.clone());
-///
-/// // Or include arguments up to the five optional
-/// testing_env!(
-///     context,
-///     VMConfig::test(),
-///     RuntimeFeesConfig::test(),
-///     HashMap::default(),
-///     Vec::default(),
-/// );
-/// # }
-/// ```
 ///
 /// [`MockedBlockchain`]: crate::mock::MockedBlockchain
 /// [`VMContext`]: crate::VMContext

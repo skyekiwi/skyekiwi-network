@@ -111,7 +111,7 @@ impl PromiseJoint {
 ///   execution of method `ContractB::b` of `bob_near` account, and the return value of `ContractA::a`
 ///   will be what `ContractB::b` returned.
 /// ```no_run
-/// # use skw_contract_sdk::{ext_contract, skw_bindgen, Promise, Gas};
+/// # use skw_contract_sdk::{ext_contract, skw_bindgen, Promise, Gas, AccountId};
 /// # use borsh::{BorshDeserialize, BorshSerialize};
 /// #[ext_contract]
 /// pub trait ContractB {
@@ -125,7 +125,7 @@ impl PromiseJoint {
 /// #[skw_bindgen]
 /// impl ContractA {
 ///     pub fn a(&self) -> Promise {
-///         contract_b::b("bob.sk".parse().unwrap(), 0, Gas(1_000))
+///         contract_b::b(AccountId::test(2), 0, 1_000)
 ///     }
 /// }
 /// ```
@@ -134,10 +134,10 @@ impl PromiseJoint {
 ///   schedules a transaction that creates an account, transfers tokens:
 ///
 /// ```no_run
-/// # use skw_contract_sdk::{Promise, env, test_utils::VMContextBuilder, testing_env};
-/// # testing_env!(VMContextBuilder::new().signer_account_id("bob.sk".parse().unwrap())
-/// #               .account_balance(1000).prepaid_gas(1_000_000.into()).build());
-/// Promise::new("bob.sk".parse().unwrap())
+/// # use skw_contract_sdk::{AccountId, Promise, env, test_utils::VMContextBuilder, testing_env};
+/// # testing_env!(VMContextBuilder::new().signer_account_id(AccountId::test(2))
+/// #               .account_balance(1000).prepaid_gas(1_000_000).build());
+/// Promise::new(AccountId::test(2))
 ///   .create_account()
 ///   .transfer(1000);
 /// ```
@@ -228,9 +228,9 @@ impl Promise {
     /// following code will panic during the execution of the smart contract:
     ///
     /// ```no_run
-    /// # use skw_contract_sdk::{Promise, testing_env};
-    /// let p1 = Promise::new("bob.sk".parse().unwrap()).create_account();
-    /// let p2 = Promise::new("carol.sk".parse().unwrap()).create_account();
+    /// # use skw_contract_sdk::{Promise, testing_env, AccountId};
+    /// let p1 = Promise::new(AccountId::test(2)).create_account();
+    /// let p2 = Promise::new(AccountId::test(3)).create_account();
     /// let p3 = p1.and(p2);
     /// // p3.create_account();
     /// ```
@@ -251,11 +251,11 @@ impl Promise {
     /// creation will wait for `bob_near` to be created, and `eva_near` will wait for both `carol_near`
     /// and `dave_near` to be created first.
     /// ```no_run
-    /// # use skw_contract_sdk::{Promise, VMContext, testing_env};
-    /// let p1 = Promise::new("bob_near".parse().unwrap()).create_account();
-    /// let p2 = Promise::new("carol_near".parse().unwrap()).create_account();
-    /// let p3 = Promise::new("dave_near".parse().unwrap()).create_account();
-    /// let p4 = Promise::new("eva_near".parse().unwrap()).create_account();
+    /// # use skw_contract_sdk::{AccountId, Promise, VMContext, testing_env};
+    /// let p1 = Promise::new(AccountId::test(2)).create_account();
+    /// let p2 = Promise::new(AccountId::test(3)).create_account();
+    /// let p3 = Promise::new(AccountId::test(4)).create_account();
+    /// let p4 = Promise::new(AccountId::test(5)).create_account();
     /// p1.then(p2).and(p3).then(p4);
     /// ```
     pub fn then(self, mut other: Promise) -> Promise {
@@ -271,7 +271,7 @@ impl Promise {
     ///
     /// In the below code `a1` and `a2` functions are equivalent.
     /// ```
-    /// # use skw_contract_sdk::{ext_contract, Gas, skw_bindgen, Promise};
+    /// # use skw_contract_sdk::{AccountId, ext_contract, Gas, skw_bindgen, Promise};
     /// # use borsh::{BorshDeserialize, BorshSerialize};
     /// #[ext_contract]
     /// pub trait ContractB {
@@ -285,11 +285,11 @@ impl Promise {
     /// #[skw_bindgen]
     /// impl ContractA {
     ///     pub fn a1(&self) {
-    ///        contract_b::b("bob_near".parse().unwrap(), 0, Gas(1_000)).as_return();
+    ///        contract_b::b(AccountId::test(2), 0, 1_000).as_return();
     ///     }
     ///
     ///     pub fn a2(&self) -> Promise {
-    ///        contract_b::b("bob_near".parse().unwrap(), 0, Gas(1_000))
+    ///        contract_b::b(AccountId::test(2), 0, 1_000)
     ///     }
     /// }
     /// ```

@@ -8,6 +8,7 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup}, Permill,
 };
+use frame_system::{EnsureRoot};
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -22,23 +23,12 @@ frame_support::construct_runtime!(
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Event<T>},
+		Preimage: pallet_preimage::{Pallet, Call, Event<T>, Storage},
 		Secrets: pallet_secrets::{Pallet, Call, Storage, Event<T>},
 		SAccount: pallet_s_account::{Pallet, Call, Storage, Event<T>},
 		SContract: pallet_s_contract::{Pallet, Call, Storage, Event<T>},
 	}
 );
-
-impl pallet_balances::Config for Test {
-	type MaxLocks = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
-	type Balance = u64;
-	type Event = Event;
-	type DustRemoval = ();
-	type ExistentialDeposit = ConstU64<1>;
-	type AccountStore = System;
-	type WeightInfo = ();
-}
 
 frame_support::parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
@@ -92,10 +82,32 @@ impl frame_system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
+impl pallet_balances::Config for Test {
+	type MaxLocks = ();
+	type MaxReserves = ();
+	type ReserveIdentifier = [u8; 8];
+	type Balance = u64;
+	type Event = Event;
+	type DustRemoval = ();
+	type ExistentialDeposit = ConstU64<1>;
+	type AccountStore = System;
+	type WeightInfo = ();
+}
+
+impl pallet_preimage::Config for Test {
+	type Event = Event;
+	type Currency = Balances;
+	type ManagerOrigin = EnsureRoot<Self::AccountId>;
+	type MaxSize = ConstU32<{ 4096 * 1024 }>; // PreimageMaxSize Taken from Polkadot as reference.
+	type BaseDeposit = ConstU64<1>;
+	type ByteDeposit = ConstU64<1>;
+	type WeightInfo = ();
+}
+
 impl pallet_secrets::Config for Test {
 	type WeightInfo = ();
 	type Event = Event;
-	type IPFSCIDLength = ConstU32<46>;
+	type Preimage = Preimage;
 }
 
 impl pallet_s_contract::Config for Test {
@@ -107,7 +119,6 @@ impl pallet_s_contract::Config for Test {
 	type MaxCallPerBlock = ConstU32<1_000>;
 	type SContractRoot = SContractPalletId;
 }
-
 impl pallet_s_account::Config for Test {
 	type WeightInfo = ();
 	type Event = Event;

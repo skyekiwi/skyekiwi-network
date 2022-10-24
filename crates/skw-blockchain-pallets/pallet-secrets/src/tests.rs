@@ -2,8 +2,8 @@ use super::Event as SecretsEvent;
 use frame_support::{assert_ok, assert_noop};
 use crate::{mock::{Event, *}, Error};
 
-const IPFS_CID_1: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
-const IPFS_CID_2: &str = "QmRTphmVWBbKAVNwuc8tjJjdxzJsxB7ovpGHyUUCE6Rnsb";
+const METADATA1: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+const METADATA2: [u8; 16] = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31];
 
 type AccountId = u64;
 
@@ -16,16 +16,18 @@ fn it_register_secrets() {
 		System::set_block_number(1);
 
 		assert_ok!(
-			Secrets::register_secret( Origin::signed(ALICE), IPFS_CID_1.as_bytes().to_vec() )
+			Secrets::register_secret( Origin::signed(ALICE), METADATA1[..].to_vec() ),
 		);
-
-		assert! (System::events().iter().all(|evt| {
-				evt.event == Event::Secrets(SecretsEvent::SecretRegistered(0))
-			})
+		
+		let events = System::events();
+		assert!(
+			events[1].event == Event::Secrets(SecretsEvent::SecretRegistered(0))
 		);
 
 		assert_eq! (Secrets::owner_of(0).unwrap(), ALICE);
-		assert_eq! (Secrets::metadata_of(0).unwrap(), IPFS_CID_1.as_bytes().to_vec());
+
+		let hash = Secrets::metadata_of(0).unwrap();
+		assert_eq! (Secrets::try_get_bytes(&hash).unwrap(), METADATA1[..].to_vec());
 	});
 }
 
@@ -36,15 +38,20 @@ fn it_updates_metadata() {
 
 		// 1. Alice register a secret w/ID = 0
 		assert_ok!(
-			Secrets::register_secret( Origin::signed(ALICE), IPFS_CID_1.as_bytes().to_vec() )
+			Secrets::register_secret( Origin::signed(ALICE), METADATA1[..].to_vec() )
 		);
-		assert_eq! (Secrets::metadata_of(0).unwrap(), IPFS_CID_1.as_bytes().to_vec());
+		
+		assert_eq! (Secrets::owner_of(0).unwrap(), ALICE);
+
+		let hash = Secrets::metadata_of(0).unwrap();
+		assert_eq! (Secrets::try_get_bytes(&hash).unwrap(), METADATA1[..].to_vec());
 
 		// 2. Alice update the Metadata
 		assert_ok!(
-			Secrets::update_metadata( Origin::signed(ALICE), 0, IPFS_CID_2.as_bytes().to_vec() )
+			Secrets::update_metadata( Origin::signed(ALICE), 0,  METADATA2[..].to_vec())
 		);
-		assert_eq! (Secrets::metadata_of(0).unwrap(), IPFS_CID_2.as_bytes().to_vec());
+		let hash = Secrets::metadata_of(0).unwrap();
+		assert_eq! (Secrets::try_get_bytes(&hash).unwrap(), METADATA2[..].to_vec());
 	});
 }
 
@@ -55,7 +62,7 @@ fn it_nominate_n_remove_member() {
 
 		// 1. Alice register a secret w/ID = 0
 		assert_ok!(
-			Secrets::register_secret( Origin::signed(ALICE), IPFS_CID_1.as_bytes().to_vec() )
+			Secrets::register_secret( Origin::signed(ALICE), METADATA1[..].to_vec() )
 		);
 		assert_eq! (Secrets::authorize_access(ALICE, 0), true);
 		assert_eq! (Secrets::authorize_owner(ALICE, 0), true);
@@ -91,7 +98,7 @@ fn members_can_update_metaedata() {
 
 		// 1. Alice register a secret w/ID = 0
 		assert_ok!(
-			Secrets::register_secret( Origin::signed(ALICE), IPFS_CID_1.as_bytes().to_vec() )
+			Secrets::register_secret( Origin::signed(ALICE), METADATA1[..].to_vec() )
 		);
 
 		// 2. Alice nominate Bob to be a member
@@ -101,9 +108,11 @@ fn members_can_update_metaedata() {
 
 		// 3. Bob can update metadata
 		assert_ok!(
-			Secrets::update_metadata( Origin::signed(BOB), 0, IPFS_CID_2.as_bytes().to_vec() )
+			Secrets::update_metadata( Origin::signed(BOB), 0, METADATA2[..].to_vec())
 		);
-		assert_eq! (Secrets::metadata_of(0).unwrap(), IPFS_CID_2.as_bytes().to_vec());
+
+		let hash = Secrets::metadata_of(0).unwrap();
+		assert_eq! (Secrets::try_get_bytes(&hash).unwrap(), METADATA2[..].to_vec());
 	});
 }
 
@@ -114,7 +123,7 @@ fn owner_can_burn_secret() {
 
 		// 1. Alice register a secret w/ID = 0
 		assert_ok!(
-			Secrets::register_secret( Origin::signed(ALICE), IPFS_CID_1.as_bytes().to_vec() )
+			Secrets::register_secret( Origin::signed(ALICE),  METADATA1[..].to_vec() )
 		);
 
 		// 2. Alice nominate Bob to be a member

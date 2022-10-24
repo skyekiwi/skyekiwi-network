@@ -1,8 +1,6 @@
 use crate::{actions::execute_function_call, ext::RuntimeExt};
 use log::debug;
-use borsh::BorshDeserialize;
 
-use skw_vm_primitives::crypto::{KeyType, PublicKey};
 use skw_vm_primitives::config::RuntimeConfig;
 use skw_vm_primitives::{
     receipt::ActionReceipt,
@@ -10,12 +8,12 @@ use skw_vm_primitives::{
     serialize::to_base64,
     transaction::FunctionCallAction,
     trie_key::trie_key_parsers,
-    account::{Account, AccessKey},
+    account::{Account},
     contract_runtime::{AccountId, Gas, CryptoHash, ContractCode},
     views::{StateItem, ViewApplyState, ViewStateResult},
 };
 
-use skw_vm_store::{get_account, get_code, get_access_key, TrieUpdate};
+use skw_vm_store::{get_account, get_code, TrieUpdate};
 use skw_vm_host::{ReturnData, ViewConfig};
 use std::{str, time::Instant};
 use std::sync::Arc;
@@ -68,47 +66,6 @@ impl TrieViewer {
                 contract_account_id: account_id.clone(),
             }
         })
-    }
-
-    pub fn view_access_key(
-        &self,
-        state_update: &TrieUpdate,
-        account_id: &AccountId,
-        public_key: &PublicKey,
-    ) -> Result<AccessKey, errors::ViewAccessKeyError> {
-        get_access_key(state_update, account_id, public_key)?.ok_or_else(|| {
-            errors::ViewAccessKeyError::AccessKeyDoesNotExist { public_key: public_key.clone() }
-        })
-    }
-
-    pub fn view_access_keys(
-        &self,
-        state_update: &TrieUpdate,
-        account_id: &AccountId,
-    ) -> Result<Vec<(PublicKey, AccessKey)>, errors::ViewAccessKeyError> {
-        let prefix = trie_key_parsers::get_raw_prefix_for_access_keys(account_id);
-        let raw_prefix: &[u8] = prefix.as_ref();
-        let access_keys =
-            state_update
-                .iter(&prefix)?
-                .map(|key| {
-                    let key = key?;
-                    let public_key = &key[raw_prefix.len()..];
-                    let access_key = skw_vm_store::get_access_key_raw(state_update, &key)?
-                        .ok_or_else(|| errors::ViewAccessKeyError::InternalError {
-                            error_message: "Unexpected missing key from iterator".to_string(),
-                        })?;
-                    PublicKey::try_from_slice(public_key)
-                        .map_err(|_| errors::ViewAccessKeyError::InternalError {
-                            error_message: format!(
-                                "Unexpected invalid public key {:?} received from store",
-                                public_key
-                            ),
-                        })
-                        .map(|key| (key, access_key))
-                })
-                .collect::<Result<Vec<_>, errors::ViewAccessKeyError>>();
-        access_keys
     }
 
     pub fn view_state(
@@ -175,13 +132,11 @@ impl TrieViewer {
         })?;
         // TODO(#1015): Add ability to pass public key and originator_id
         let originator_id = contract_id;
-        let public_key = PublicKey::empty(KeyType::ED25519);
         let empty_hash = CryptoHash::default();
         let mut runtime_ext = RuntimeExt::new(
             &mut state_update,
             contract_id,
             originator_id,
-            &public_key,
             0,
             &empty_hash,
         );
@@ -201,7 +156,6 @@ impl TrieViewer {
 
         let action_receipt = ActionReceipt {
             signer_id: originator_id.clone(),
-            signer_public_key: public_key.clone(),
             gas_price: 0,
             output_data_receivers: vec![],
             input_data_ids: vec![],

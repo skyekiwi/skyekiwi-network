@@ -43,7 +43,6 @@ impl CrossContract {
         Promise::new(account_id)
             .create_account()
             .transfer(amount.0)
-            // .add_full_access_key(env::signer_account_pk())
             .deploy_contract(
                 include_bytes!("../../status-message/res/status_message.wasm").to_vec(),
             );

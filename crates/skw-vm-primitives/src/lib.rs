@@ -15,7 +15,6 @@ pub mod state_record;
 pub mod account;
 pub mod challenge;
 pub mod test_utils;
-pub mod version;
 
 pub use num_rational;
 pub use borsh;
@@ -25,12 +24,6 @@ pub mod crypto;
 pub mod contract_runtime {
     use sha2::Digest;
     pub use crate::account_id::AccountId;
-    use crate::receipt::{Receipt};
-    use crate::trie_key::TrieKey;
-    use crate::borsh::{BorshDeserialize, BorshSerialize};
-    use serde::{Serialize, Deserialize};
-    use crate::crypto::PublicKey;
-    use crate::serialize::u128_dec_format;
     pub type RngSeed = [u8; 32];
 
     pub type CryptoHash = [u8; 32];
@@ -38,25 +31,17 @@ pub mod contract_runtime {
     pub type StateRoot = CryptoHash;
     pub type ProtocolVersion = u32;
     pub type BlockNumber = u64;
-    pub type EpochHeight = u64;
     pub type Balance = u128;
     pub type StorageUsage = u64;
     pub type Gas = u64;
     pub type Nonce = u64;
+    pub type Duration = u64;
+    pub type PromiseId = Vec<usize>;
+
     pub struct ContractCode {
         pub code: Vec<u8>,
         pub hash: CryptoHash,
     }
-
-    #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-    pub struct AccountInfo {
-        pub account_id: AccountId,
-        pub public_key: PublicKey,
-        #[serde(with = "u128_dec_format")]
-        pub amount: Balance,
-    }
-
-    // near_primitives::errors::RuntimeError;
 
     impl ContractCode {
         pub fn new(code: &[u8]) -> ContractCode {
@@ -70,7 +55,13 @@ pub mod contract_runtime {
     pub fn hash_bytes(bytes: &[u8]) -> CryptoHash {
         sha2::Sha256::digest(bytes).into()
     }
+}
 
+pub mod state {
+    use borsh::{BorshDeserialize, BorshSerialize};
+    use crate::contract_runtime::CryptoHash;
+    use crate::receipt::{Receipt};
+    use crate::trie_key::TrieKey;
 
     #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
     pub enum StateChangeCause {
@@ -154,7 +145,6 @@ pub mod contract_runtime {
 
     pub type RawStateChanges = std::collections::BTreeMap<Vec<u8>, RawStateChangesWithTrieKey>;
 
-    #[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
     #[derive(PartialEq, Eq, Clone, Debug, BorshSerialize, BorshDeserialize, serde::Serialize)]
     pub struct StateRootNode {
         /// in Nightshade, data is the serialized TrieNodeWithSize

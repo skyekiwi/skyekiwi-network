@@ -1,0 +1,39 @@
+{
+  "name": "near-vm",
+  "version": "1.0.0",
+  "repository": "git@github.com:RoyTimes/near-vm.git",
+  "author": "SkyeKiwi <hello@skye.kiwi>",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "start": "./node_modules/.bin/ts-node ./src/index.ts",
+    "indexer": "./node_modules/.bin/ts-node ./src/runner/indexer.ts",
+    "dispatcher": "./node_modules/.bin/ts-node ./src/runner/dispatcher.ts",
+    "submitter": "./node_modules/.bin/ts-node ./src/runner/submitter.ts",
+    "stop": "./node_modules/.bin/pm2 del all",
+    "validate": "./node_modules/.bin/ts-node ./src/validate.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.18",
+    "@types/superagent": "^4.1.15",
+    "ts-node": "^10.4.0",
+    "typescript": "^4.5.3"
+  },
+  "dependencies": {
+    "@polkadot/api": "^9.5.1",
+    "@polkadot/keyring": "^10.1.10",
+    "@polkadot/util": "^10.1.10",
+    "@polkadot/util-crypto": "^10.1.10",
+    "@skyekiwi/crypto": "1.0.2-5",
+    "@skyekiwi/file": "1.0.2-5",
+    "@skyekiwi/ipfs": "1.0.2-5",
+    "@skyekiwi/s-contract": "1.0.2-5",
+    "@skyekiwi/util": "1.0.2-5",
+    "dotenv": "^16.0.0",
+    "pino": "^8.6.1",
+    "pino-pretty": "^9.1.1",
+    "pm2": "^5.2.2",
+    "superagent": "^8.0.2",
+    "surrealdb.js": "^0.5.0",
+    "tweetnacl": "^1.0.3"
+  }
+}

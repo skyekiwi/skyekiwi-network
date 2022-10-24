@@ -15,22 +15,21 @@ pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{ pallet_prelude::* };
+	use frame_support::{ pallet_prelude::*, traits::{PreimageRecipient, PreimageProvider}};
 	use frame_system::pallet_prelude::*;
 	use skw_blockchain_primitives::types::{SecretId};
-	use super::WeightInfo;
+	use super::{WeightInfo};
+	
 	use sp_std::vec::Vec;
-
+	use sp_runtime::traits::{Hash};
+	
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		
 		type WeightInfo: WeightInfo;
 
-		/// the length of acceptable IPFS CID, default at 46 bytes
-		#[pallet::constant]
-		type IPFSCIDLength: Get<u32>;
-
+		type Preimage: PreimageRecipient<Self::Hash> + PreimageProvider<Self::Hash>;
 		// type ForceOrigin: EnsureOrigin<Self::Origin>;
 	}
 
@@ -41,7 +40,7 @@ pub mod pallet {
 	/// Secret Metadata of generic secrets & contracts
 	#[pallet::storage]
 	#[pallet::getter(fn metadata_of)]
-	pub(super) type Metadata<T: Config> = StorageMap<_, Twox64Concat, SecretId, BoundedVec<u8, T::IPFSCIDLength>>;
+	pub(super) type Metadata<T: Config> = StorageMap<_, Twox64Concat, SecretId, T::Hash>;
 
 	/// owner of a generic secret - not useful for contracts
 	#[pallet::storage]
@@ -54,7 +53,7 @@ pub mod pallet {
 
 	/// the secret ID of the next registered secret
 	#[pallet::type_value]
-	pub(super) fn DefaultId<T: Config>() -> SecretId { 0u64 }
+	pub(super) fn DefaultId<T: Config>() -> SecretId { 0u32 }
 	#[pallet::storage]
 	#[pallet::getter(fn current_secret_id)]
 	pub(super) type CurrentSecretId<T: Config> = StorageValue<_, SecretId, ValueQuery, DefaultId<T>>;
@@ -73,6 +72,7 @@ pub mod pallet {
 	pub enum Error<T> {
 		InvalidSecretId,
 		AccessDenied,
+		MetadataStorageError,
 		MetadataNotValid,
 		SecretNotExecutable,
 		NotAllowedForSecretContracts,
@@ -83,17 +83,16 @@ pub mod pallet {
 	impl<T:Config> Pallet<T> {
 
 		/// write a metadata to the secret registry and assign a secret_id
-		#[pallet::weight(<T as Config>::WeightInfo::register_secret())]
+		#[pallet::weight(<T as Config>::WeightInfo::register_secret(metadata.len() as u32))]
 		pub fn register_secret(
 			origin: OriginFor<T>, 
 			metadata: Vec<u8>
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;			
 			let id = <CurrentSecretId<T>>::get();
-
-			let bounded_metadata = BoundedVec::<u8, T::IPFSCIDLength>::try_from(metadata)
-				.map_err(|_| Error::<T>::MetadataNotValid)?;
-			<Metadata<T>>::insert(&id, &bounded_metadata);
+			
+			let hash = Self::maybe_note_bytes(metadata)?;
+			<Metadata<T>>::insert(&id, &hash);
 			<Owner<T>>::insert(&id, who);
 			<CurrentSecretId<T>>::set(id.saturating_add(1));
 			Self::deposit_event(Event::<T>::SecretRegistered(id));
@@ -134,7 +133,7 @@ pub mod pallet {
 		}
 
 		/// update the metadata of a secret
-		#[pallet::weight(<T as Config>::WeightInfo::update_metadata())]
+		#[pallet::weight(<T as Config>::WeightInfo::update_metadata(metadata.len() as u32))]
 		pub fn update_metadata(
 			origin: OriginFor<T>,
 			secret_id: SecretId,
@@ -142,11 +141,17 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;	
 			ensure!(Self::authorize_access(who, secret_id) == true, Error::<T>::AccessDenied);
-			let bounded_metadata = BoundedVec::<u8, T::IPFSCIDLength>::try_from(metadata)
-				.map_err(|_| Error::<T>::MetadataNotValid)?;
+
 
 			// so far, it is garenteed the secret_id is valid 
-			<Metadata<T>>::mutate(&secret_id, |meta| *meta = Some(bounded_metadata));
+			match <Metadata<T>>::take(&secret_id) {
+				Some(h) => Self::maybe_remove_bytes(&h),
+				None => {}
+			};
+
+			let hash = Self::maybe_note_bytes(metadata.clone())?;
+			<Metadata<T>>::insert(&secret_id, &hash);
+
 			Self::deposit_event(Event::<T>::SecretUpdated(secret_id));
 			
 			Ok(())
@@ -161,9 +166,9 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			ensure!(Self::authorize_owner(who, secret_id) == true, Error::<T>::AccessDenied);
 
-			// so far, it is garenteed the secret_id is valid 
-			<Metadata<T>>::take(&secret_id);
-			<Owner<T>>::take(&secret_id);
+			
+
+			<Owner<T>>::remove(&secret_id);
 			<Operator<T>>::remove_prefix(&secret_id, None);
 			
 			Self::deposit_event(Event::<T>::SecretBurnt(secret_id));
@@ -238,6 +243,25 @@ pub mod pallet {
 				.step_by(2)
 				.map(|i| s[i] * 16 + s[i + 1])
 				.collect()
+		}
+
+		// Preimage func are dumped here ... for now
+		pub fn maybe_note_bytes(bytes: Vec<u8>) -> Result<T::Hash, DispatchError> {
+
+			let bounded_bytes= BoundedVec::<u8, <<T as crate::pallet::Config>::Preimage as PreimageRecipient<T::Hash>>::MaxSize>::try_from(bytes.clone())
+				.map_err(|_| Error::<T>::MetadataNotValid)?;
+			let hash = T::Hashing::hash(&bounded_bytes);
+
+			T::Preimage::note_preimage(bounded_bytes);
+			Ok(hash)
+		}
+
+		pub fn maybe_remove_bytes(hash: &T::Hash) -> () {
+			T::Preimage::unnote_preimage(hash);
+		}
+
+		pub fn try_get_bytes(hash: &T::Hash) -> Option<Vec<u8>> {
+			T::Preimage::get_preimage(hash)
 		}
 	}
 }

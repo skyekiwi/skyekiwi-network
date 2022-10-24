@@ -177,6 +177,12 @@ Mainnet is the parachain ready version of the Sigma Network that will be connect
 **Stage 5 and After** Mainnet Upgrades 
 New shards will be added to the offchain VM gradually. The first shard will be a general purpose NEAR sdk focused shard, while the second shard will be an EVM compatible shard, further down the line, high throughput shard, high security shard will be added one by one. 
 
+
+## M1 Chip Wasm32-unknown-unknown 
+
+```
+AR="${LLVM_PATH}/bin/llvm-ar" CC="${LLVM_PATH}/bin/clang" cargo ...
+```
 ## License
 
 The entire code within this repository is licensed under the [GPLv3](LICENSE).

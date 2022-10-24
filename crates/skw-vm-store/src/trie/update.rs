@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 use std::iter::Peekable;
 
-use skw_vm_primitives::contract_runtime::{
-    CryptoHash, RawStateChange, RawStateChanges, RawStateChangesWithTrieKey, StateChangeCause,
-};
+use skw_vm_primitives::contract_runtime::{CryptoHash};
+use skw_vm_primitives::state::{RawStateChange, RawStateChanges, RawStateChangesWithTrieKey, StateChangeCause};
+
 
 use crate::trie::TrieChanges;
 use crate::StorageError;
@@ -343,11 +343,12 @@ impl<'a> Iterator for TrieUpdateIterator<'a> {
 #[cfg(test)]
 mod tests {
     use crate::test_utils::{create_tries};
+    use skw_vm_primitives::account_id::AccountId;
 
     use super::*;
 
     fn test_key(key: Vec<u8>) -> TrieKey {
-        TrieKey::ContractData { account_id: "alice".parse().unwrap(), key }
+        TrieKey::ContractData { account_id: AccountId::test(), key }
     }
 
     #[test]

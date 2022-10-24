@@ -17,8 +17,7 @@ pub use db::{
     LARGEST_TARGET_HEIGHT_KEY, LATEST_KNOWN_KEY, NUM_COLS, SHOULD_COL_GC, SKIP_COL_GC, TAIL_KEY,
 };
 
-use skw_vm_primitives::crypto::PublicKey;
-use skw_vm_primitives::account::{Account, AccessKey};
+use skw_vm_primitives::account::{Account};
 pub use skw_vm_primitives::errors::StorageError;
 use skw_vm_primitives::contract_runtime::{CryptoHash, ContractCode, AccountId, StateRoot};
 use skw_vm_primitives::receipt::{DelayedReceiptIndices, Receipt, ReceivedData};
@@ -479,45 +478,6 @@ pub fn get_delayed_receipt_indices(
     Ok(get(state_update, &TrieKey::DelayedReceiptIndices)?.unwrap_or_default())
 }
 
-pub fn set_access_key(
-    state_update: &mut TrieUpdate,
-    account_id: AccountId,
-    public_key: PublicKey,
-    access_key: &AccessKey,
-) {
-    set(state_update, TrieKey::AccessKey { account_id, public_key }, access_key);
-}
-
-pub fn remove_access_key(
-    state_update: &mut TrieUpdate,
-    account_id: AccountId,
-    public_key: PublicKey,
-) {
-    state_update.remove(TrieKey::AccessKey { account_id, public_key });
-}
-
-pub fn get_access_key(
-    state_update: &TrieUpdate,
-    account_id: &AccountId,
-    public_key: &PublicKey,
-) -> Result<Option<AccessKey>, StorageError> {
-    get(
-        state_update,
-        &TrieKey::AccessKey { account_id: account_id.clone(), public_key: public_key.clone() },
-    )
-}
-
-pub fn get_access_key_raw(
-    state_update: &TrieUpdate,
-    raw_key: &[u8],
-) -> Result<Option<AccessKey>, StorageError> {
-    get(
-        state_update,
-        &trie_key_parsers::parse_trie_key_access_key_from_raw_key(raw_key)
-            .expect("access key in the state should be correct"),
-    )
-}
-
 pub fn set_code(state_update: &mut TrieUpdate, account_id: AccountId, code: &ContractCode) {
     state_update.set(TrieKey::ContractCode { account_id }, code.code.to_vec());
 }
@@ -539,23 +499,6 @@ pub fn remove_account(
 ) -> Result<(), StorageError> {
     state_update.remove(TrieKey::Account { account_id: account_id.clone() });
     state_update.remove(TrieKey::ContractCode { account_id: account_id.clone() });
-
-    // Removing access keys
-    let public_keys = state_update
-        .iter(&trie_key_parsers::get_raw_prefix_for_access_keys(account_id))?
-        .map(|raw_key| {
-            trie_key_parsers::parse_public_key_from_access_key_key(&raw_key?, account_id).map_err(
-                |_e| {
-                    StorageError::StorageInconsistentState(
-                        "Can't parse public key from raw key for AccessKey".to_string(),
-                    )
-                },
-            )
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    for public_key in public_keys {
-        state_update.remove(TrieKey::AccessKey { account_id: account_id.clone(), public_key });
-    }
 
     // Removing contract data
     let data_keys = state_update

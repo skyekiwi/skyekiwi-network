@@ -15,6 +15,7 @@ This crate implements the specification of the interface that SkyeKiwi Network s
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
+
 wasmparser = "0.78"
 pwasm-utils = "0.18.2"
 parity-wasm = "0.42.2"

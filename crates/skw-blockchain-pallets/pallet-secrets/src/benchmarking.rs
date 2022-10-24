@@ -4,21 +4,29 @@ use frame_system::RawOrigin;
 use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_suite};
 #[allow(unused)]
 use crate::Pallet as Secrets;
+use sp_std::vec::Vec;
+
+fn sized_preimage<T: Config>(size: u32) -> Vec<u8> {
+	let mut preimage = Vec::new();
+	preimage.resize(size as usize, 0);
+	preimage
+}
 
 benchmarks! {
 	register_secret {
-		const IPFS_CID: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
+		let s in 0 .. 4194304; 
+		let preimage = sized_preimage::<T>(s);
 		let caller: T::AccountId = whitelisted_caller();
-	}: register_secret(RawOrigin::Signed(caller), IPFS_CID.into())
+	}: register_secret(RawOrigin::Signed(caller), preimage)
 	verify {
 		let secret_id = Secrets::<T>::current_secret_id() - 1;
-		// assert_eq! (Metadata::<T>::get(secret_id), Some(IPFS_CID.to_vec().try_into().unwrap()));
+		// assert_eq! (Secrets::<T>::metadata_of(secret_id), Some(T::Hashing::hash(&preimage[..])));
 	}
 
 	nominate_member {
-		const IPFS_CID: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
+		const METADATA1: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 		let caller: T::AccountId = whitelisted_caller();
-		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), IPFS_CID.into())?;
+		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), METADATA1[..].to_vec())?;
 		let secret_id = Secrets::<T>::current_secret_id() - 1;
 
 		let caller2: T::AccountId = whitelisted_caller();
@@ -26,9 +34,9 @@ benchmarks! {
 	verify {	}
 
 	remove_member {
-		const IPFS_CID: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
+		const METADATA1: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 		let caller: T::AccountId = whitelisted_caller();
-		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), IPFS_CID.into())?;
+		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), METADATA1[..].to_vec())?;
 		let secret_id = Secrets::<T>::current_secret_id() - 1;
 
 		let caller2: T::AccountId = whitelisted_caller();
@@ -37,18 +45,18 @@ benchmarks! {
 	verify { }
 
 	force_nominate_member {
-		const IPFS_CID: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
+		const METADATA1: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 		let caller: T::AccountId = whitelisted_caller();
-		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), IPFS_CID.into())?;
+		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), METADATA1[..].to_vec())?;
 		let secret_id = Secrets::<T>::current_secret_id() - 1;
 		let caller2: T::AccountId = whitelisted_caller();
 	}: force_nominate_member(RawOrigin::Root, secret_id, caller2)
 	verify { }
 
 	force_remove_member {
-		const IPFS_CID: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
+		const METADATA1: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 		let caller: T::AccountId = whitelisted_caller();
-		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), IPFS_CID.into())?;
+		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), METADATA1[..].to_vec())?;
 		let secret_id = Secrets::<T>::current_secret_id() - 1;
 		let caller2: T::AccountId = whitelisted_caller();
 		Secrets::<T>::nominate_member(RawOrigin::Signed(caller.clone()).into(), secret_id, caller2.clone())?;
@@ -56,27 +64,33 @@ benchmarks! {
 	verify { }
 
 	force_change_owner {
-		const IPFS_CID: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
+		const METADATA1: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 		let caller: T::AccountId = whitelisted_caller();
-		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), IPFS_CID.into())?;
+		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), METADATA1[..].to_vec())?;
 		let secret_id = Secrets::<T>::current_secret_id() - 1;
 		let caller2: T::AccountId = whitelisted_caller();
 	}: force_change_owner(RawOrigin::Root, secret_id, caller2)
 	verify { }
 
 	update_metadata {
-		const IPFS_CID: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
-		const IPFS_CID2: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi89";
+		let s in 0 .. 4194304;
+		let preimage = sized_preimage::<T>(s);
+
+		const METADATA1: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 		let caller: T::AccountId = whitelisted_caller();
-		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), IPFS_CID.into())?;
+		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), METADATA1[..].to_vec())?;
+
 		let secret_id = Secrets::<T>::current_secret_id() - 1;
-	}: update_metadata(RawOrigin::Signed(caller), secret_id, IPFS_CID2.into())
-	verify { }
+	}: update_metadata(RawOrigin::Signed(caller), secret_id, preimage) 
+	verify { 
+		let secret_id = Secrets::<T>::current_secret_id() - 1;
+		// assert_eq! (Secrets::<T>::metadata_of(secret_id), Some(hash));
+	}
 
 	burn_secret {
-		const IPFS_CID: &str = "QmaibP61e3a4r6Bp895FQFB6ohqt5gMK4yeNy6yXxBmi8N";
+		const METADATA1: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 		let caller: T::AccountId = whitelisted_caller();
-		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), IPFS_CID.into())?;
+		Secrets::<T>::register_secret(RawOrigin::Signed(caller.clone()).into(), METADATA1[..].to_vec())?;
 		let secret_id = Secrets::<T>::current_secret_id() - 1;
 	}: burn_secret(RawOrigin::Signed(caller), secret_id)
 	verify { }

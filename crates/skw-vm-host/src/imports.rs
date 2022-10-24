@@ -46,10 +46,6 @@ use wasmi::{
 				  Signature::new(&[ValueType::I64][..], None),
 				  HostFunctions::SignerAccountId.into(),
 			  )),
-			  "signer_account_pk" => Ok(FuncInstance::alloc_host(
-				  Signature::new(&[ValueType::I64][..] , None),
-				  HostFunctions::SignerAccountPublicKey.into(),
-			  )),
 			  "predecessor_account_id" => Ok(FuncInstance::alloc_host(
 				  Signature::new(&[ValueType::I64][..], None),
 				  HostFunctions::PredecessorAccountId.into(),
@@ -170,21 +166,6 @@ use wasmi::{
 				  Signature::new(&[ValueType::I64, ValueType::I64][..], None),
 				  HostFunctions::PromiseBatchActionTransfer.into(),
 			  )),
-
-			"promise_batch_action_add_key_with_full_access" => Ok(FuncInstance::alloc_host(
-				Signature::new(&[ValueType::I64, ValueType::I64, ValueType::I64, ValueType::I64][..], None),
-				HostFunctions::PromiseBatchActionAddKeyWithFullAccess.into(),
-			)),
-
-			"promise_batch_action_add_key_with_function_call" => Ok(FuncInstance::alloc_host(
-				Signature::new(&[ValueType::I64, ValueType::I64, ValueType::I64, ValueType::I64, ValueType::I64, ValueType::I64, ValueType::I64, ValueType::I64, ValueType::I64][..], None),
-				HostFunctions::PromiseBatchActionAddKeyWithFunctionCall.into(),
-			)),
-
-			"promise_batch_action_delete_key" => Ok(FuncInstance::alloc_host(
-				Signature::new(&[ValueType::I64, ValueType::I64, ValueType::I64][..], None),
-				HostFunctions::PromiseBatchActionDeleteKey.into(),
-			)),
 			  "promise_batch_action_delete_account" => Ok(FuncInstance::alloc_host(
 				  Signature::new(&[ValueType::I64, ValueType::I64, ValueType::I64][..], None),
 				  HostFunctions::PromiseBatchActionDeleteAccount.into(),

@@ -104,12 +104,12 @@ impl IpfsClient {
   }
 }
 
-#[test]
-fn ipfs_works() {
-  const CONTENT: &str = "some random string ...";
+// #[test]
+// fn ipfs_works() {
+//   const CONTENT: &str = "some random string ...";
 
-  let result = IpfsClient::add(CONTENT.as_bytes().to_vec()).unwrap();
-  let recovered = IpfsClient::cat(result.cid).unwrap();
+//   let result = IpfsClient::add(CONTENT.as_bytes().to_vec()).unwrap();
+//   let recovered = IpfsClient::cat(result.cid).unwrap();
 
-  assert_eq!(recovered, CONTENT.as_bytes());
-}
+//   assert_eq!(recovered, CONTENT.as_bytes());
+// }

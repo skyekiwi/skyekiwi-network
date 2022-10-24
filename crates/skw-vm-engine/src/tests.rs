@@ -8,23 +8,22 @@ mod wasm_validation;
 use crate::runner::WasmiVM;
 
 use skw_vm_primitives::contract_runtime::ContractCode;
+use skw_vm_primitives::account_id::AccountId;
 use skw_vm_primitives::fees::RuntimeFeesConfig;
 use skw_vm_primitives::errors::VMError;
 
 use skw_vm_host::mocks::mock_external::MockedExternal;
 use skw_vm_host::{VMConfig, VMContext, VMOutcome};
 
-const CURRENT_ACCOUNT_ID: &str = "alice";
-const SIGNER_ACCOUNT_ID: &str = "bob";
-const SIGNER_ACCOUNT_PK: [u8; 3] = [0, 1, 2];
-const PREDECESSOR_ACCOUNT_ID: &str = "carol";
-
 fn create_context(input: Vec<u8>) -> VMContext {
+    let current_account_id = AccountId::testn(1);
+    let signer_account_id = AccountId::testn(2);
+    let predecessor_account_id = AccountId::testn(3);
+
     VMContext {
-        current_account_id: CURRENT_ACCOUNT_ID.parse().unwrap(),
-        signer_account_id: SIGNER_ACCOUNT_ID.parse().unwrap(),
-        signer_account_pk: Vec::from(&SIGNER_ACCOUNT_PK[..]),
-        predecessor_account_id: PREDECESSOR_ACCOUNT_ID.parse().unwrap(),
+        current_account_id,
+        signer_account_id,
+        predecessor_account_id,
         input,
         block_number: 10,
         block_timestamp: 42,

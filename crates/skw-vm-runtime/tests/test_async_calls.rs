@@ -1,7 +1,6 @@
 use crate::runtime_group_tools::RuntimeGroup;
-use borsh::{BorshSerialize};
+use skw_vm_host::types::AccountId;
 use skw_vm_primitives::contract_runtime::{CryptoHash};
-use skw_vm_primitives::account::{AccessKeyPermission, FunctionCallPermission};
 use skw_vm_primitives::receipt::{ActionReceipt, ReceiptEnum};
 use skw_vm_primitives::transaction::{SignedTransaction};
 use skw_vm_primitives::transaction::*;
@@ -22,12 +21,13 @@ const GAS_3: u64 = GAS_2 / 3;
 fn test_simple_func_call() {
     let group = RuntimeGroup::new(2, 2, near_test_contracts::rs_contract());
     let signer_sender = group.signers[0].clone();
-    let signer_receiver = group.signers[1].clone();
+
+    let account_ids = group.account_ids.clone();
 
     let signed_transaction = SignedTransaction::from_actions(
         1,
-        signer_sender.account_id.clone(),
-        signer_receiver.account_id,
+        account_ids[0].clone(),
+        account_ids[1].clone(),
         &signer_sender,
         vec![Action::FunctionCall(FunctionCallAction {
             method_name: "sum_n".to_string(),
@@ -44,12 +44,12 @@ fn test_simple_func_call() {
     }
 
     assert_receipts!(group, signed_transaction => [r0]);
-    assert_receipts!(group, "near_0" => r0 @ "near_1",
+    assert_receipts!(group, account_ids[0] => r0 @ account_ids[1],
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{..}), {}
                      => [ref1] );
-    assert_refund!(group, ref1 @ "near_0");
+    assert_refund!(group, ref1 @ account_ids[0]);
 }
 
 // single promise, no callback (A->B)
@@ -57,11 +57,11 @@ fn test_simple_func_call() {
 fn test_single_promise_no_callback() {
     let group = RuntimeGroup::new(3, 3, near_test_contracts::rs_contract());
     let signer_sender = group.signers[0].clone();
-    let signer_receiver = group.signers[1].clone();
+    let account_ids = group.account_ids.clone();
 
     let data = serde_json::json!([
         {"create": {
-        "account_id": "near_2",
+        "account_id": account_ids[2],
         "method_name": "call_promise",
         "arguments": [],
         "amount": "0",
@@ -71,8 +71,8 @@ fn test_single_promise_no_callback() {
 
     let signed_transaction = SignedTransaction::from_actions(
         1,
-        signer_sender.account_id.clone(),
-        signer_receiver.account_id,
+        account_ids[0].clone(),
+        account_ids[1].clone(),
         &signer_sender,
         vec![Action::FunctionCall(FunctionCallAction {
             method_name: "call_promise".to_string(),
@@ -89,7 +89,7 @@ fn test_single_promise_no_callback() {
     }
 
     assert_receipts!(group, signed_transaction => [r0]);
-    assert_receipts!(group, "near_0" => r0 @ "near_1",
+    assert_receipts!(group, account_ids[0].clone() => r0 @ account_ids[1].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -97,7 +97,7 @@ fn test_single_promise_no_callback() {
                         assert_eq!(*deposit, 0);
                      }
                      => [r1, ref0] );
-    assert_receipts!(group, "near_1" => r1 @ "near_2",
+    assert_receipts!(group, account_ids[1].clone() => r1 @ account_ids[2].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -105,8 +105,8 @@ fn test_single_promise_no_callback() {
                         assert_eq!(*deposit, 0);
                      }
                      => [ref1]);
-    assert_refund!(group, ref0 @ "near_0");
-    assert_refund!(group, ref1 @ "near_0");
+    assert_refund!(group, ref0 @ account_ids[0].clone());
+    assert_refund!(group, ref1 @ account_ids[0].clone());
 }
 
 // single promise with callback (A->B=>C)
@@ -114,11 +114,11 @@ fn test_single_promise_no_callback() {
 fn test_single_promise_with_callback() {
     let group = RuntimeGroup::new(4, 4, near_test_contracts::rs_contract());
     let signer_sender = group.signers[0].clone();
-    let signer_receiver = group.signers[1].clone();
+    let account_ids = group.account_ids.clone();
 
     let data = serde_json::json!([
         {"create": {
-        "account_id": "near_2",
+        "account_id": account_ids[2].clone(),
         "method_name": "call_promise",
         "arguments": [],
         "amount": "0",
@@ -126,7 +126,7 @@ fn test_single_promise_with_callback() {
         }, "id": 0 },
         {"then": {
         "promise_index": 0,
-        "account_id": "near_3",
+        "account_id": account_ids[3].clone(),
         "method_name": "call_promise",
         "arguments": [],
         "amount": "0",
@@ -136,8 +136,8 @@ fn test_single_promise_with_callback() {
 
     let signed_transaction = SignedTransaction::from_actions(
         1,
-        signer_sender.account_id.clone(),
-        signer_receiver.account_id,
+        account_ids[0].clone(),
+        account_ids[1].clone(),
         &signer_sender,
         vec![Action::FunctionCall(FunctionCallAction {
             method_name: "call_promise".to_string(),
@@ -154,7 +154,7 @@ fn test_single_promise_with_callback() {
     }
 
     assert_receipts!(group, signed_transaction => [r0]);
-    assert_receipts!(group, "near_0" => r0 @ "near_1",
+    assert_receipts!(group, account_ids[0].clone() => r0 @ account_ids[1].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -163,7 +163,7 @@ fn test_single_promise_with_callback() {
                      }
                      => [r1, r2, ref0] );
     let data_id;
-    assert_receipts!(group, "near_1" => r1 @ "near_2",
+    assert_receipts!(group, account_ids[1].clone() => r1 @ account_ids[2].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, output_data_receivers, ..}), {
                         assert_eq!(output_data_receivers.len(), 1);
                         data_id = output_data_receivers[0].data_id;
@@ -174,7 +174,7 @@ fn test_single_promise_with_callback() {
                         assert_eq!(*deposit, 0);
                      }
                      => [ref1]);
-    assert_receipts!(group, "near_1" => r2 @ "near_3",
+    assert_receipts!(group, account_ids[1].clone() => r2 @ account_ids[3].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, input_data_ids, ..}), {
                         assert_eq!(input_data_ids.len(), 1);
                         assert_eq!(data_id, input_data_ids[0].clone());
@@ -186,9 +186,9 @@ fn test_single_promise_with_callback() {
                      }
                      => [ref2]);
 
-    assert_refund!(group, ref0 @ "near_0");
-    assert_refund!(group, ref1 @ "near_0");
-    assert_refund!(group, ref2 @ "near_0");
+    assert_refund!(group, ref0 @ account_ids[0].clone());
+    assert_refund!(group, ref1 @ account_ids[0].clone());
+    assert_refund!(group, ref2 @ account_ids[0].clone());
 }
 
 // two promises, no callbacks (A->B->C)
@@ -196,15 +196,15 @@ fn test_single_promise_with_callback() {
 fn test_two_promises_no_callbacks() {
     let group = RuntimeGroup::new(4, 4, near_test_contracts::rs_contract());
     let signer_sender = group.signers[0].clone();
-    let signer_receiver = group.signers[1].clone();
+    let account_ids = group.account_ids.clone();
 
     let data = serde_json::json!([
         {"create": {
-        "account_id": "near_2",
+        "account_id": account_ids[2].clone(),
         "method_name": "call_promise",
         "arguments": [
             {"create": {
-            "account_id": "near_3",
+            "account_id": account_ids[3].clone(),
             "method_name": "call_promise",
             "arguments": [],
             "amount": "0",
@@ -219,8 +219,8 @@ fn test_two_promises_no_callbacks() {
 
     let signed_transaction = SignedTransaction::from_actions(
         1,
-        signer_sender.account_id.clone(),
-        signer_receiver.account_id,
+        account_ids[0].clone(),
+        account_ids[1].clone(),
         &signer_sender,
         vec![Action::FunctionCall(FunctionCallAction {
             method_name: "call_promise".to_string(),
@@ -237,7 +237,7 @@ fn test_two_promises_no_callbacks() {
     }
 
     assert_receipts!(group, signed_transaction => [r0]);
-    assert_receipts!(group, "near_0" => r0 @ "near_1",
+    assert_receipts!(group, account_ids[0].clone() => r0 @ account_ids[1].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -245,7 +245,7 @@ fn test_two_promises_no_callbacks() {
                         assert_eq!(*deposit, 0);
                      }
                      => [r1, ref0] );
-    assert_receipts!(group, "near_1" => r1 @ "near_2",
+    assert_receipts!(group, account_ids[1].clone() => r1 @ account_ids[2].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), { },
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -253,7 +253,7 @@ fn test_two_promises_no_callbacks() {
                         assert_eq!(*deposit, 0);
                      }
                      => [r2, ref1]);
-    assert_receipts!(group, "near_2" => r2 @ "near_3",
+    assert_receipts!(group, account_ids[2].clone() => r2 @ account_ids[3].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -262,9 +262,9 @@ fn test_two_promises_no_callbacks() {
                      }
                      => [ref2]);
 
-    assert_refund!(group, ref0 @ "near_0");
-    assert_refund!(group, ref1 @ "near_0");
-    assert_refund!(group, ref2 @ "near_0");
+    assert_refund!(group, ref0 @ account_ids[0].clone());
+    assert_refund!(group, ref1 @ account_ids[0].clone());
+    assert_refund!(group, ref2 @ account_ids[0].clone());
 }
 
 // two promises, with two callbacks (A->B->C=>D=>E) where call to E is initialized by completion of D.
@@ -272,15 +272,15 @@ fn test_two_promises_no_callbacks() {
 fn test_two_promises_with_two_callbacks() {
     let group = RuntimeGroup::new(6, 6, near_test_contracts::rs_contract());
     let signer_sender = group.signers[0].clone();
-    let signer_receiver = group.signers[1].clone();
+    let account_ids = group.account_ids.clone();
 
     let data = serde_json::json!([
         {"create": {
-        "account_id": "near_2",
+        "account_id": account_ids[2].clone(),
         "method_name": "call_promise",
         "arguments": [
             {"create": {
-            "account_id": "near_3",
+            "account_id": account_ids[3].clone(),
             "method_name": "call_promise",
             "arguments": [],
             "amount": "0",
@@ -289,7 +289,7 @@ fn test_two_promises_with_two_callbacks() {
 
             {"then": {
             "promise_index": 0,
-            "account_id": "near_4",
+            "account_id": account_ids[4].clone(),
             "method_name": "call_promise",
             "arguments": [],
             "amount": "0",
@@ -302,7 +302,7 @@ fn test_two_promises_with_two_callbacks() {
 
         {"then": {
         "promise_index": 0,
-        "account_id": "near_5",
+        "account_id": account_ids[5].clone(),
         "method_name": "call_promise",
         "arguments": [],
         "amount": "0",
@@ -312,8 +312,8 @@ fn test_two_promises_with_two_callbacks() {
 
     let signed_transaction = SignedTransaction::from_actions(
         1,
-        signer_sender.account_id.clone(),
-        signer_receiver.account_id,
+        account_ids[0].clone(),
+        account_ids[1].clone(),
         &signer_sender,
         vec![Action::FunctionCall(FunctionCallAction {
             method_name: "call_promise".to_string(),
@@ -330,7 +330,7 @@ fn test_two_promises_with_two_callbacks() {
     }
 
     assert_receipts!(group, signed_transaction => [r0]);
-    assert_receipts!(group, "near_0" => r0 @ "near_1",
+    assert_receipts!(group, account_ids[0].clone() => r0 @ account_ids[1].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -338,7 +338,7 @@ fn test_two_promises_with_two_callbacks() {
                         assert_eq!(*deposit, 0);
                      }
                      => [r1, cb1, ref0] );
-    assert_receipts!(group, "near_1" => r1 @ "near_2",
+    assert_receipts!(group, account_ids[1].clone() => r1 @ account_ids[2].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), { },
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -346,7 +346,7 @@ fn test_two_promises_with_two_callbacks() {
                         assert_eq!(*deposit, 0);
                      }
                      => [r2, cb2, ref1]);
-    assert_receipts!(group, "near_2" => r2 @ "near_3",
+    assert_receipts!(group, account_ids[2].clone() => r2 @ account_ids[3].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -354,7 +354,7 @@ fn test_two_promises_with_two_callbacks() {
                         assert_eq!(*deposit, 0);
                      }
                      => [ref2]);
-    assert_receipts!(group, "near_2" => cb2 @ "near_4",
+    assert_receipts!(group, account_ids[2].clone() => cb2 @ account_ids[4].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), { },
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -362,7 +362,7 @@ fn test_two_promises_with_two_callbacks() {
                         assert_eq!(*deposit, 0);
                      }
                      => [ref3]);
-    assert_receipts!(group, "near_1" => cb1 @ "near_5",
+    assert_receipts!(group, account_ids[1].clone() => cb1 @ account_ids[5].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), { },
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -371,11 +371,11 @@ fn test_two_promises_with_two_callbacks() {
                      }
                      => [ref4]);
 
-    assert_refund!(group, ref0 @ "near_0");
-    assert_refund!(group, ref1 @ "near_0");
-    assert_refund!(group, ref2 @ "near_0");
-    assert_refund!(group, ref3 @ "near_0");
-    assert_refund!(group, ref4 @ "near_0");
+    assert_refund!(group, ref0 @ account_ids[0].clone());
+    assert_refund!(group, ref1 @ account_ids[0].clone());
+    assert_refund!(group, ref2 @ account_ids[0].clone());
+    assert_refund!(group, ref3 @ account_ids[0].clone());
+    assert_refund!(group, ref4 @ account_ids[0].clone());
 }
 
 // Batch actions tests
@@ -385,11 +385,11 @@ fn test_two_promises_with_two_callbacks() {
 fn test_single_promise_no_callback_batch() {
     let group = RuntimeGroup::new(3, 3, near_test_contracts::rs_contract());
     let signer_sender = group.signers[0].clone();
-    let signer_receiver = group.signers[1].clone();
+    let account_ids = group.account_ids.clone();
 
     let data = serde_json::json!([
         {"batch_create": {
-        "account_id": "near_2",
+        "account_id": account_ids[2].clone()
         }, "id": 0 },
         {"action_function_call": {
         "promise_index": 0,
@@ -402,8 +402,8 @@ fn test_single_promise_no_callback_batch() {
 
     let signed_transaction = SignedTransaction::from_actions(
         1,
-        signer_sender.account_id.clone(),
-        signer_receiver.account_id,
+        account_ids[0].clone(),
+        account_ids[1].clone(),
         &signer_sender,
         vec![Action::FunctionCall(FunctionCallAction {
             method_name: "call_promise".to_string(),
@@ -420,7 +420,7 @@ fn test_single_promise_no_callback_batch() {
     }
 
     assert_receipts!(group, signed_transaction => [r0]);
-    assert_receipts!(group, "near_0" => r0 @ "near_1",
+    assert_receipts!(group, account_ids[0].clone() => r0 @ account_ids[1].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -428,7 +428,7 @@ fn test_single_promise_no_callback_batch() {
                         assert_eq!(*deposit, 0);
                      }
                      => [r1, ref0] );
-    assert_receipts!(group, "near_1" => r1 @ "near_2",
+    assert_receipts!(group, account_ids[1].clone() => r1 @ account_ids[2].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -436,8 +436,8 @@ fn test_single_promise_no_callback_batch() {
                         assert_eq!(*deposit, 0);
                      }
                      => [ref1]);
-    assert_refund!(group, ref0 @ "near_0");
-    assert_refund!(group, ref1 @ "near_0");
+    assert_refund!(group, ref0 @ account_ids[0].clone());
+    assert_refund!(group, ref1 @ account_ids[0].clone());
 }
 
 // single promise with callback (A->B=>C) with batch actions
@@ -445,11 +445,11 @@ fn test_single_promise_no_callback_batch() {
 fn test_single_promise_with_callback_batch() {
     let group = RuntimeGroup::new(4, 4, near_test_contracts::rs_contract());
     let signer_sender = group.signers[0].clone();
-    let signer_receiver = group.signers[1].clone();
+    let account_ids = group.account_ids.clone();
 
     let data = serde_json::json!([
         {"batch_create": {
-            "account_id": "near_2",
+            "account_id": account_ids[2].clone(),
         }, "id": 0 },
         {"action_function_call": {
             "promise_index": 0,
@@ -460,7 +460,7 @@ fn test_single_promise_with_callback_batch() {
         }, "id": 0 },
         {"batch_then": {
             "promise_index": 0,
-            "account_id": "near_3",
+            "account_id": account_ids[3].clone(),
         }, "id": 1},
         {"action_function_call": {
             "promise_index": 1,
@@ -473,8 +473,8 @@ fn test_single_promise_with_callback_batch() {
 
     let signed_transaction = SignedTransaction::from_actions(
         1,
-        signer_sender.account_id.clone(),
-        signer_receiver.account_id,
+        account_ids[0].clone(),
+        account_ids[1].clone(),
         &signer_sender,
         vec![Action::FunctionCall(FunctionCallAction {
             method_name: "call_promise".to_string(),
@@ -491,7 +491,7 @@ fn test_single_promise_with_callback_batch() {
     }
 
     assert_receipts!(group, signed_transaction => [r0]);
-    assert_receipts!(group, "near_0" => r0 @ "near_1",
+    assert_receipts!(group, account_ids[0].clone() => r0 @ account_ids[1].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -500,7 +500,7 @@ fn test_single_promise_with_callback_batch() {
                      }
                      => [r1, r2, ref0] );
     let data_id;
-    assert_receipts!(group, "near_1" => r1 @ "near_2",
+    assert_receipts!(group, account_ids[1].clone() => r1 @ account_ids[2].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, output_data_receivers, ..}), {
                         assert_eq!(output_data_receivers.len(), 1);
                         data_id = output_data_receivers[0].data_id;
@@ -511,7 +511,7 @@ fn test_single_promise_with_callback_batch() {
                         assert_eq!(*deposit, 0);
                      }
                      => [ref1]);
-    assert_receipts!(group, "near_1" => r2 @ "near_3",
+    assert_receipts!(group, account_ids[1].clone() => r2 @ account_ids[3].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, input_data_ids, ..}), {
                         assert_eq!(input_data_ids.len(), 1);
                         assert_eq!(data_id, input_data_ids[0].clone());
@@ -523,20 +523,20 @@ fn test_single_promise_with_callback_batch() {
                      }
                      => [ref2]);
 
-    assert_refund!(group, ref0 @ "near_0");
-    assert_refund!(group, ref1 @ "near_0");
-    assert_refund!(group, ref2 @ "near_0");
+    assert_refund!(group, ref0 @ account_ids[0].clone());
+    assert_refund!(group, ref1 @ account_ids[0].clone());
+    assert_refund!(group, ref2 @ account_ids[0].clone());
 }
 
 #[test]
 fn test_simple_transfer() {
-    let group = RuntimeGroup::new(3, 3, near_test_contracts::rs_contract());
+    let group = RuntimeGroup::new(3, 3,near_test_contracts::rs_contract());
     let signer_sender = group.signers[0].clone();
-    let signer_receiver = group.signers[1].clone();
+    let account_ids = group.account_ids.clone();
 
     let data = serde_json::json!([
         {"batch_create": {
-            "account_id": "near_2",
+            "account_id": account_ids[2].clone(),
         }, "id": 0 },
         {"action_transfer": {
             "promise_index": 0,
@@ -546,8 +546,8 @@ fn test_simple_transfer() {
 
     let signed_transaction = SignedTransaction::from_actions(
         1,
-        signer_sender.account_id.clone(),
-        signer_receiver.account_id,
+        account_ids[0].clone(),
+        account_ids[1].clone(),
         &signer_sender,
         vec![Action::FunctionCall(FunctionCallAction {
             method_name: "call_promise".to_string(),
@@ -564,7 +564,7 @@ fn test_simple_transfer() {
     }
 
     assert_receipts!(group, signed_transaction => [r0]);
-    assert_receipts!(group, "near_0" => r0 @ "near_1",
+    assert_receipts!(group, account_ids[0].clone() => r0 @ account_ids[1].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -572,7 +572,7 @@ fn test_simple_transfer() {
                         assert_eq!(*deposit, 0);
                      }
                      => [r1, ref0] );
-    assert_receipts!(group, "near_1" => r1 @ "near_2",
+    assert_receipts!(group, account_ids[1].clone() => r1 @ account_ids[2].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::Transfer(TransferAction{deposit}), {
@@ -580,93 +580,20 @@ fn test_simple_transfer() {
                      }
                      => [ref1] );
 
-    assert_refund!(group, ref0 @ "near_0");
+    assert_refund!(group, ref0 @ account_ids[0].clone());
     // For gas price difference
-    assert_refund!(group, ref1 @ "near_0");
-}
-
-#[test]
-fn test_create_account_with_transfer_and_full_key() {
-    let group = RuntimeGroup::new(3, 2, near_test_contracts::rs_contract());
-    let signer_sender = group.signers[0].clone();
-    let signer_receiver = group.signers[1].clone();
-    let signer_new_account = group.signers[2].clone();
-
-    let data = serde_json::json!([
-        {"batch_create": {
-            "account_id": "near_2",
-        }, "id": 0 },
-        {"action_create_account": {
-            "promise_index": 0,
-        }, "id": 0 },
-        {"action_transfer": {
-            "promise_index": 0,
-            "amount": "10000000000000000000000000",
-        }, "id": 0 },
-        {"action_add_key_with_full_access": {
-            "promise_index": 0,
-            "public_key": base64::encode(&signer_new_account.public_key.try_to_vec().unwrap()),
-            "nonce": 0,
-        }, "id": 0 }
-    ]);
-
-    let signed_transaction = SignedTransaction::from_actions(
-        1,
-        signer_sender.account_id.clone(),
-        signer_receiver.account_id,
-        &signer_sender,
-        vec![Action::FunctionCall(FunctionCallAction {
-            method_name: "call_promise".to_string(),
-            args: serde_json::to_vec(&data).unwrap(),
-            gas: GAS_1,
-            deposit: 0,
-        })],
-        CryptoHash::default(),
-    );
-
-    let handles = RuntimeGroup::start_runtimes(group.clone(), vec![signed_transaction.clone()]);
-    for h in handles {
-        h.join().unwrap();
-    }
-
-    assert_receipts!(group, signed_transaction => [r0]);
-    assert_receipts!(group, "near_0" => r0 @ "near_1",
-                     ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
-                     actions,
-                     a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
-                        assert_eq!(*gas, GAS_1);
-                        assert_eq!(*deposit, 0);
-                     }
-                     => [r1, ref0] );
-    assert_receipts!(group, "near_1" => r1 @ "near_2",
-                     ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
-                     actions,
-                     a0, Action::CreateAccount(CreateAccountAction{}), {},
-                     a1, Action::Transfer(TransferAction{deposit}), {
-                        assert_eq!(*deposit, 10000000000000000000000000);
-                     },
-                     a2, Action::AddKey(AddKeyAction{public_key, access_key}), {
-                        assert_eq!(public_key, &signer_new_account.public_key);
-                        assert_eq!(access_key.nonce, 0);
-                        assert_eq!(access_key.permission, AccessKeyPermission::FullAccess);
-                     }
-                     => [ref1] );
-
-    assert_refund!(group, ref0 @ "near_0");
-    // For gas price difference
-    assert_refund!(group, ref1 @ "near_0");
+    assert_refund!(group, ref1 @ account_ids[0].clone());
 }
 
 #[test]
 fn test_account_factory() {
-    let group = RuntimeGroup::new(3, 2, near_test_contracts::rs_contract());
+    let group = RuntimeGroup::new(3, 2,near_test_contracts::rs_contract());
     let signer_sender = group.signers[0].clone();
-    let signer_receiver = group.signers[1].clone();
-    let signer_new_account = group.signers[2].clone();
+    let account_ids = group.account_ids.clone();
 
     let data = serde_json::json!([
         {"batch_create": {
-            "account_id": "near_2",
+            "account_id": account_ids[2].clone(),
         }, "id": 0 },
         {"action_create_account": {
             "promise_index": 0,
@@ -674,14 +601,6 @@ fn test_account_factory() {
         {"action_transfer": {
             "promise_index": 0,
             "amount": format!("{}", TESTING_INIT_BALANCE / 2),
-        }, "id": 0 },
-        {"action_add_key_with_function_call": {
-            "promise_index": 0,
-            "public_key": base64::encode(&signer_new_account.public_key.try_to_vec().unwrap()),
-            "nonce": 0,
-            "allowance": format!("{}", TESTING_INIT_BALANCE / 2),
-            "receiver_id": "near_1",
-            "method_names": "call_promise,hello"
         }, "id": 0 },
         {"action_deploy_contract": {
             "promise_index": 0,
@@ -692,7 +611,7 @@ fn test_account_factory() {
             "method_name": "call_promise",
             "arguments": [
                 {"create": {
-                "account_id": "near_0",
+                "account_id": account_ids[0].clone(),
                 "method_name": "call_promise",
                 "arguments": [],
                 "amount": "0",
@@ -705,11 +624,11 @@ fn test_account_factory() {
 
         {"then": {
         "promise_index": 0,
-        "account_id": "near_2",
+        "account_id": account_ids[2].clone(),
         "method_name": "call_promise",
         "arguments": [
             {"create": {
-            "account_id": "near_1",
+            "account_id": account_ids[1].clone(),
             "method_name": "call_promise",
             "arguments": [],
             "amount": "0",
@@ -723,8 +642,8 @@ fn test_account_factory() {
 
     let signed_transaction = SignedTransaction::from_actions(
         1,
-        signer_sender.account_id.clone(),
-        signer_receiver.account_id,
+        account_ids[0].clone(),
+        account_ids[1].clone(),
         &signer_sender,
         vec![Action::FunctionCall(FunctionCallAction {
             method_name: "call_promise".to_string(),
@@ -741,7 +660,7 @@ fn test_account_factory() {
     }
 
     assert_receipts!(group, signed_transaction => [r0]);
-    assert_receipts!(group, "near_0" => r0 @ "near_1",
+    assert_receipts!(group, account_ids[0].clone() => r0 @ account_ids[1].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -751,35 +670,26 @@ fn test_account_factory() {
                      => [r1, r2, ref0] );
 
     let data_id;
-    assert_receipts!(group, "near_1" => r1 @ "near_2",
+    assert_receipts!(group, account_ids[1].clone() => r1 @ account_ids[2].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, output_data_receivers, ..}), {
                         assert_eq!(output_data_receivers.len(), 1);
                         data_id = output_data_receivers[0].data_id;
-                        assert_eq!(output_data_receivers[0].receiver_id.as_ref(), "near_2");
+                        assert_eq!(output_data_receivers[0].receiver_id.as_ref(), account_ids[2].clone().as_ref());
                      },
                      actions,
                      a0, Action::CreateAccount(CreateAccountAction{}), {},
                      a1, Action::Transfer(TransferAction{deposit}), {
                         assert_eq!(*deposit, TESTING_INIT_BALANCE / 2);
                      },
-                     a2, Action::AddKey(AddKeyAction{public_key, access_key}), {
-                        assert_eq!(public_key, &signer_new_account.public_key);
-                        assert_eq!(access_key.nonce, 0);
-                        assert_eq!(access_key.permission, AccessKeyPermission::FunctionCall(FunctionCallPermission {
-                            allowance: Some(TESTING_INIT_BALANCE / 2),
-                            receiver_id: "near_1".parse().unwrap(),
-                            method_names: vec!["call_promise".to_string(), "hello".to_string()],
-                        }));
+                     a2, Action::DeployContract(DeployContractAction{code}), {
+                        assert_eq!(code,near_test_contracts::rs_contract());
                      },
-                     a3, Action::DeployContract(DeployContractAction{code}), {
-                        assert_eq!(code, near_test_contracts::rs_contract());
-                     },
-                     a4, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
+                     a3, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
                         assert_eq!(*gas, GAS_2);
                         assert_eq!(*deposit, 0);
                      }
                      => [r3, ref1] );
-    assert_receipts!(group, "near_1" => r2 @ "near_2",
+    assert_receipts!(group, account_ids[1].clone() => r2 @ account_ids[2].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, input_data_ids, ..}), {
                         assert_eq!(input_data_ids, &vec![data_id]);
                      },
@@ -789,7 +699,7 @@ fn test_account_factory() {
                         assert_eq!(*deposit, 0);
                      }
                      => [r4, ref2] );
-    assert_receipts!(group, "near_2" => r3 @ "near_0",
+    assert_receipts!(group, account_ids[2].clone() => r3 @ account_ids[0].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -797,7 +707,7 @@ fn test_account_factory() {
                         assert_eq!(*deposit, 0);
                      }
                      => [ref3] );
-    assert_receipts!(group, "near_2" => r4 @ "near_1",
+    assert_receipts!(group, account_ids[2].clone() => r4 @ account_ids[1].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -806,23 +716,22 @@ fn test_account_factory() {
                      }
                      => [ref4] );
 
-    assert_refund!(group, ref0 @ "near_0");
-    assert_refund!(group, ref1 @ "near_0");
-    assert_refund!(group, ref2 @ "near_0");
-    assert_refund!(group, ref3 @ "near_0");
-    assert_refund!(group, ref4 @ "near_0");
+    assert_refund!(group, ref0 @ account_ids[0].clone());
+    assert_refund!(group, ref1 @ account_ids[0].clone());
+    assert_refund!(group, ref2 @ account_ids[0].clone());
+    assert_refund!(group, ref3 @ account_ids[0].clone());
+    assert_refund!(group, ref4 @ account_ids[0].clone());
 }
 
 #[test]
-fn test_create_account_add_key_call_delete_key_delete_account() {
-    let group = RuntimeGroup::new(4, 3, near_test_contracts::rs_contract());
+fn test_create_account_delete_account() {
+    let group = RuntimeGroup::new(4, 3,near_test_contracts::rs_contract());
     let signer_sender = group.signers[0].clone();
-    let signer_receiver = group.signers[1].clone();
-    let signer_new_account = group.signers[2].clone();
+    let account_ids = group.account_ids.clone();
 
     let data = serde_json::json!([
         {"batch_create": {
-            "account_id": "near_3",
+            "account_id": account_ids[3].clone(),
         }, "id": 0 },
         {"action_create_account": {
             "promise_index": 0,
@@ -830,11 +739,6 @@ fn test_create_account_add_key_call_delete_key_delete_account() {
         {"action_transfer": {
             "promise_index": 0,
             "amount": format!("{}", TESTING_INIT_BALANCE / 2),
-        }, "id": 0 },
-        {"action_add_key_with_full_access": {
-            "promise_index": 0,
-            "public_key": base64::encode(&signer_new_account.public_key.try_to_vec().unwrap()),
-            "nonce": 1,
         }, "id": 0 },
         {"action_deploy_contract": {
             "promise_index": 0,
@@ -845,7 +749,7 @@ fn test_create_account_add_key_call_delete_key_delete_account() {
             "method_name": "call_promise",
             "arguments": [
                 {"create": {
-                "account_id": "near_0",
+                "account_id": account_ids[0].clone(),
                 "method_name": "call_promise",
                 "arguments": [],
                 "amount": "0",
@@ -855,21 +759,16 @@ fn test_create_account_add_key_call_delete_key_delete_account() {
             "amount": "0",
             "gas": GAS_2,
         }, "id": 0 },
-        {"action_delete_key": {
-            "promise_index": 0,
-            "public_key": base64::encode(&signer_new_account.public_key.try_to_vec().unwrap()),
-            "nonce": 0,
-        }, "id": 0 },
         {"action_delete_account": {
             "promise_index": 0,
-            "beneficiary_id": "near_2"
+            "beneficiary_id": account_ids[2].clone()
         }, "id": 0 },
     ]);
 
     let signed_transaction = SignedTransaction::from_actions(
         1,
-        signer_sender.account_id.clone(),
-        signer_receiver.account_id,
+        account_ids[0].clone(),
+        account_ids[1].clone(),
         &signer_sender,
         vec![Action::FunctionCall(FunctionCallAction {
             method_name: "call_promise".to_string(),
@@ -886,7 +785,7 @@ fn test_create_account_add_key_call_delete_key_delete_account() {
     }
 
     assert_receipts!(group, signed_transaction => [r0]);
-    assert_receipts!(group, "near_0" => r0 @ "near_1",
+    assert_receipts!(group, account_ids[0].clone() => r0 @ account_ids[1].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -894,34 +793,26 @@ fn test_create_account_add_key_call_delete_key_delete_account() {
                         assert_eq!(*deposit, 0);
                      }
                      => [r1, ref0] );
-    assert_receipts!(group, "near_1" => r1 @ "near_3",
+    assert_receipts!(group, account_ids[1].clone() => r1 @ account_ids[3].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::CreateAccount(CreateAccountAction{}), {},
                      a1, Action::Transfer(TransferAction{deposit}), {
                         assert_eq!(*deposit, TESTING_INIT_BALANCE / 2);
                      },
-                     a2, Action::AddKey(AddKeyAction{public_key, access_key}), {
-                        assert_eq!(public_key, &signer_new_account.public_key);
-                        assert_eq!(access_key.nonce, 1);
-                        assert_eq!(access_key.permission, AccessKeyPermission::FullAccess);
+                     a2, Action::DeployContract(DeployContractAction{code}), {
+                        assert_eq!(code,near_test_contracts::rs_contract());
                      },
-                     a3, Action::DeployContract(DeployContractAction{code}), {
-                        assert_eq!(code, near_test_contracts::rs_contract());
-                     },
-                     a4, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
+                     a3, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
                         assert_eq!(*gas, GAS_2);
                         assert_eq!(*deposit, 0);
                      },
-                     a5, Action::DeleteKey(DeleteKeyAction{public_key}), {
-                        assert_eq!(public_key, &signer_new_account.public_key);
-                     },
-                     a6, Action::DeleteAccount(DeleteAccountAction{beneficiary_id}), {
-                        assert_eq!(beneficiary_id.as_ref(), "near_2");
+                     a4, Action::DeleteAccount(DeleteAccountAction{beneficiary_id}), {
+                        assert_eq!(beneficiary_id.as_ref(), account_ids[2].clone().as_ref());
                      }
                      => [r2, r3, ref1] );
 
-    assert_receipts!(group, "near_3" => r2 @ "near_0",
+    assert_receipts!(group, account_ids[3].clone() => r2 @ account_ids[0].clone(),
                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
                      actions,
                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
@@ -929,140 +820,9 @@ fn test_create_account_add_key_call_delete_key_delete_account() {
                         assert_eq!(*deposit, 0);
                      }
                      => [ref2] );
-    assert_refund!(group, r3 @ "near_2");
+    assert_refund!(group, r3 @ account_ids[2].clone());
 
-    assert_refund!(group, ref0 @ "near_0");
-    assert_refund!(group, ref1 @ "near_0");
-    assert_refund!(group, ref2 @ "near_0");
+    assert_refund!(group, ref0 @ account_ids[0].clone());
+    assert_refund!(group, ref1 @ account_ids[0].clone());
+    assert_refund!(group, ref2 @ account_ids[0].clone());
 }
-
-// TODO: this is a very dangerous test - we removed implicit accounts 
-// #[test]
-// fn test_transfer_64len_hex() {
-//     let pk = InMemorySigner::from_seed("test_hex".parse().unwrap(), KeyType::ED25519, "test_hex");
-//     let account_id = AccountId::try_from(hex::encode(pk.public_key.unwrap_as_ed25519().0)).unwrap();
-
-//     let group = RuntimeGroup::new_with_account_ids(
-//         vec!["near_0".parse().unwrap(), "near_1".parse().unwrap(), account_id.clone()],
-//         2,
-//         near_test_contracts::rs_contract(),
-//     );
-//     let signer_sender = group.signers[0].clone();
-//     let signer_receiver = group.signers[1].clone();
-
-//     let data = serde_json::json!([
-//         {"batch_create": {
-//             "account_id": account_id,
-//         }, "id": 0 },
-//         {"action_transfer": {
-//             "promise_index": 0,
-//             "amount": format!("{}", TESTING_INIT_BALANCE / 2),
-//         }, "id": 0 },
-//     ]);
-
-//     let signed_transaction = SignedTransaction::from_actions(
-//         1,
-//         signer_sender.account_id.clone(),
-//         signer_receiver.account_id,
-//         &signer_sender,
-//         vec![Action::FunctionCall(FunctionCallAction {
-//             method_name: "call_promise".to_string(),
-//             args: serde_json::to_vec(&data).unwrap(),
-//             gas: GAS_1,
-//             deposit: 0,
-//         })],
-//         CryptoHash::default(),
-//     );
-
-//     let handles = RuntimeGroup::start_runtimes(group.clone(), vec![signed_transaction.clone()]);
-//     for h in handles {
-//         h.join().unwrap();
-//     }
-
-//     assert_receipts!(group, signed_transaction => [r0]);
-//     assert_receipts!(group, "near_0" => r0 @ "near_1",
-//                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
-//                      actions,
-//                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
-//                         assert_eq!(*gas, GAS_1);
-//                         assert_eq!(*deposit, 0);
-//                      }
-//                      => [r1, ref0] );
-//     assert_receipts!(group, "near_1" => r1 @ account_id.as_ref(),
-//                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
-//                      actions,
-//                      a0, Action::Transfer(TransferAction{deposit}), {
-//                         assert_eq!(*deposit, TESTING_INIT_BALANCE / 2);
-//                      }
-//                      => [ref1] );
-//     assert_refund!(group, ref0 @ "near_0");
-//     assert_refund!(group, ref1 @ "near_0");
-// }
-
-// This test will work because we have disabled implicit account check
-// #[test]
-// fn test_create_transfer_64len_hex_fail() {
-//     let pk = InMemorySigner::from_seed("test_hex".parse().unwrap(), KeyType::ED25519, "test_hex");
-//     let account_id = AccountId::try_from(hex::encode(pk.public_key.unwrap_as_ed25519().0)).unwrap();
-
-//     let group = RuntimeGroup::new_with_account_ids(
-//         vec!["near_0".parse().unwrap(), "near_1".parse().unwrap(), account_id.clone()],
-//         2,
-//         near_test_contracts::rs_contract(),
-//     );
-//     let signer_sender = group.signers[0].clone();
-//     let signer_receiver = group.signers[1].clone();
-
-//     let data = serde_json::json!([
-//         {"batch_create": {
-//             "account_id": account_id,
-//         }, "id": 0 },
-//         {"action_create_account": {
-//             "promise_index": 0,
-//         }, "id": 0 },
-//         {"action_transfer": {
-//             "promise_index": 0,
-//             "amount": format!("{}", TESTING_INIT_BALANCE / 2),
-//         }, "id": 0 },
-//     ]);
-
-//     let signed_transaction = SignedTransaction::from_actions(
-//         1,
-//         signer_sender.account_id.clone(),
-//         signer_receiver.account_id,
-//         &signer_sender,
-//         vec![Action::FunctionCall(FunctionCallAction {
-//             method_name: "call_promise".to_string(),
-//             args: serde_json::to_vec(&data).unwrap(),
-//             gas: GAS_1,
-//             deposit: 0,
-//         })],
-//         CryptoHash::default(),
-//     );
-
-//     let handles = RuntimeGroup::start_runtimes(group.clone(), vec![signed_transaction.clone()]);
-//     for h in handles {
-//         h.join().unwrap();
-//     }
-
-//     assert_receipts!(group, signed_transaction => [r0]);
-//     assert_receipts!(group, "near_0" => r0 @ "near_1",
-//                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
-//                      actions,
-//                      a0, Action::FunctionCall(FunctionCallAction{gas, deposit, ..}), {
-//                         assert_eq!(*gas, GAS_1);
-//                         assert_eq!(*deposit, 0);
-//                      }
-//                      => [r1, ref0] );
-//     assert_receipts!(group, "near_1" => r1 @ account_id.as_ref(),
-//                      ReceiptEnum::Action(ActionReceipt{actions, ..}), {},
-//                      actions,
-//                      a0, Action::CreateAccount(CreateAccountAction{}), {},
-//                      a1, Action::Transfer(TransferAction{deposit}), {
-//                         assert_eq!(*deposit, TESTING_INIT_BALANCE / 2);
-//                      }
-//                      => [ref1, ref2] );
-//     assert_refund!(group, ref0 @ "near_0");
-//     assert_refund!(group, ref1 @ "near_1");
-//     assert_refund!(group, ref2 @ "near_0");
-// }

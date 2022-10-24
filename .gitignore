@@ -20,7 +20,7 @@ node_modules/
 /host/mock/*.wasm
 /host/mock/*.json
 
-mock-enclave/result.json
+skw-vm-relayer/result.json
 enclave/lib/*.a
 enclave/bin/app
 enclave/bin/enclave.signed.so
@@ -37,11 +37,13 @@ crates/**/mock/*ColState
 vm-state-dump/interface__state_dump__ColState
 .env
 
-mock-enclave/local
+skw-vm-relayer/local
 skw-tools-chaos/src/logs/*.log
-mock-enclave/wasm/**.wasm
-mock-enclave/output
-mock-enclave/wasm/status_message_collections.wasm
+skw-vm-relayer/wasm/**.wasm
+skw-vm-relayer/output
+skw-vm-relayer/wasm/status_message_collections.wasm
 tmp
+
+crates/skw-contract-sdk/examples/**/**.wasm
 
 TODO

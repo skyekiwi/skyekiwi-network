@@ -62,7 +62,6 @@ pub enum CacheError {
 }
 
 /// A kind of a trap happened during execution of a binary
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
 )]
@@ -87,7 +86,6 @@ pub enum WasmTrap {
     GenericTrap,
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
 )]
@@ -97,7 +95,6 @@ pub enum MethodResolveError {
     MethodInvalidSignature,
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
 )]
@@ -110,7 +107,6 @@ pub enum CompilationError {
     UnsupportedCompiler { msg: String },
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
 )]
@@ -140,7 +136,6 @@ pub enum PrepareError {
     TooManyFunctions,
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Deserialize, Serialize,
 )]
@@ -227,7 +222,6 @@ pub enum VMLogicError {
     InconsistentStateError(InconsistentStateError),
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ContractCallError {
     MethodResolveError(MethodResolveError),
@@ -235,7 +229,6 @@ pub enum ContractCallError {
     ExecutionError { msg: String },
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(Debug, Clone, PartialEq, Eq, BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
 pub enum FunctionCallErrorSer {
     /// Wasm compilation error
@@ -256,7 +249,6 @@ pub enum FunctionCallErrorSer {
     ExecutionError(String),
 }
 
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
 )]
@@ -276,10 +268,6 @@ pub enum ActionErrorKind {
     /// Administrative actions like `DeployContract`, `Stake`, `AddKey`, `DeleteKey`. can be proceed only if sender=receiver
     /// or the first TX action is a `CreateAccount` action
     ActorNoPermission { account_id: AccountId, actor_id: AccountId },
-    /// Account tries to remove an access key that doesn't exist
-    DeleteKeyDoesNotExist { account_id: AccountId, public_key: PublicKey },
-    /// The public key is already used for an existing access key
-    AddKeyAlreadyExists { account_id: AccountId, public_key: PublicKey },
     /// Account is staking and can not be deleted
     DeleteAccountStaking { account_id: AccountId },
     /// ActionReceipt can't be completed, because the remaining balance will not be enough to cover storage.
@@ -323,7 +311,6 @@ pub enum ActionErrorKind {
 }
 
 /// An error happened during Acton execution
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
 )]
@@ -337,7 +324,6 @@ pub struct ActionError {
 
 
 /// Error returned in the ExecutionOutcome in case of failure
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
 )]
@@ -349,19 +335,16 @@ pub enum TxExecutionError {
 }
 
 /// Describes the error for validating a receipt.
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
 )]
 pub enum ReceiptValidationError {
     /// The `predecessor_id` of a Receipt is not valid.
-    InvalidPredecessorId { account_id: String },
+    InvalidPredecessorId { account_id: AccountId },
     /// The `receiver_id` of a Receipt is not valid.
-    InvalidReceiverId { account_id: String },
-    /// The `signer_id` of an ActionReceipt is not valid.
-    InvalidSignerId { account_id: String },
+    InvalidReceiverId { account_id: AccountId },
     /// The `receiver_id` of a DataReceiver within an ActionReceipt is not valid.
-    InvalidDataReceiverId { account_id: String },
+    InvalidDataReceiverId { account_id: AccountId },
     /// The length of the returned data exceeded the limit in a DataReceipt.
     ReturnedValueLengthExceeded { length: u64, limit: u64 },
     /// The number of input data dependencies exceeds the limit in an ActionReceipt.
@@ -371,15 +354,10 @@ pub enum ReceiptValidationError {
 }
 
 /// An error happened during TX execution
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
 )]
 pub enum InvalidTxError {
-    /// Happens if a wrong AccessKey used or AccessKey has not enough permissions
-    InvalidAccessKeyError(InvalidAccessKeyError),
-    /// TX signer_id is not a valid [`AccountId`]
-    InvalidSignerId { signer_id: String },
     /// TX signer_id is not found in a storage
     SignerDoesNotExist { signer_id: AccountId },
     /// Transaction nonce must be `account[access_key].nonce + 1`.
@@ -419,7 +397,6 @@ pub enum InvalidTxError {
 }
 
 /// Describes the error for validating a list of actions.
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
 #[derive(
     BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
 )]
@@ -430,10 +407,6 @@ pub enum ActionsValidationError {
     TotalPrepaidGasExceeded { total_prepaid_gas: Gas, limit: Gas },
     /// The number of actions exceeded the given limit.
     TotalNumberOfActionsExceeded { total_number_of_actions: u64, limit: u64 },
-    /// The total number of bytes of the method names exceeded the limit in a Add Key action.
-    AddKeyMethodNamesNumberOfBytesExceeded { total_number_of_bytes: u64, limit: u64 },
-    /// The length of some method name exceeded the limit in a Add Key action.
-    AddKeyMethodNameLengthExceeded { length: u64, limit: u64 },
     /// Integer overflow during a compute.
     IntegerOverflow,
     /// Invalid account ID.
@@ -448,32 +421,6 @@ pub enum ActionsValidationError {
     UnsuitableStakingKey { public_key: PublicKey },
     /// The attached amount of gas in a FunctionCall action has to be a positive number.
     FunctionCallZeroAttachedGas,
-}
-
-#[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
-#[derive(
-    BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq, Deserialize, Serialize,
-)]
-pub enum InvalidAccessKeyError {
-    /// The access key identified by the `public_key` doesn't exist for the account
-    AccessKeyNotFound { account_id: AccountId, public_key: PublicKey },
-    /// Transaction `receiver_id` doesn't match the access key receiver_id
-    ReceiverMismatch { tx_receiver: AccountId, ak_receiver: String },
-    /// Transaction method name isn't allowed by the access key
-    MethodNameMismatch { method_name: String },
-    /// Transaction requires a full permission access key.
-    RequiresFullAccess,
-    /// Access Key does not have enough allowance to cover transaction cost
-    NotEnoughAllowance {
-        account_id: AccountId,
-        public_key: PublicKey,
-        #[serde(with = "u128_dec_format")]
-        allowance: Balance,
-        #[serde(with = "u128_dec_format")]
-        cost: Balance,
-    },
-    /// Having a deposit with a function call action is not allowed with a function call access key.
-    DepositWithFunctionCall,
 }
 
 /// Error returned from `Runtime::apply`
@@ -516,44 +463,6 @@ impl std::fmt::Display for StorageError {
 
 impl std::error::Error for StorageError {}
 
-impl Display for InvalidAccessKeyError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            InvalidAccessKeyError::AccessKeyNotFound { account_id, public_key } => write!(
-                f,
-                "Signer {:?} doesn't have access key with the given public_key {}",
-                account_id, public_key
-            ),
-            InvalidAccessKeyError::ReceiverMismatch { tx_receiver, ak_receiver } => write!(
-                f,
-                "Transaction receiver_id {:?} doesn't match the access key receiver_id {:?}",
-                tx_receiver, ak_receiver
-            ),
-            InvalidAccessKeyError::MethodNameMismatch { method_name } => write!(
-                f,
-                "Transaction method name {:?} isn't allowed by the access key",
-                method_name
-            ),
-            InvalidAccessKeyError::RequiresFullAccess => {
-                write!(f, "Invalid access key type. Full-access keys are required for transactions that have multiple or non-function-call actions")
-            }
-            InvalidAccessKeyError::NotEnoughAllowance {
-                account_id,
-                public_key,
-                allowance,
-                cost,
-            } => write!(
-                f,
-                "Access Key {:?}:{} does not have enough balance {} for transaction costing {}",
-                account_id, public_key, allowance, cost
-            ),
-            InvalidAccessKeyError::DepositWithFunctionCall => {
-                write!(f, "Having a deposit with a function call action is not allowed with a function call access key.")
-            }
-        }
-    }
-}
-
 impl Display for TxExecutionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
@@ -589,9 +498,6 @@ impl Display for ReceiptValidationError {
             }
             ReceiptValidationError::InvalidReceiverId { account_id } => {
                 write!(f, "The receiver_id `{}` of a Receipt is not valid.", account_id)
-            }
-            ReceiptValidationError::InvalidSignerId { account_id } => {
-                write!(f, "The signer_id `{}` of an ActionReceipt is not valid.", account_id)
             }
             ReceiptValidationError::InvalidDataReceiverId { account_id } => write!(
                 f,
@@ -629,16 +535,6 @@ impl Display for ActionsValidationError {
                     total_number_of_actions, limit
                 )
             }
-            ActionsValidationError::AddKeyMethodNamesNumberOfBytesExceeded { total_number_of_bytes, limit } => write!(
-                f,
-                "The total number of bytes in allowed method names {} exceeds the maximum allowed number {} in a AddKey action",
-                total_number_of_bytes, limit
-            ),
-            ActionsValidationError::AddKeyMethodNameLengthExceeded { length, limit } => write!(
-                f,
-                "The length of some method name {} exceeds the maximum allowed length {} in a AddKey action",
-                length, limit
-            ),
             ActionsValidationError::IntegerOverflow => write!(
                 f,
                 "Integer overflow during a compute",
@@ -646,7 +542,7 @@ impl Display for ActionsValidationError {
             ActionsValidationError::InvalidAccountId { account_id } => write!(
                 f,
                 "Invalid account ID `{}`",
-                account_id
+                String::from(account_id)
             ),
             ActionsValidationError::ContractSizeExceeded { size, limit } => write!(
                 f,
@@ -679,14 +575,8 @@ impl Display for ActionsValidationError {
 impl Display for InvalidTxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            InvalidTxError::InvalidSignerId { signer_id } => {
-                write!(f, "Invalid signer account ID {:?} according to requirements", signer_id)
-            }
             InvalidTxError::SignerDoesNotExist { signer_id } => {
                 write!(f, "Signer {:?} does not exist", signer_id)
-            }
-            InvalidTxError::InvalidAccessKeyError(access_key_error) => {
-                Display::fmt(&access_key_error, f)
             }
             InvalidTxError::InvalidNonce { tx_nonce, ak_nonce } => write!(
                 f,
@@ -732,13 +622,6 @@ impl Display for InvalidTxError {
         }
     }
 }
-
-impl From<InvalidAccessKeyError> for InvalidTxError {
-    fn from(error: InvalidAccessKeyError) -> Self {
-        InvalidTxError::InvalidAccessKeyError(error)
-    }
-}
-
 
 impl From<ContractCallError> for FunctionCallErrorSer {
     fn from(e: ContractCallError) -> Self {
@@ -881,7 +764,8 @@ impl fmt::Display for CompilationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
             CompilationError::CodeDoesNotExist { account_id } => {
-                write!(f, "cannot find contract code for account {}", account_id)
+                write!(f, "cannot find contract code for account {}", String::from(account_id)
+            )
             }
             CompilationError::PrepareError(p) => write!(f, "PrepareError: {}", p),
             CompilationError::FloatingPointError => write!(f, "floating points operations not allowed in wasm"),

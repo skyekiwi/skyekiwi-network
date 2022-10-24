@@ -27,6 +27,7 @@ pub use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
 		ConstU128, ConstU32, ConstU64, ConstU8, KeyOwnerProofSystem, Randomness, StorageInfo,
+		EqualPrivilegeOnly,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -41,12 +42,7 @@ use pallet_transaction_payment::CurrencyAdapter;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
-
-pub use pallet_secrets;
-pub use pallet_s_contract;
-pub use pallet_registry;
-pub use pallet_parentchain;
-
+use frame_system::EnsureRoot;
 /// An index to a block.
 pub type BlockNumber = skw_blockchain_primitives::types::BlockNumber;
 
@@ -102,7 +98,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	//   `spec_version`, and `authoring_version` are the same between Wasm and native.
 	// This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
 	//   the compatible custom types.
-	spec_version: 100,
+	spec_version: 105,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -203,8 +199,6 @@ impl frame_system::Config for Runtime {
 }
 
 
-impl pallet_randomness_collective_flip::Config for Runtime {}
-
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
@@ -278,6 +272,8 @@ frame_support::parameter_types! {
 	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const SContractPalletId: PalletId = PalletId(*b"scontrac");
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
+	pub const NoPreimagePostponement: Option<u32> = Some(5 * MINUTES);
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -298,6 +294,37 @@ impl pallet_treasury::Config for Runtime {
 	type MaxApprovals = ConstU32<100>;
 }
 
+// TODO: these are placeholder
+parameter_types! {
+	pub PreimageBaseDeposit: Balance = 100;
+	pub PreimageByteDeposit: Balance = 10;
+}
+
+impl pallet_preimage::Config for Runtime {
+	type WeightInfo = ();
+	type Event = Event;
+	type Currency = Balances;
+	type ManagerOrigin = EnsureRoot<AccountId>;
+	// Max size 4MB allowed: 4096 * 1024
+	type MaxSize = ConstU32<4194304>;
+	type BaseDeposit = PreimageBaseDeposit;
+	type ByteDeposit = PreimageByteDeposit;
+}
+
+impl pallet_scheduler::Config for Runtime {
+	type Event = Event;
+	type Origin = Origin;
+	type PalletsOrigin = OriginCaller;
+	type Call = Call;
+	type MaximumWeight = MaximumSchedulerWeight;
+	type ScheduleOrigin = EnsureRoot<AccountId>;
+	type MaxScheduledPerBlock = ConstU32<10>;
+	type WeightInfo = ();
+	type OriginPrivilegeCmp = EqualPrivilegeOnly;
+	type PreimageProvider = Preimage;
+	type NoPreimagePostponement = NoPreimagePostponement;
+}
+
 impl pallet_registry::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
@@ -309,7 +336,7 @@ impl pallet_registry::Config for Runtime {
 impl pallet_parentchain::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
-	type DelayThreshold = ConstU32<1_000>;
+	type DelayThreshold = ConstU32<10_000>;
 	type MaxOutcomePerSubmission = ConstU32<1_000>;
 	type MaxSizePerOutcome = ConstU32<100_000>;
 }
@@ -317,7 +344,7 @@ impl pallet_parentchain::Config for Runtime {
 impl pallet_secrets::Config for Runtime {
 	type WeightInfo = ();
 	type Event = Event;
-	type IPFSCIDLength = ConstU32<46>;
+	type Preimage = Preimage;
 }
 
 impl pallet_s_contract::Config for Runtime {
@@ -345,7 +372,6 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Aura: pallet_aura::{Pallet, Config<T>},
 		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event},
@@ -354,6 +380,8 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Event},
 		Treasury: pallet_treasury::{Pallet, Call, Event<T>, Storage},
+		Scheduler: pallet_scheduler::{Pallet, Call, Event<T>, Storage},
+		Preimage: pallet_preimage::{Pallet, Call, Event<T>, Storage},
 
 		Secrets: pallet_secrets::{Pallet, Call, Storage, Event<T>},
 		SContract: pallet_s_contract::{Pallet, Call, Storage, Event<T>},

@@ -1,4 +1,5 @@
 use skw_vm_primitives::contract_runtime::{ContractCode};
+use skw_vm_primitives::account_id::AccountId;
 use skw_vm_primitives::fees::RuntimeFeesConfig;
 use skw_vm_primitives::errors::{FunctionCallError, VMError, WasmTrap};
 
@@ -8,10 +9,7 @@ use skw_vm_host::{types::ReturnData, VMConfig, VMOutcome};
 use std::mem::size_of;
 use crate::runner::WasmiVM;
 
-use crate::tests::{
-    create_context, CURRENT_ACCOUNT_ID,
-    PREDECESSOR_ACCOUNT_ID, SIGNER_ACCOUNT_ID, SIGNER_ACCOUNT_PK,
-};
+use crate::tests::{create_context};
 
 fn test_contract() -> ContractCode {
     let code = near_test_contracts::rs_contract();
@@ -157,16 +155,15 @@ fn run_test_ext(
     }
 }
 
-def_test_ext!(ext_account_id, "ext_account_id", CURRENT_ACCOUNT_ID.as_bytes());
+def_test_ext!(ext_account_id, "ext_account_id", &AccountId::testn(1).as_bytes()[..]);
 
-def_test_ext!(ext_signer_id, "ext_signer_id", SIGNER_ACCOUNT_ID.as_bytes());
+def_test_ext!(ext_signer_id, "ext_signer_id", &AccountId::testn(2).as_bytes()[..]);
 def_test_ext!(
     ext_predecessor_account_id,
     "ext_predecessor_account_id",
-    PREDECESSOR_ACCOUNT_ID.as_bytes(),
+    &AccountId::testn(3).as_bytes()[..],
     &[]
 );
-def_test_ext!(ext_signer_pk, "ext_signer_pk", &SIGNER_ACCOUNT_PK);
 def_test_ext!(ext_random_seed, "ext_random_seed", &[0, 1, 2]);
 
 def_test_ext!(ext_prepaid_gas, "ext_prepaid_gas", &(10_u64.pow(14)).to_le_bytes());

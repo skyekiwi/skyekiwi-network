@@ -2,17 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { randomBytes } from 'tweetnacl';
-import { getLogger, hexToU8a, stringToU8a, u8aToHex } from '@skyekiwi/util';
+import { stringToU8a, u8aToHex, sendTx, sleep } from '@skyekiwi/util';
 import { Keyring } from '@polkadot/keyring'
 import { waitReady } from '@polkadot/wasm-crypto'
 import { ApiPromise, WsProvider } from '@polkadot/api'
-import {sendTx} from './util'
-import { Calls, Call, buildCalls, baseDecode } from '@skyekiwi/s-contract';
+import { Calls, Call, buildCalls } from '@skyekiwi/s-contract';
 import {blake2AsU8a} from '@polkadot/util-crypto'
-
-const sleep = (ms: number) => {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
 
 export class Chaos {
 
@@ -22,10 +17,9 @@ export class Chaos {
     const keyring = new Keyring({ type: 'sr25519' }).addFromUri(`//${accountIndex}`)
     const provider = new WsProvider('ws://127.0.0.1:9944');
     const api = await ApiPromise.create({ provider: provider });
-    const logger = getLogger(`push calls to //${accountIndex}`);
 
     await sendTx(
-      api.tx.sAccount.createAccount(0), keyring, logger
+      api.tx.sAccount.createAccount(0), keyring,
     );
     for (let i = 0 ; i < loop; i ++) {
 
@@ -41,6 +35,7 @@ export class Chaos {
             amount: null,
             method: stringToU8a('set_status'),
             args: stringToU8a(JSON.stringify({message: "0x" + u8aToHex(randomBytes(32))})),
+            wasm_code: null,
           }),
           new Call({
             origin_public_key: keyring.publicKey,
@@ -52,17 +47,15 @@ export class Chaos {
             amount: null,
             method: stringToU8a('get_status'),
             args: stringToU8a(JSON.stringify({account_id: keyring.address.toLowerCase()})),
+            wasm_code: null,
           })
         ],
         block_number: 0,
         shard_id: 0,
       })
 
-      console.log( u8aToHex( new Uint8Array(baseDecode(buildCalls(call)))) )
-
-      const pushCall = api.tx.sContract.pushCall(0, '0x' + u8aToHex( new Uint8Array(baseDecode(buildCalls(call)))) );
-      logger.info(`pushing calls from ${keyring.address}`)
-      await sendTx(pushCall, keyring, logger);
+      const pushCall = api.tx.sContract.pushCall(0, '0x' + u8aToHex( new Uint8Array( buildCalls(call))));
+      await sendTx(pushCall, keyring);
 
       const random = Math.floor(Math.random() * (1000 - 1)) + 1;
       await sleep(random * 100);

@@ -2,44 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import path from 'path'
+import fs from 'fs'
 
 import { Driver } from '@skyekiwi/driver';
-import { AsymmetricEncryption, DefaultSealer, EncryptionSchema } from '@skyekiwi/crypto';
-
-import fs from 'fs'
-import {IPFS} from '@skyekiwi/ipfs'
-
-import { getLogger, stringToU8a } from '@skyekiwi/util';
+import { sendTx , u8aToHex} from '@skyekiwi/util';
 import { Keyring } from '@polkadot/keyring'
-import { waitReady } from '@polkadot/wasm-crypto'
 import { ApiPromise, WsProvider } from '@polkadot/api'
-import { sendTx } from './util'
-import { File } from '@skyekiwi/file';
-import { u8aToHex } from '@skyekiwi/util'
 import { Calls, buildCalls } from '@skyekiwi/s-contract';
-
-import {baseDecode} from 'borsh';
+import { AsymmetricEncryption, initWASMInterface, secureGenerateRandomKey } from '@skyekiwi/crypto';
+import { KeypairType } from '@skyekiwi/crypto/types';
 
 require("dotenv").config()
 
 const genesis = async () => {
-
-  const logger = getLogger("genesis");
-
-  await waitReady();
+  await initWASMInterface();
   const rootKeypair = (new Keyring({ type: 'sr25519' })).addFromUri('//Alice');
 
   const provider = new WsProvider('ws://127.0.0.1:9944');
   // const provider = new WsProvider('wss://staging.rpc.skye.kiwi');
   const api = await ApiPromise.create({ provider: provider });
 
-  const shardKey = new Uint8Array([
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-    0, 1
-  ]);
-  const publicKey = AsymmetricEncryption.getPublicKey(shardKey);
+  const sk = {
+    key: secureGenerateRandomKey(),
+    keyType: 'sr25519' as KeypairType
+  };
+
+  const pk = {
+    key: AsymmetricEncryption.getPublicKeyWithCurveType('sr25519', sk.key),
+    keyType: 'sr25519' as KeypairType
+  };
 
   // 1. register and initialize a shard 
    const authorizeRoot = api.tx.sudo.sudo(
@@ -56,55 +47,35 @@ const genesis = async () => {
   }
   fundAccounts.push(api.tx.balances.transfer(  "5DFhSMLmnw3Fgc6trbp8AuErcZoJS64gDFHUemqh2FRYdtoC"  , 155_000_142 * 20));
 
-  const encryptionSchema = new EncryptionSchema();
-  encryptionSchema.addMember(publicKey);
+  const file = fs.readFileSync(path.join(__dirname, '../mock/empty__state_dump__ColState'));
 
-  let initializeShard
-  await Driver.upstream(
-      new File({
-          fileName: "empty_state",
-          readStream: fs.createReadStream(path.join(__dirname, '../mock/empty__state_dump__ColState'))
-      }),
-      new DefaultSealer(), encryptionSchema,
-      async (cid: string) => {
-          initializeShard = api.tx.sContract.initializeShard(0, cid, publicKey);
-      }
-  )
+  const preSealed = await Driver.generatePreSealedData(new Uint8Array(file));
+  const sealed = Driver.generateSealedData(preSealed, [pk], false);
+
+  const initShard = api.tx.sContract.initializeShard(
+    0, sealed.serialize(), pk.key
+  );
 
   const shardConfirmationThreshold = api.tx.sudo.sudo(
     api.tx.parentchain.setShardConfirmationThreshold(0, 1)
   );
 
-  const wasmBlobSM = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/status_message_collections.wasm')));
-  // const wasmBlobFT = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/fungible_token.wasm')));
-
-  const cidSM = await IPFS.add(u8aToHex(wasmBlobSM));
-  // const cidFT = await IPFS.add(u8aToHex(wasmBlobFT));
+  const wasmBlobSM = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/status_message.wasm')));
+  // // const wasmBlobFT = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/fungible_token.wasm')));
+  
   const deploymentCalls = new Calls({ ops: [ ], block_number: null, shard_id: 0 });
-  const encodedDeploymentCall = '0x' + u8aToHex(new Uint8Array(baseDecode( buildCalls(deploymentCalls) ))) 
-  const deployContract = [
-    api.tx.sContract.registerContract(
-      "status_message", cidSM.cid.toString(), encodedDeploymentCall,  0
-    ),
-    // api.tx.sContract.registerContract(
-    //   "skw_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
-    // ),
-    // api.tx.sContract.registerContract(
-    //   "dot_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
-    // ),
-    // api.tx.sContract.registerContract(
-    //   "usdt_token", cidFT.cid.toString(), buildCalls(deploymentCalls), 0
-    // )
-  ];
+  const encodedDeploymentCall = '0x' + u8aToHex(new Uint8Array(buildCalls(deploymentCalls)))
+  const deployContract = api.tx.sContract.registerContract(
+    "status_message", "0x" + u8aToHex(wasmBlobSM), encodedDeploymentCall,  0
+  )
 
   const submitInitialize = api.tx.utility.batch(
     [
       ...fundAccounts,
-      authorizeRoot, initializeShard, shardConfirmationThreshold,
-      ...deployContract,
+      authorizeRoot, initShard, shardConfirmationThreshold, deployContract
     ]
   );
-  await sendTx(submitInitialize, rootKeypair, logger);
+  await sendTx(submitInitialize, rootKeypair);
 }
 
 export {genesis}

@@ -5,13 +5,13 @@
 
 use std::mem::size_of;
 use std::panic as std_panic;
-use std::{convert::TryFrom, mem::MaybeUninit};
+use std::{mem::MaybeUninit};
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::mock::MockedBlockchain;
-use crate::types::{
-    AccountId, Balance, BlockNumber, Gas, PromiseIndex, PromiseResult, PublicKey, StorageUsage,
-};
+use crate::{Balance, BlockNumber, Gas, StorageUsage, AccountId};
+use crate::{PromiseIndex, PromiseResult};
+
 use skw_contract_sys as sys;
 
 const REGISTER_EXPECTED_ERR: &str =
@@ -26,11 +26,6 @@ const EVICTED_REGISTER: u64 = std::u64::MAX - 1;
 
 /// Key used to store the state of the contract.
 const STATE_KEY: &[u8] = b"STATE";
-
-/// The minimum length of a valid account ID.
-const MIN_ACCOUNT_ID_LEN: u64 = 2;
-/// The maximum length of a valid account ID.
-const MAX_ACCOUNT_ID_LEN: u64 = 64;
 
 fn expect_register<T>(option: Option<T>) -> T {
     option.unwrap_or_else(|| panic_str(REGISTER_EXPECTED_ERR))
@@ -143,11 +138,6 @@ pub fn signer_account_id() -> AccountId {
     assert_valid_account_id(method_into_register!(signer_account_id))
 }
 
-/// The public key of the account that did the signing.
-pub fn signer_account_pk() -> PublicKey {
-    PublicKey::try_from(method_into_register!(signer_account_pk)).unwrap_or_else(|_| abort())
-}
-
 /// The id of the account that was the previous contract in the chain of cross-contract calls.
 /// If this is the first contract, it is equal to `signer_account_id`.
 pub fn predecessor_account_id() -> AccountId {
@@ -156,10 +146,7 @@ pub fn predecessor_account_id() -> AccountId {
 
 /// Helper function to convert and check the account ID from bytes from the runtime.
 fn assert_valid_account_id(bytes: Vec<u8>) -> AccountId {
-    String::from_utf8(bytes)
-        .ok()
-        .and_then(|s| AccountId::try_from(s).ok())
-        .unwrap_or_else(|| abort())
+    AccountId::from_bytes(&bytes[..]).unwrap_or_else(|_| abort())
 }
 
 /// The input to the contract call serialized as bytes. If input is not provided returns `None`.
@@ -210,12 +197,12 @@ pub fn attached_deposit() -> Balance {
 
 /// The amount of gas attached to the call that can be used to pay for the gas fees.
 pub fn prepaid_gas() -> Gas {
-    Gas(unsafe { sys::prepaid_gas() })
+    unsafe { sys::prepaid_gas() }
 }
 
 /// The gas that was already burnt during the contract execution (cannot exceed `prepaid_gas`)
 pub fn used_gas() -> Gas {
-    Gas(unsafe { sys::used_gas() })
+    unsafe { sys::used_gas() }
 }
 
 // ############
@@ -355,7 +342,7 @@ pub fn promise_create(
             arguments.len() as _,
             arguments.as_ptr() as _,
             &amount as *const Balance as _,
-            gas.0,
+            gas,
         )
     }
 }
@@ -380,7 +367,7 @@ pub fn promise_then(
             arguments.len() as _,
             arguments.as_ptr() as _,
             &amount as *const Balance as _,
-            gas.0,
+            gas,
         )
     }
 }
@@ -396,14 +383,20 @@ pub fn promise_and(promise_indices: &[PromiseIndex]) -> PromiseIndex {
 }
 
 pub fn promise_batch_create(account_id: &AccountId) -> PromiseIndex {
-    let account_id = account_id.as_ref();
-    unsafe { sys::promise_batch_create(account_id.len() as _, account_id.as_ptr() as _) }
+    let account_id = account_id.as_ref().as_bytes();
+    unsafe { sys::promise_batch_create(
+        account_id.len() as _, 
+        account_id.as_ptr() as _) 
+    }
 }
 
 pub fn promise_batch_then(promise_index: PromiseIndex, account_id: &AccountId) -> PromiseIndex {
-    let account_id: &str = account_id.as_ref();
+    let account_id = account_id.as_ref().as_bytes();
     unsafe {
-        sys::promise_batch_then(promise_index, account_id.len() as _, account_id.as_ptr() as _)
+        sys::promise_batch_then(promise_index, 
+            account_id.len() as _,
+            account_id.as_ptr() as _
+        )
     }
 }
 
@@ -436,7 +429,7 @@ pub fn promise_batch_action_function_call(
             arguments.len() as _,
             arguments.as_ptr() as _,
             &amount as *const Balance as _,
-            gas.0,
+            gas,
         )
     }
 }
@@ -445,58 +438,12 @@ pub fn promise_batch_action_transfer(promise_index: PromiseIndex, amount: Balanc
     unsafe { sys::promise_batch_action_transfer(promise_index, &amount as *const Balance as _) }
 }
 
-pub fn promise_batch_action_add_key_with_full_access(
-    promise_index: PromiseIndex,
-    public_key: &PublicKey,
-    nonce: u64,
-) {
-    unsafe {
-        sys::promise_batch_action_add_key_with_full_access(
-            promise_index,
-            public_key.as_bytes().len() as _,
-            public_key.as_bytes().as_ptr() as _,
-            nonce,
-        )
-    }
-}
-pub fn promise_batch_action_add_key_with_function_call(
-    promise_index: PromiseIndex,
-    public_key: &PublicKey,
-    nonce: u64,
-    allowance: Balance,
-    receiver_id: &AccountId,
-    function_names: &str,
-) {
-    let receiver_id: &str = receiver_id.as_ref();
-    unsafe {
-        sys::promise_batch_action_add_key_with_function_call(
-            promise_index,
-            public_key.as_bytes().len() as _,
-            public_key.as_bytes().as_ptr() as _,
-            nonce,
-            &allowance as *const Balance as _,
-            receiver_id.len() as _,
-            receiver_id.as_ptr() as _,
-            function_names.len() as _,
-            function_names.as_ptr() as _,
-        )
-    }
-}
-pub fn promise_batch_action_delete_key(promise_index: PromiseIndex, public_key: &PublicKey) {
-    unsafe {
-        sys::promise_batch_action_delete_key(
-            promise_index,
-            public_key.as_bytes().len() as _,
-            public_key.as_bytes().as_ptr() as _,
-        )
-    }
-}
 
 pub fn promise_batch_action_delete_account(
     promise_index: PromiseIndex,
     beneficiary_id: &AccountId,
 ) {
-    let beneficiary_id: &str = beneficiary_id.as_ref();
+    let beneficiary_id = beneficiary_id.as_ref().as_bytes();
     unsafe {
         sys::promise_batch_action_delete_account(
             promise_index,
@@ -664,127 +611,8 @@ pub fn storage_byte_cost() -> Balance {
     STORAGE_PRICE_PER_BYTE
 }
 
-// ##################
-// # Helper methods #
-// ##################
-
-/// Returns `true` if the given account ID is valid and `false` otherwise.
-pub fn is_valid_account_id(account_id: &[u8]) -> bool {
-    if (account_id.len() as u64) < MIN_ACCOUNT_ID_LEN
-        || (account_id.len() as u64) > MAX_ACCOUNT_ID_LEN
-    {
-        return false;
-    }
-
-    // NOTE: We don't want to use Regex here, because it requires extra time to compile it.
-    // The valid account ID regex is /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/
-    // Instead the implementation is based on the previous character checks.
-
-    // We can safely assume that last char was a separator.
-    let mut last_char_is_separator = true;
-
-    for c in account_id {
-        let current_char_is_separator = match *c {
-            b'a'..=b'z' | b'0'..=b'9' => false,
-            b'-' | b'_' | b'.' => true,
-            _ => return false,
-        };
-        if current_char_is_separator && last_char_is_separator {
-            return false;
-        }
-        last_char_is_separator = current_char_is_separator;
-    }
-    // The account can't end as separator.
-    !last_char_is_separator
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    #[test]
-    fn test_is_valid_account_id_strings() {
-        // Valid
-        for account_id in &[
-            "aa",
-            "a-a",
-            "a-aa",
-            "100",
-            "0o",
-            "com",
-            "near",
-            "bowen",
-            "b-o_w_e-n",
-            "b.owen",
-            "bro.wen",
-            "a.ha",
-            "a.b-a.ra",
-            "system",
-            "over.9000",
-            "google.com",
-            "illia.cheapaccounts.near",
-            "0o0ooo00oo00o",
-            "alex-skidanov",
-            "10-4.8-2",
-            "b-o_w_e-n",
-            "no_lols",
-            "0123456789012345678901234567890123456789012345678901234567890123",
-            // Valid, but can't be created
-            "near.a",
-            "a.a",
-        ] {
-            assert!(
-                is_valid_account_id(account_id.as_ref()),
-                "Valid account id {:?} marked invalid",
-                account_id
-            );
-        }
-
-        // Invalid
-        for account_id in &[
-            "",
-            "a",
-            "A",
-            "Abc",
-            "-near",
-            "near-",
-            "-near-",
-            "near.",
-            ".near",
-            "near@",
-            "@near",
-            "неар",
-            "@@@@@",
-            "0__0",
-            "0_-_0",
-            "0_-_0",
-            "..",
-            "a..near",
-            "nEar",
-            "_bowen",
-            "hello world",
-            "abcdefghijklmnopqrstuvwxyz.abcdefghijklmnopqrstuvwxyz.abcdefghijklmnopqrstuvwxyz",
-            "01234567890123456789012345678901234567890123456789012345678901234",
-            // `@` separators are banned now
-            "some-complex-address@gmail.com",
-            "sub.buy_d1gitz@atata@b0-rg.c_0_m",
-        ] {
-            assert!(
-                !is_valid_account_id(account_id.as_ref()),
-                "Invalid account id {:?} marked valid",
-                account_id
-            );
-        }
-    }
-
-    #[test]
-    fn test_is_valid_account_id_binary() {
-        assert!(!is_valid_account_id(&[]));
-        assert!(!is_valid_account_id(&[0]));
-        assert!(!is_valid_account_id(&[0, 1]));
-        assert!(!is_valid_account_id(&[0, 1, 2]));
-        assert!(is_valid_account_id(b"near"));
-    }
 
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
