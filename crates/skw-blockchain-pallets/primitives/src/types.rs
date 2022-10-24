@@ -57,7 +57,7 @@ pub struct Outcome {
 #[derive(BorshSerialize, BorshDeserialize, Default, Debug)]
 pub struct Outcomes {
     pub ops: Vec<Outcome>,
-    pub call_id: CallIndex,
+    pub call_index: CallIndex,
     pub signature: Bytes,
     pub state_root: CryptoHash,
 }

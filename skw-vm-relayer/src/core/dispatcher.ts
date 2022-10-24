@@ -3,7 +3,7 @@
 
 import EventEmitter from "events";
 
-import { Call, parseCalls, parseOutcomes, baseDecode, baseEncode, buildCalls, Calls } from '@skyekiwi/s-contract';
+import { Call, parseCalls, parseOutcomes, buildCalls, Calls } from '@skyekiwi/s-contract';
 import { hexToU8a, u8aToString, padSize, unpadSize, sleep } from '@skyekiwi/util';
 import { decodeAddress, encodeAddress } from '@polkadot/util-crypto';
 
@@ -52,7 +52,7 @@ export class Dispatcher {
         const blocks = await this.#db.selectBlocksForExecution(shardId);
 
         if (!blocks || blocks.length === 0) {
-          if (this.#progress) this.#progress.emit("progress", "DISPATCHER_EXECUTION_SKIPPING");
+          // if (this.#progress) this.#progress.emit("progress", "DISPATCHER_EXECUTION_SKIPPING");
           // Sleep for a block time
           sleep(6000);
         }
@@ -61,8 +61,7 @@ export class Dispatcher {
           for (const call of block.calls) {
             const chainOriginPublicKey = decodeAddress(call.origin);
             try {
-              const c = parseCalls( baseEncode( call.encoded ) );
-              console.log(c);
+              const c = parseCalls( hexToU8a( call.encoded ) );
               const validatedCalls = new Calls({
                 ops: [],
                 shard_id: shardId,
@@ -71,12 +70,11 @@ export class Dispatcher {
               for (const op of c.ops) {
                 validatedCalls.ops.push(await this.preProcessCall(shardId, op));
               }
-
               if (this.#progress) this.#progress.emit("progress", "DISPATCHER_EXECUTION_CALL_VALIDATED", call.call_index);
 
               if (this.#progress) this.#progress.emit("progress", "DISPATCHER_EXECUTION_BUILDING_PAYLOAD", block.block_number);
               
-              const encodedCalls = baseDecode( buildCalls(validatedCalls) );
+              const encodedCalls = buildCalls(validatedCalls);
               payload = new Uint8Array([
                 ...payload,
                 ...padSize(encodedCalls.length),
@@ -113,9 +111,9 @@ export class Dispatcher {
             }
 
             const rawOutcome = outcomes.slice(callOutcomeOffset + 4, callOutcomeOffset + 4 + outcomeSize);
-            const outcome = parseOutcomes( baseEncode( rawOutcome) );
-            executedCallIndexes.push(outcome.call_id);
-            this.#query += this.#db.createOutcome(outcome.call_id, rawOutcome);
+            const outcome = parseOutcomes( rawOutcome );
+            executedCallIndexes.push(outcome.call_index);
+            this.#query += this.#db.createOutcome(outcome.call_index, rawOutcome);
             callOutcomeOffset += 4 + outcomeSize;
             latestStateRoot = outcome.state_root;
           }
@@ -130,7 +128,7 @@ export class Dispatcher {
   }
 
   public async preProcessCall(shardId: number, call: Call): Promise<Call> {
-    const originAddress = encodeAddress(call.origin_public_key);
+    const originAddress = encodeAddress(new Uint8Array( call.origin_public_key) );
     switch(call.transaction_action) {
       // 0. if its an account creation call
       case 0:  
@@ -163,7 +161,7 @@ export class Dispatcher {
         }
 
         // 0.2 Fetch contract 
-        const contract = await this.#db.selectWasmBlob(shardId, u8aToString(call.contract_name));
+        const contract = await this.#db.selectWasmBlob(shardId, u8aToString(new Uint8Array( call.contract_name )));
         // 0.3 Put the call to res
         let res: Call = call;
         res.wasm_code = contract;

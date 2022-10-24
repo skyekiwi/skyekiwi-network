@@ -4,17 +4,12 @@
 import path from 'path'
 import fs from 'fs'
 
-import {IPFS} from '@skyekiwi/ipfs'
 import { Driver } from '@skyekiwi/driver';
-import { stringToU8a, sendTx , u8aToHex} from '@skyekiwi/util';
+import { sendTx , u8aToHex} from '@skyekiwi/util';
 import { Keyring } from '@polkadot/keyring'
-import { waitReady } from '@polkadot/wasm-crypto'
 import { ApiPromise, WsProvider } from '@polkadot/api'
 import { Calls, buildCalls } from '@skyekiwi/s-contract';
 import { AsymmetricEncryption, initWASMInterface, secureGenerateRandomKey } from '@skyekiwi/crypto';
-import { File } from '@skyekiwi/file';
-
-import {baseDecode} from 'borsh';
 import { KeypairType } from '@skyekiwi/crypto/types';
 
 require("dotenv").config()
@@ -52,12 +47,9 @@ const genesis = async () => {
   }
   fundAccounts.push(api.tx.balances.transfer(  "5DFhSMLmnw3Fgc6trbp8AuErcZoJS64gDFHUemqh2FRYdtoC"  , 155_000_142 * 20));
 
-  const file = new File({
-    fileName: "empty_state",
-    readStream: fs.createReadStream(path.join(__dirname, '../mock/empty__state_dump__ColState'))
-  });
+  const file = fs.readFileSync(path.join(__dirname, '../mock/empty__state_dump__ColState'));
 
-  const preSealed = await Driver.generatePreSealedData(file);
+  const preSealed = await Driver.generatePreSealedData(new Uint8Array(file));
   const sealed = Driver.generateSealedData(preSealed, [pk], false);
 
   const initShard = api.tx.sContract.initializeShard(
@@ -70,10 +62,9 @@ const genesis = async () => {
 
   const wasmBlobSM = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/status_message.wasm')));
   // // const wasmBlobFT = new Uint8Array(fs.readFileSync(path.join(__dirname, '../wasm/fungible_token.wasm')));
-
-  console.log(wasmBlobSM);
+  
   const deploymentCalls = new Calls({ ops: [ ], block_number: null, shard_id: 0 });
-  const encodedDeploymentCall = '0x' + u8aToHex(new Uint8Array(baseDecode( buildCalls(deploymentCalls) ))) 
+  const encodedDeploymentCall = '0x' + u8aToHex(new Uint8Array(buildCalls(deploymentCalls)))
   const deployContract = api.tx.sContract.registerContract(
     "status_message", "0x" + u8aToHex(wasmBlobSM), encodedDeploymentCall,  0
   )
@@ -84,8 +75,7 @@ const genesis = async () => {
       authorizeRoot, initShard, shardConfirmationThreshold, deployContract
     ]
   );
-  const x = await sendTx(submitInitialize, rootKeypair);
-  // console.log(x);
+  await sendTx(submitInitialize, rootKeypair);
 }
 
 export {genesis}

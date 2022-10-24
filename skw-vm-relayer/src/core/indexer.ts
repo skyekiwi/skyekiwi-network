@@ -3,12 +3,12 @@
 
 import EventEmitter from "events";
 
-import { baseEncode, parseCalls } from '@skyekiwi/s-contract';
+import { parseCalls } from '@skyekiwi/s-contract';
 import { encodeAddress } from '@polkadot/util-crypto';
 import { u8aToString } from '@polkadot/util';
+import { sleep } from "@skyekiwi/util";
 
 import { DB, Chain } from '../util';
-
 
 /* eslint-disable sort-keys, camelcase, @typescript-eslint/ban-ts-comment */
 export class Indexer {
@@ -66,12 +66,11 @@ export class Indexer {
       this.#currentBlockNumber = start ? start : highIndexedBlock + 1;
     }
 
-    let fetchingCount = 0;
-
     if (this.#progress) this.#progress.emit("progress", "INDEXER_FETCH_START", this.#currentBlockNumber);
 
     while (this.#active) {
-      if (this.#progress) this.#progress.emit("progress", "INDEXER_FETCH_FETCHING", this.#currentBlockNumber);
+      // if (this.#progress) this.#progress.emit("progress", "INDEXER_FETCH_FETCHING", this.#currentBlockNumber);
+
 
       for (const shardId of this.#shards) {
 
@@ -80,7 +79,7 @@ export class Indexer {
 
         for (let [callIndex, call, origin] of rawCalls) {
           calls.push(callIndex);
-          const c = parseCalls(baseEncode(call));
+          const c = parseCalls( call );
           for (let op of c.ops) {
             if (op.transaction_action === 4) {
               const originAddress = encodeAddress(new Uint8Array( op.origin_public_key) );
@@ -102,22 +101,16 @@ export class Indexer {
         }
       }
 
-      this.#currentBlockNumber ++;
       const highChainBlockNumber = await chain.queryBlockNumber();
-
-      if (isNaN(highChainBlockNumber) || this.#currentBlockNumber === highChainBlockNumber) {
+      if (isNaN(highChainBlockNumber) || this.#currentBlockNumber >= highChainBlockNumber) {
         if (this.#progress) this.#progress.emit("progress", "INDEXER_FETCH_ALLDONE", this.#currentBlockNumber);
-        break;
+        await sleep(2000);
+      } else {
+        this.#currentBlockNumber ++;
       }
 
-      // if we have fetched 1000 blocks - write to DB NOW!
-      fetchingCount = fetchingCount + 1;
-      if (fetchingCount === 5000) {
-        fetchingCount = 0;
-        if (this.#progress) this.#progress.emit("progress", "INDEXER_FETCH_WRITE_BUFFED");
-        // logger.info("💯 writting some buffered blocks to local DB")
-        await this.writeAll();
-      }
+      this.#query += this.#db.updateIndexerMetadata(this.#currentBlockNumber);
+      await this.writeAll();
     }
   }
 

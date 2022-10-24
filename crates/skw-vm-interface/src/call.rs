@@ -393,12 +393,14 @@ impl Caller {
                     }
                     _ => {}
                 }
+
+                execution_result.encrypted = None;
        
                 outcome_of_call.ops.push(execution_result);
             }
             
             outcome_of_call.state_root = self.state_root;
-            outcome_of_call.call_id = call_index as u32;
+            outcome_of_call.call_index = call_index as u32;
             outcome_of_call.signature = sign_ed25519(&SEALING_KEY, &param_hash[..]).to_vec();
 
             let mut buffer: Vec<u8> = Vec::new();
@@ -406,7 +408,7 @@ impl Caller {
     
             all_outcomes.extend_from_slice(&pad_size(buffer.len())[..]);
             all_outcomes.extend_from_slice(&buffer[..]);
-    
+
             offset += 8 + size + 32;
         }
     

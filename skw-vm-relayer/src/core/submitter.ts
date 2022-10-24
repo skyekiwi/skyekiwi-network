@@ -49,9 +49,10 @@ export class Submitter {
 
   public async parseAllSubmission() {
     while(this.#active) {
+      await this.keepSecretKeeperRegistered();
+
       for (const shardId of this.#shards) {
         const blocks = await this.#db.selectBlocksForSubmission(shardId);
-
         if (!blocks || blocks.length === 0) {
           if (this.#progress) this.#progress.emit("progress", "SUBMITTER_SKIP_SUBMISSION");
           // Sleep for a block time
@@ -74,24 +75,38 @@ export class Submitter {
 
           this.#query += this.#db.createTxBuffer(tx.toHex());
 
-          // Keep secret keeprer registered
-          const register = await this.#chain.maybeRegistSecretKeeper(
-            block.block_number, this.#key.address, this.#shards, 
-            new Uint8Array(32), new Uint8Array(64)
-          );
-
-          if (register && register.length !== 0) {
-            this.#query += this.#db.createTxBuffer(
-              this.#chain.txBatch(register).toHex()
-            )
-          }
           if (this.#progress) this.#progress.emit("progress", "SUBMITTER_BLOCK_GENERATED", block.block_number);
+          this.#query += this.#db.updateAllBlockStatusAsSubmitted(shardId, block.block_number);
         }
+
+        await this.writeAll();
+        await this.submitAllTx();
+        if (this.#progress) this.#progress.emit("progress", "SUBMITTER_SUBMITTED");
+
+        await sleep(4000);
       }
-      await this.writeAll();
-      await this.submitAllTx();
-      if (this.#progress) this.#progress.emit("progress", "SUBMITTER_SUBMITTED");
     }
+  }
+
+  public async keepSecretKeeperRegistered() {
+    const blockNumber = await this.#chain.queryBlockNumber();
+    // keep secret keeprer registered FIRST
+    const fakePublicKey = "1111111111111111111111111111111111111111111111111111111111111111"
+    const fakeSignature = "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+
+    const register = await this.#chain.maybeRegistSecretKeeper(
+      blockNumber, this.#key.address, this.#shards, 
+      hexToU8a( fakePublicKey ), hexToU8a( fakeSignature )
+    );
+
+    if (register && register.length !== 0) {
+      this.#query += this.#db.createTxBuffer(
+        this.#chain.txBatch(register).toHex()
+      )
+    }
+
+    await this.writeAll();
+    await this.submitAllTx();
   }
 
   public async submitAllTx() {
@@ -99,7 +114,7 @@ export class Submitter {
     const submittable = this.#chain.encodedTxToBatchSubmittable(
       buffedTx.map(t => t.encoded_tx)
     );
-    await sendTx(submittable, this.#key);
+    if (submittable) await sendTx(submittable, this.#key);
 
     this.#query += this.#db.updateTxBufferToResolved();
     await this.writeAll();

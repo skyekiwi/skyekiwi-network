@@ -4,6 +4,7 @@ use skw_vm_store::create_store;
 use skw_vm_primitives::contract_runtime::{CryptoHash, AccountId};
 use std::convert::TryInto;
 use rocket::form::Form;
+use rocket::data::{Limits, ToByteUnit};
 
 static mut CALLER: Option<Caller> = None;
 
@@ -17,7 +18,6 @@ struct Init<'v> {
 struct Payload<'v> {
     payload: &'v str,
 }
-
 
 #[rocket::post("/init", data = "<init>")]
 fn init<'v>(init: Form<Init<'_>>) {
@@ -41,12 +41,14 @@ fn call<'r>(
     payload: Form<Payload<'_>>
 ) -> String {
     let pld = hex::decode(payload.payload).expect("invalid payload");
-    unsafe {
+    let res = unsafe {
         match &mut CALLER {
             Some(c) => hex::encode( c.call_payload(&pld[..]) ),
             None => "init first".to_string()
         }
-    }
+    };
+
+    res
 }
 
 

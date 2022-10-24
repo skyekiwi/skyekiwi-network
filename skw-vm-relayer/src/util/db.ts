@@ -72,13 +72,21 @@ export class DB {
     `
   }
 
-  public updateAllBlockStatusAsSynced(shardId: number) {
+  public updateAllBlockStatusAsSubmitted(shardId: number, blockNumber: number) {
     return `
       UPDATE block \
-        SET status = "Synced"
-      WHERE shard_id = shard:${shardId};
+        SET status = "Submitted"
+      WHERE shard_id = shard:${shardId} && block_number = ${blockNumber};
     `
   }
+
+  // public updateAllBlockStatusAsSynced(shardId: number, blockNumber: number) {
+  //   return `
+  //     UPDATE block \
+  //       SET status = "Synced"
+  //     WHERE shard_id = shard:${shardId} && block_number = ${blockNumber};
+  //   `
+  // }
 
   public async selectBlocksForExecution(shardId: number) {
     const res = (await this.query(`
@@ -98,7 +106,7 @@ export class DB {
   public async selectBlocksForSubmission(shardId: number) {
     const res = (await this.query(`
       SELECT * FROM block WHERE \
-        shard_id = shard:${shardId} && submitted = "ReadyForSubmission" \
+        shard_id = shard:${shardId} && status = "ReadyForSubmission" \
         ORDER BY block_number ASC
         FETCH outcomes;
     `)) as ExpandedBlockForOutcomes[];
@@ -227,7 +235,7 @@ export class DB {
   public createWasmBlob(shardId: number, contractName: string, wasmBlob: string) {
     return `
       CREATE wasm_blob SET \
-        shard_id = ${shardId}, \
+        shard_id = shard:${shardId}, \
         contract_name = "${contractName}", \
         wasm_blob_bytes = "${wasmBlob}";
     `;
@@ -237,11 +245,11 @@ export class DB {
     const res = (await this.query(`
       SELECT wasm_blob_bytes \
         FROM wasm_blob \
-        WHERE shard_id = ${shardId} && contract_name = ${contractName};
+        WHERE shard_id = shard:${shardId} && contract_name = "${contractName}";
     `)) as {[key: string]: string}[];
 
-    if (res && res[0] && res[0].hasOwnProperty("block_number") ) {
-      return hexToU8a( res[0]["wasm_blob_bytes"] );
+    if (res && res[0] && res[0].hasOwnProperty("wasm_blob_bytes") ) {
+      return hexToU8a( res[0]["wasm_blob_bytes"].substring(2) );
     } else {
       return null;
     }

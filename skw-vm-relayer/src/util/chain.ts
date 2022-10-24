@@ -2,7 +2,7 @@ import type { SubmittableExtrinsic } from "@polkadot/api/promise/types";
 import type { BlockRawCalls, ShardInfo, CallRecord } from "../types";
 
 import { ApiPromise } from "@polkadot/api";
-import { hexToU8a } from '@skyekiwi/util';
+import { hexToU8a, u8aToHex } from '@skyekiwi/util';
 
 export class Chain {
   #api: ApiPromise
@@ -68,7 +68,7 @@ export class Chain {
   }
 
   public txRegisteryRegisterSecretKeeper(publicKey: Uint8Array, singature: Uint8Array): SubmittableExtrinsic {
-    return this.#api.tx.registry.registerSecretKeeper( publicKey, singature )
+    return this.#api.tx.registry.registerSecretKeeper( "0x" + u8aToHex(publicKey), "0x" + u8aToHex( singature ) )
   }
 
   public txRegisteryRegisterRunningShard(shardId: number): SubmittableExtrinsic {
@@ -76,7 +76,7 @@ export class Chain {
   }
 
   public txRegisteryRenewRegistration(publicKey: Uint8Array, singature: Uint8Array): SubmittableExtrinsic {
-    return this.#api.tx.registry.renewRegistration( publicKey, singature )
+    return this.#api.tx.registry.renewRegistration( "0x" + u8aToHex(publicKey), "0x" + u8aToHex( singature ) )
   }
 
   public txParentchainSubmitOutcome(
@@ -91,6 +91,7 @@ export class Chain {
   }
 
   public encodedTxToBatchSubmittable(encoded: string[]): SubmittableExtrinsic {
+    if (!encoded || encoded.length === 0) return null;
     return this.txBatch( encoded.map(e => this.#api.tx(e)) )
   }
 

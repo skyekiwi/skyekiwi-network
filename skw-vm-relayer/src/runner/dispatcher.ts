@@ -1,7 +1,6 @@
 import EventEmitter from "events";
 
 import { initWASMInterface } from "@skyekiwi/crypto";
-import { sleep } from '@skyekiwi/util';
 
 import { progressText, logger, DB } from "../util";
 import { Dispatcher } from "../core";
@@ -27,7 +26,6 @@ const main = async() => {
       const shutdown = async() => {
         logger.warn("gracefully shutting down  ...")
         await dispatcher.shutdown();
-        await sleep(6000);
       }
 
       shutdown().then(() => {

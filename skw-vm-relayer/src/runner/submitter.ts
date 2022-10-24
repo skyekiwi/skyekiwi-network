@@ -1,7 +1,6 @@
 import EventEmitter from "events";
 
 import { initWASMInterface } from "@skyekiwi/crypto";
-import { sleep } from '@skyekiwi/util';
 import { WsProvider, ApiPromise, Keyring } from "@polkadot/api";
 
 import { DB, Chain, logger, progressText } from "../util";
@@ -41,7 +40,7 @@ const main = async() => {
       const shutdown = async() => {
         logger.warn("gracefully shutting down  ...")
         await submitter.shutdown();
-        await sleep(6000);
+        await provider.disconnect();
       }
 
       shutdown().then(() => {

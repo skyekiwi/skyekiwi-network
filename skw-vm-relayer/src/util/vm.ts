@@ -4,11 +4,10 @@
 import superagent from 'superagent';
 import { u8aToHex } from '@skyekiwi/util';
 import relayConfig from '../config';
+import { hexToU8a } from '@polkadot/util';
 
 export const initEnclave = async (stateFile: string, stateRoot: Uint8Array) => {
   const sr = u8aToHex(stateRoot);
-
-  console.log(sr)
   await superagent
     .post(relayConfig.enclaveRunnerEndpoint + "/init")
     .type('form')
@@ -28,6 +27,5 @@ export const callEnclave = async  (payload: Uint8Array, stateRoot: Uint8Array) =
       state_root: u8aToHex( stateRoot )
     });
   
-  // console.log(res)
-  return res.body.text;
+  return hexToU8a( res.text );
 }

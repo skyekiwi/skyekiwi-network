@@ -5,9 +5,11 @@
   "author": "SkyeKiwi <hello@skye.kiwi>",
   "license": "GPL-3.0-or-later",
   "scripts": {
-    "vm": "./node_modules/.bin/ts-node ./src/vm.ts",
-    "sandbox": "./node_modules/.bin/ts-node ./src/index.ts",
     "start": "./node_modules/.bin/ts-node ./src/index.ts",
+    "indexer": "./node_modules/.bin/ts-node ./src/runner/indexer.ts",
+    "dispatcher": "./node_modules/.bin/ts-node ./src/runner/dispatcher.ts",
+    "submitter": "./node_modules/.bin/ts-node ./src/runner/submitter.ts",
+    "stop": "./node_modules/.bin/pm2 del all",
     "validate": "./node_modules/.bin/ts-node ./src/validate.ts"
   },
   "devDependencies": {
@@ -23,19 +25,17 @@
     "@polkadot/keyring": "^10.1.10",
     "@polkadot/util": "^10.1.10",
     "@polkadot/util-crypto": "^10.1.10",
-    "@skyekiwi/crypto": "1.0.2-3",
-    "@skyekiwi/file": "1.0.2-3",
-    "@skyekiwi/ipfs": "1.0.2-3",
-    "@skyekiwi/s-contract": "1.0.2-3",
-    "@skyekiwi/util": "1.0.2-3",
+    "@skyekiwi/crypto": "1.0.2-5",
+    "@skyekiwi/file": "1.0.2-5",
+    "@skyekiwi/ipfs": "1.0.2-5",
+    "@skyekiwi/s-contract": "1.0.2-5",
+    "@skyekiwi/util": "1.0.2-5",
     "dotenv": "^16.0.0",
-    "level": "^7.0.1",
     "pino": "^8.6.1",
     "pino-pretty": "^9.1.1",
     "pm2": "^5.2.2",
     "superagent": "^8.0.2",
     "surrealdb.js": "^0.5.0",
-    "tweetnacl": "^1.0.3",
-    "zx": "^7.1.1"
+    "tweetnacl": "^1.0.3"
   }
 }
