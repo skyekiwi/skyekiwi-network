@@ -31,7 +31,7 @@ pub mod pallet {
 		frame_system::Config + 
 		pallet_secrets::Config
 	{
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		type WeightInfo: WeightInfo;
 
@@ -305,7 +305,7 @@ pub mod pallet {
 
 			let high_call_index = Self::current_call_index_of();
 
-			<CallHistory::<T>>::remove_prefix(0, None);
+			<CallHistory::<T>>::clear_prefix(0, u32::MAX, None);
 			for call_index in 0u32..high_call_index {
 				<CallRecord::<T>>::remove(call_index);
 			}
@@ -339,7 +339,7 @@ pub mod pallet {
  			match res {
 				Ok(mut calls) => {
 					calls.ops.splice(0..0, [skw_blockchain_primitives::types::Call {
-						origin_public_key: T::AccountId::encode(&T::SContractRoot::get().into_account()).try_into().unwrap(),
+						origin_public_key: T::AccountId::encode(&T::SContractRoot::get().into_account_truncating()).try_into().unwrap(),
 						receipt_public_key: Blake2_256::hash(&contract_name[..]),
 						encrypted_egress: false,
 
@@ -455,7 +455,7 @@ pub mod pallet {
 		}
 
 		pub fn get_pallet_account_id() -> T::AccountId {
-			T::SContractRoot::get().into_account()
+			T::SContractRoot::get().into_account_truncating()
 		}
 	}
 }

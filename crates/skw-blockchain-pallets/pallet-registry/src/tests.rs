@@ -1,7 +1,7 @@
 use super::Event as RegistryEvent;
 
 use frame_support::{assert_ok};
-use crate::mock::{Event, *};
+use crate::mock::{RuntimeEvent, *};
 
 const PUBLIC_KEY: [u8; 32] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 
@@ -20,14 +20,14 @@ fn it_register_secret_keeper() {
 
 		assert_ok!(
 			Registry::register_secret_keeper( 
-				Origin::signed(ALICE), 
+				RuntimeOrigin::signed(ALICE), 
 				PUBLIC_KEY.to_vec().clone(),
 				Vec::new()
 			)
 		);
 		
 		assert! (System::events().iter().all(|evt| {
-				evt.event == Event::Registry(RegistryEvent::SecretKeeperRegistered(ALICE))
+				evt.event == RuntimeEvent::Registry(RegistryEvent::SecretKeeperRegistered(ALICE))
 			})
 		);
 
@@ -47,7 +47,7 @@ fn it_renews_registration() {
 
 		assert_ok!(
 			Registry::register_secret_keeper( 
-				Origin::signed(ALICE), 
+				RuntimeOrigin::signed(ALICE), 
 				PUBLIC_KEY.to_vec().clone(),
 				Vec::new()
 			)
@@ -55,7 +55,7 @@ fn it_renews_registration() {
 
 		assert_ok!(
 			Registry::renew_registration( 
-				Origin::signed(ALICE), 
+				RuntimeOrigin::signed(ALICE), 
 				PUBLIC_KEY.to_vec().clone(),
 				Vec::new()
 			)
@@ -74,7 +74,7 @@ fn it_removes_registration() {
 
 		assert_ok!(
 			Registry::register_secret_keeper( 
-				Origin::signed(ALICE), 
+				RuntimeOrigin::signed(ALICE), 
 				PUBLIC_KEY.to_vec().clone(),
 				Vec::new()
 			)
@@ -82,7 +82,7 @@ fn it_removes_registration() {
 
 		assert_ok!(
 			Registry::remove_registration( 
-				Origin::signed(ALICE),
+				RuntimeOrigin::signed(ALICE),
 			)
 		);
 
@@ -98,20 +98,20 @@ fn is_beacon_turn_test() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		assert_ok!( Registry::register_secret_keeper( Origin::signed(ALICE),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
-		assert_ok!( Registry::register_running_shard( Origin::signed(ALICE), 0 ) );
+		assert_ok!( Registry::register_secret_keeper( RuntimeOrigin::signed(ALICE),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
+		assert_ok!( Registry::register_running_shard( RuntimeOrigin::signed(ALICE), 0 ) );
 
-		assert_ok!( Registry::register_secret_keeper( Origin::signed(BOB),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
-		assert_ok!( Registry::register_running_shard( Origin::signed(BOB), 0 ) );
+		assert_ok!( Registry::register_secret_keeper( RuntimeOrigin::signed(BOB),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
+		assert_ok!( Registry::register_running_shard( RuntimeOrigin::signed(BOB), 0 ) );
 
-		assert_ok!( Registry::register_secret_keeper( Origin::signed(CHARLIE),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
-		assert_ok!( Registry::register_running_shard( Origin::signed(CHARLIE), 0 ) );
+		assert_ok!( Registry::register_secret_keeper( RuntimeOrigin::signed(CHARLIE),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
+		assert_ok!( Registry::register_running_shard( RuntimeOrigin::signed(CHARLIE), 0 ) );
 
-		assert_ok!( Registry::register_secret_keeper( Origin::signed(DAVE),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
-		assert_ok!( Registry::register_running_shard( Origin::signed(DAVE), 0 ) );
+		assert_ok!( Registry::register_secret_keeper( RuntimeOrigin::signed(DAVE),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
+		assert_ok!( Registry::register_running_shard( RuntimeOrigin::signed(DAVE), 0 ) );
 
-		assert_ok!( Registry::register_secret_keeper( Origin::signed(FRED),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
-		assert_ok!( Registry::register_running_shard( Origin::signed(FRED), 0 ) );
+		assert_ok!( Registry::register_secret_keeper( RuntimeOrigin::signed(FRED),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
+		assert_ok!( Registry::register_running_shard( RuntimeOrigin::signed(FRED), 0 ) );
 
 		// threshold = 1; block_num = 1; Alice can submit, others cannot
 		assert!( Registry::is_beacon_turn(1, &ALICE, 0, 1) == true);
@@ -155,8 +155,8 @@ fn is_beacon_turn_test_signle_keeper() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		assert_ok!( Registry::register_secret_keeper( Origin::signed(ALICE),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
-		assert_ok!( Registry::register_running_shard( Origin::signed(ALICE), 0 ) );
+		assert_ok!( Registry::register_secret_keeper( RuntimeOrigin::signed(ALICE),  PUBLIC_KEY.to_vec().clone(), Vec::new() ) );
+		assert_ok!( Registry::register_running_shard( RuntimeOrigin::signed(ALICE), 0 ) );
 
 		// threshold = 1; block_num = 1; Alice can submit, others cannot
 		assert!( Registry::is_beacon_turn(1, &ALICE, 0, 1) == true);
@@ -172,7 +172,7 @@ fn insert_pk_for_user() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		assert_ok!( Registry::register_user_public_key( Origin::signed(ALICE),  PUBLIC_KEY.to_vec().clone()) );
+		assert_ok!( Registry::register_user_public_key( RuntimeOrigin::signed(ALICE),  PUBLIC_KEY.to_vec().clone()) );
 
 		assert!( Registry::user_public_key_of(&ALICE).unwrap().to_vec() == PUBLIC_KEY.to_vec().clone());
 	});

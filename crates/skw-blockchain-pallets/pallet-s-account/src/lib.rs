@@ -34,7 +34,7 @@ pub mod pallet {
 			+ pallet_s_contract::Config
 			+ pallet_treasury::Config  
 	{
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		type WeightInfo: WeightInfo;
 
@@ -83,7 +83,7 @@ pub mod pallet {
 			
 			let encoded_call = Self::build_account_creation_call(&account);
 
-			let system_origin: T::AccountId = T::SContractRoot::get().into_account();
+			let system_origin: T::AccountId = T::SContractRoot::get().into_account_truncating();
 			pallet_s_contract::Pallet::<T>::push_call(RawOrigin::Signed(system_origin).into(), shard_id, encoded_call)?;
 
 			Self::deposit_event(Event::<T>::EnclaveAccountCreated(account, shard_id));
@@ -99,7 +99,7 @@ pub mod pallet {
 			let who = ensure_signed(origin.clone())?;
 			ensure!(Self::reserved_amount_of(who.clone(), shard_id).is_none(), Error::<T>::AlreadyCreated);
 
-			let treasury = T::PalletId::get().into_account();
+			let treasury = T::PalletId::get().into_account_truncating();
 			T::Currency::transfer(&who, &treasury, T::ReservationRequirement::get(), KeepAlive)?;
 			
 			// token transfered to treasury is a flat fee paid to the system - so reserved_amount is 0
@@ -107,7 +107,7 @@ pub mod pallet {
 
 			let encoded_call = Self::build_account_creation_call(&who);
 
-			let system_origin: T::AccountId = T::SContractRoot::get().into_account();
+			let system_origin: T::AccountId = T::SContractRoot::get().into_account_truncating();
 			pallet_s_contract::Pallet::<T>::push_call(
 				RawOrigin::Signed(system_origin).into(),
 				shard_id, 
@@ -124,7 +124,7 @@ pub mod pallet {
 		pub fn build_account_creation_call(
 			account: &T::AccountId,
 		) -> Vec<u8> {
-			let system_origin = T::SContractRoot::get().into_account();
+			let system_origin = T::SContractRoot::get().into_account_truncating();
 			let call = skw_blockchain_primitives::types::Call {
 				origin_public_key: system_origin,
 				// this should be safe as origin is checked with ensure_signed

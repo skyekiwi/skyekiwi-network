@@ -15,19 +15,19 @@ fn it_create_account() {
 		System::set_block_number(1);
 		assert_ok!(
 			SContract::add_authorized_shard_operator(
-				Origin::root(), 0, account1.clone()
+				RuntimeOrigin::root(), 0, account1.clone()
 			)
 		);
 
 		assert_ok!(
 			SContract::initialize_shard(
-				Origin::signed(account1.clone()), 0,
+				RuntimeOrigin::signed(account1.clone()), 0,
 				IPFS_CID_1.as_bytes().to_vec(),
 				PUBLIC_KEY,
 			)
 		);
 
-		assert_ok!(SAccount::create_account(Origin::signed(account2.clone()), 0));
+		assert_ok!(SAccount::create_account(RuntimeOrigin::signed(account2.clone()), 0));
 	});
 }
 
@@ -41,17 +41,17 @@ fn it_force_create_account() {
 		System::set_block_number(1);
 		assert_ok!(
 			SContract::add_authorized_shard_operator(
-				Origin::root(), 0, account1.clone()
+				RuntimeOrigin::root(), 0, account1.clone()
 			)
 		);
 
 		assert_ok!(
 			SContract::initialize_shard(
-				Origin::signed(account1.clone()), 0,
+				RuntimeOrigin::signed(account1.clone()), 0,
 				IPFS_CID_1.as_bytes().to_vec(),
 				PUBLIC_KEY,
 			)
 		);
-		assert_ok!(SAccount::force_create_enclave_account(Origin::root(), 0, account2));
+		assert_ok!(SAccount::force_create_enclave_account(RuntimeOrigin::root(), 0, account2));
 	});
 }
