@@ -37,20 +37,6 @@ frame_support::parameter_types! {
 	pub const SContractPalletId: PalletId = PalletId(*b"scontrac");
 }
 
-pub struct TestSpendOrigin;
-impl frame_support::traits::EnsureOrigin<RuntimeOrigin> for TestSpendOrigin {
-	type Success = u64;
-	fn try_origin(o: RuntimeOrigin) -> Result<Self::Success, RuntimeOrigin> {
-		Result::<frame_system::RawOrigin<_>, RuntimeOrigin>::from(o).and_then(|o| match o {
-			frame_system::RawOrigin::Root => Ok(u64::max_value()),
-			r => Err(RuntimeOrigin::from(r)),
-		})
-	}
-	#[cfg(feature = "runtime-benchmarks")]
-	fn try_successful_origin() -> Result<RuntimeOrigin, ()> {
-		Ok(RuntimeOrigin::root())
-	}
-}
 impl pallet_treasury::Config for Test {
 	type PalletId = TreasuryPalletId;
 	type Currency = Balances;
@@ -67,7 +53,7 @@ impl pallet_treasury::Config for Test {
 	type WeightInfo = ();
 	type SpendFunds = ();
 	type MaxApprovals = ConstU32<100>;
-	type SpendOrigin = TestSpendOrigin;
+	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<u64>;
 }
 
 pub type AccountId = <<sp_runtime::MultiSignature as sp_runtime::traits::Verify>::Signer as sp_runtime::traits::IdentifyAccount>::AccountId;

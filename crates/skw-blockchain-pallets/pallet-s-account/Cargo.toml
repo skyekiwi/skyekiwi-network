@@ -19,7 +19,7 @@ pallet-secrets = { default-features = false, path = "../pallet-secrets" }
 pallet-s-contract = { default-features = false, path = "../pallet-s-contract" }
 pallet-parentchain = { default-features = false, path = "../pallet-parentchain" }
 pallet-treasury= { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.30"}
-codec = { package = "parity-scale-codec", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.30"}
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.30" }
