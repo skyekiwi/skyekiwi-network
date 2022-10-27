@@ -15,7 +15,7 @@ export class Chaos {
     await waitReady();
 
     const keyring = new Keyring({ type: 'sr25519' }).addFromUri(`//${accountIndex}`)
-    const provider = new WsProvider('ws://127.0.0.1:9944');
+    const provider = new WsProvider('ws://127.0.0.1:8845');
     const api = await ApiPromise.create({ provider: provider });
 
     await sendTx(

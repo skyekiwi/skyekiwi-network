@@ -1,7 +1,7 @@
 use pallet_secrets::Event as SecretsEvent;
 use crate::{Event as SContractEvent };
 use frame_support::{assert_ok};
-use crate::mock::{Event, *};
+use crate::mock::{RuntimeEvent, *};
 
 const WASM_BLOB: &str = "123123123123123123123123";
 
@@ -14,7 +14,7 @@ fn it_register_secret_contracts() {
 
 		assert_ok!(
 			SContract::add_authorized_shard_operator(
-				Origin::root(), 0, account.clone()
+				RuntimeOrigin::root(), 0, account.clone()
 			)
 		);
 
@@ -28,7 +28,7 @@ fn it_register_secret_contracts() {
 		let encoded_calls = skw_blockchain_primitives::BorshSerialize::try_to_vec(&calls).unwrap();
 		assert_ok!(
 			SContract::initialize_shard(
-				Origin::signed(account.clone()), 0,
+				RuntimeOrigin::signed(account.clone()), 0,
 				WASM_BLOB.as_bytes().to_vec(),
 				SContract::get_pallet_account_id().into(),
 			)
@@ -36,7 +36,7 @@ fn it_register_secret_contracts() {
 
 		assert_ok!(
 			SContract::register_contract( 
-				Origin::signed(account.clone()),
+				RuntimeOrigin::signed(account.clone()),
 				"contract_name".as_bytes().to_vec(),
 				WASM_BLOB.as_bytes().to_vec(), 
 				encoded_calls.clone(),
@@ -48,9 +48,9 @@ fn it_register_secret_contracts() {
 
 		println!("{:?}", events);
 
-		assert! (events[1].event == Event::Secrets(SecretsEvent::SecretRegistered(0)));
-		assert! (events[2].event == Event::SContract(SContractEvent::ShardInitialized(0)));
-		assert! (events[3].event == Event::SContract(SContractEvent::SecretContractRegistered(
+		assert! (events[1].event == RuntimeEvent::Secrets(SecretsEvent::SecretRegistered(0)));
+		assert! (events[2].event == RuntimeEvent::SContract(SContractEvent::ShardInitialized(0)));
+		assert! (events[3].event == RuntimeEvent::SContract(SContractEvent::SecretContractRegistered(
 			0,
 			"contract_name".as_bytes().to_vec(),
 			0,

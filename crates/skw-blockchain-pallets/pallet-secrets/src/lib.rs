@@ -25,7 +25,7 @@ pub mod pallet {
 	
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		
 		type WeightInfo: WeightInfo;
 
@@ -169,7 +169,7 @@ pub mod pallet {
 			
 
 			<Owner<T>>::remove(&secret_id);
-			<Operator<T>>::remove_prefix(&secret_id, None);
+			<Operator<T>>::clear_prefix(&secret_id, u32::MAX, None);
 			
 			Self::deposit_event(Event::<T>::SecretBurnt(secret_id));
 			

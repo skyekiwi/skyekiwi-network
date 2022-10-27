@@ -18,7 +18,7 @@ const genesis = async () => {
   await initWASMInterface();
   const rootKeypair = (new Keyring({ type: 'sr25519' })).addFromUri('//Alice');
 
-  const provider = new WsProvider('ws://127.0.0.1:9944');
+  const provider = new WsProvider('ws://127.0.0.1:8845');
   // const provider = new WsProvider('wss://staging.rpc.skye.kiwi');
   const api = await ApiPromise.create({ provider: provider });
 

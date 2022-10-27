@@ -20,11 +20,11 @@ pub type Bytes = Vec<u8>;
 
 #[derive(Default, BorshSerialize, BorshDeserialize, Debug)]
 pub struct Call {
-	pub origin_public_key: PublicKey,
-    pub receipt_public_key: PublicKey,
-    pub encrypted_egress: bool,
+	pub origin_public_key: PublicKey, // sender OR system
+    pub receipt_public_key: PublicKey, // contract addr OR another user 
+    pub encrypted_egress: bool, // 
 
-    pub transaction_action: u8,
+    pub transaction_action: u8, //  view function, call function,
 
     // in sync with BalanceOf
     pub amount: Option<Balance>,

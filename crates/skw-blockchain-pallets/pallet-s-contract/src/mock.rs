@@ -3,8 +3,9 @@ use pallet_secrets;
 use crate as pallet_s_contract;
 
 use frame_support::{
-	traits::{Nothing, ConstU32, ConstU64},
+	traits::{Everything, ConstU32, ConstU64},
 	PalletId,
+	parameter_types
 };
 use frame_system::{EnsureRoot};
 use sp_core::H256;
@@ -30,22 +31,28 @@ frame_support::construct_runtime!(
 		SContract: pallet_s_contract::{Pallet, Call, Storage, Event<T>},
 	}
 );
+
+parameter_types! {
+	pub const BlockHashCount: u64 = 250;
+	pub const SS58Prefix: u8 = 42;
+}
 pub type AccountId = <<sp_runtime::MultiSignature as sp_runtime::traits::Verify>::Signer as sp_runtime::traits::IdentifyAccount>::AccountId;
+
 impl frame_system::Config for Test {
-	type BaseCallFilter = Nothing;
+	type BaseCallFilter = Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
 	type DbWeight = ();
-	type Origin = Origin;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
-	type Call = Call;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type Version = ();
 	type PalletInfo = PalletInfo;
@@ -63,7 +70,7 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 8];
 	type Balance = u64;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type DustRemoval = ();
 	type ExistentialDeposit = ConstU64<1>;
 	type AccountStore = System;
@@ -71,7 +78,7 @@ impl pallet_balances::Config for Test {
 }
 
 impl pallet_preimage::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<Self::AccountId>;
 	type MaxSize = ConstU32<{ 4096 * 1024 }>; // PreimageMaxSize Taken from Polkadot as reference.
@@ -82,7 +89,7 @@ impl pallet_preimage::Config for Test {
 
 impl pallet_secrets::Config for Test {
 	type WeightInfo = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Preimage = Preimage;
 }
 
@@ -91,7 +98,7 @@ frame_support::parameter_types! {
 }
 impl pallet_s_contract::Config for Test {
 	type WeightInfo = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type MaxCallLength = ConstU32<100_1000>;
 	type MinContractNameLength = ConstU32<1>;
 	type MaxContractNameLength = ConstU32<32>;

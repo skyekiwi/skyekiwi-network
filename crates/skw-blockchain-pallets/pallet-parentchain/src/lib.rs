@@ -18,12 +18,12 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use skw_blockchain_primitives::types::{ShardId, CallIndex};
-	use sp_std::vec::Vec;	
+	use sp_std::vec::Vec;
 	use super::WeightInfo;
-	
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_registry::Config {
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		type WeightInfo: WeightInfo;
 

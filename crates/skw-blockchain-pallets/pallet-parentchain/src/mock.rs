@@ -29,8 +29,8 @@ impl frame_system::Config for Test {
 	type BlockWeights = ();
 	type BlockLength = ();
 	type DbWeight = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -38,7 +38,7 @@ impl frame_system::Config for Test {
 	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type Version = ();
 	type PalletInfo = PalletInfo;
@@ -53,7 +53,7 @@ impl frame_system::Config for Test {
 
 impl pallet_registry::Config for Test {
 	type WeightInfo = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type RegistrationDuration = ConstU64<100_000>;
 	type MaxActiveShards = ConstU32<1_000>;
 	type MaxSecretKeepers = ConstU32<5_000>;
@@ -61,7 +61,7 @@ impl pallet_registry::Config for Test {
 
 impl pallet_parentchain::Config for Test {
 	type WeightInfo = ();
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type DelayThreshold = ConstU64<5_000>;
 	type MaxOutcomePerSubmission = ConstU32<20>;
 	type MaxSizePerOutcome = ConstU32<1024>;
