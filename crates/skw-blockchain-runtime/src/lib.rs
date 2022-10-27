@@ -52,7 +52,7 @@ use frame_system::{
 use xcm_config::{XcmConfig, XcmOriginToTransactDispatchOrigin};
 
 // Polkadot imports
-use polkadot_runtime_common::{BlockHashCount};
+use polkadot_runtime_common::{BlockHashCount, SlowAdjustingFeeUpdate};
 
 // XCM Imports
 use xcm::latest::prelude::BodyId;
@@ -174,15 +174,15 @@ impl_opaque_keys! {
 //   https://substrate.dev/docs/en/knowledgebase/runtime/upgrades#runtime-versioning
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("skyekiwi-testnet-alpha"),
-	impl_name: create_runtime_str!("skyekiwi-testnet-alpha"),
+	spec_name: create_runtime_str!("skyekiwi-testnet-parachain"),
+	impl_name: create_runtime_str!("skyekiwi-testnet-parachain"),
 	authoring_version: 1,
 	// The version of the runtime specification. A full node will not attempt to use its native
 	//   runtime in substitute for the on-chain Wasm runtime unless all of `spec_name`,
 	//   `spec_version`, and `authoring_version` are the same between Wasm and native.
 	// This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
 	//   the compatible custom types.
-	spec_version: 105,
+	spec_version: 100,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -328,7 +328,7 @@ impl pallet_aura::Config for Runtime {
 impl pallet_timestamp::Config for Runtime {
 	/// A timestamp: milliseconds since the unix epoch.
 	type Moment = u64;
-	type OnTimestampSet = Aura;
+	type OnTimestampSet = ();
 	type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
 	type WeightInfo = ();
 }
@@ -364,7 +364,7 @@ impl pallet_transaction_payment::Config for Runtime {
 	type OperationalFeeMultiplier = ConstU8<5>;
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
-	type FeeMultiplierUpdate = ();
+	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 	type RuntimeEvent = RuntimeEvent;
 }
 
@@ -830,4 +830,33 @@ impl_runtime_apis! {
 			Executive::try_execute_block(block, state_root_check, select).expect("try_execute_block failed")
 		}
 	}
+}
+
+struct CheckInherents;
+
+impl cumulus_pallet_parachain_system::CheckInherents<Block> for CheckInherents {
+	fn check_inherents(
+		block: &Block,
+		relay_state_proof: &cumulus_pallet_parachain_system::RelayChainStateProof,
+	) -> sp_inherents::CheckInherentsResult {
+		let relay_chain_slot = relay_state_proof
+			.read_slot()
+			.expect("Could not read the relay chain slot from the proof");
+
+		let inherent_data =
+			cumulus_primitives_timestamp::InherentDataProvider::from_relay_chain_slot_and_duration(
+				relay_chain_slot,
+				sp_std::time::Duration::from_secs(6),
+			)
+			.create_inherent_data()
+			.expect("Could not create the timestamp inherent data");
+
+		inherent_data.check_extrinsics(block)
+	}
+}
+
+cumulus_pallet_parachain_system::register_validate_block! {
+	Runtime = Runtime,
+	BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
+	CheckInherents = CheckInherents,
 }

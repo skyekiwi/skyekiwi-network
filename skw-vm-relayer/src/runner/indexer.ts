@@ -25,7 +25,7 @@ const main = async() => {
   await db.init();
   await db.modify(db.createIndexerMetadata());
 
-  const provider = new WsProvider('ws://localhost:9944');
+  const provider = new WsProvider('ws://localhost:8845');
   const api = await ApiPromise.create({ provider: provider });
 
   const chain = new Chain(api);
